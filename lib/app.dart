@@ -1,0 +1,599 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
+
+import 'core/theme/app_theme.dart';
+import 'core/constants/app_constants.dart';
+import 'core/router/app_router.dart';
+import 'presentation/blocs/auth/auth_bloc.dart';
+import 'presentation/blocs/ocean_data/ocean_data_bloc.dart';
+import 'presentation/blocs/tutorial/tutorial_bloc.dart';
+import 'data/datasources/local/session_key_service.dart';
+import 'injection_container.dart' as di;
+
+// Widget imports - these files need to be created
+import 'presentation/widgets/layout/header_widget.dart';
+import 'presentation/widgets/panels/control_panel_widget.dart';
+import 'presentation/widgets/map/map_container_widget.dart';
+import 'presentation/widgets/panels/data_panels_widget.dart';
+import 'presentation/widgets/panels/output_module_widget.dart';
+import 'presentation/widgets/chatbot/chatbot_widget.dart';
+import 'presentation/widgets/tutorial/tutorial_widget.dart';
+import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Oceanographic Platform',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      onGenerateRoute: AppRouter.generateRoute,
+      initialRoute: '/',
+      home: const AppRouterWidget(),
+    );
+  }
+}
+
+class AppRouterWidget extends StatelessWidget {
+  const AppRouterWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/auth/callback':
+            return MaterialPageRoute(
+              builder: (_) => const AuthCallbackPage(),
+            );
+          default:
+            return MaterialPageRoute(
+              builder: (_) => const MainAppWidget(),
+            );
+        }
+      },
+    );
+  }
+}
+
+class MainAppWidget extends StatefulWidget {
+  const MainAppWidget({super.key});
+
+  @override
+  State<MainAppWidget> createState() => _MainAppWidgetState();
+}
+
+class _MainAppWidgetState extends State<MainAppWidget> {
+  late SessionKeyService _sessionKeyService;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionKeyService = di.sl<SessionKeyService>();
+    // Initialize session key when authenticated
+    _setupSessionKey();
+  }
+
+  void _setupSessionKey() {
+    context.read<AuthBloc>().stream.listen((authState) {
+      if (authState is AuthenticatedState) {
+        final secret = AppConstants.auth0ClientSecret;
+        final salt = authState.user.id; // Use user's unique ID as salt
+        if (secret.isNotEmpty) {
+          final key = _generateSessionKey(secret, salt);
+          _sessionKeyService.setSessionKey(key);
+        } else {
+          debugPrint('AUTH0_CLIENT_SECRET is not set. Local storage will not be encrypted.');
+        }
+      }
+    });
+  }
+
+  String _generateSessionKey(String secret, String salt) {
+    final bytes = utf8.encode(secret + salt);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        if (authState is AuthLoadingState) {
+          return Container(
+            color: const Color(0xFF0F172A), // bg-slate-900
+            child: const Center(
+              child: Text(
+                'Loading...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          );
+        }
+
+        if (authState is UnauthenticatedState) {
+          return Container(
+            color: const Color(0xFF0F172A), // bg-slate-900
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Welcome to the Oceanographic Platform',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Please log in to continue.',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<AuthBloc>().add(const AuthLoginEvent());
+                    },
+                    child: const Text('Log In'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (authState is AuthenticatedState) {
+          return const OceanPlatformWidget();
+        }
+
+        return const LoadingPage();
+      },
+    );
+  }
+}
+
+class OceanPlatformWidget extends StatefulWidget {
+  const OceanPlatformWidget({super.key});
+
+  @override
+  State<OceanPlatformWidget> createState() => _OceanPlatformWidgetState();
+}
+
+class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
+  bool isOutputCollapsed = true;
+  bool showApiConfig = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check API status on component mount
+    _checkApiStatus();
+    _setupApiConfigListener();
+  }
+
+  void _checkApiStatus() {
+    final oceanDataBloc = context.read<OceanDataBloc>();
+    oceanDataBloc.add(const CheckApiStatusEvent());
+  }
+
+  void _setupApiConfigListener() {
+    context.read<OceanDataBloc>().stream.listen((oceanState) {
+      if (oceanState is OceanDataLoadedState) {
+        if (oceanState.connectionStatus != null && 
+            !oceanState.connectionStatus!.connected && 
+            !showApiConfig) {
+          if (!oceanState.connectionStatus!.hasApiKey && 
+              oceanState.connectionStatus!.endpoint.isNotEmpty) {
+            setState(() {
+              showApiConfig = true;
+            });
+          }
+        }
+      }
+    });
+  }
+
+  String? _getTutorialTarget(int step) {
+    const targets = {
+      1: 'control-panel',
+      2: 'map-container',
+      3: 'data-panels',
+      4: 'output-module',
+      5: 'chatbot',
+      6: 'holoocean-panel',
+    };
+    return targets[step];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OceanDataBloc, OceanDataState>(
+      builder: (context, oceanState) {
+        return BlocBuilder<TutorialBloc, TutorialState>(
+          builder: (context, tutorialState) {
+            return Container(
+              color: const Color(0xFF0F172A), // bg-slate-900
+              child: Column(
+                children: [
+                  // Header
+                  if (oceanState is OceanDataLoadedState)
+                    HeaderWidget(
+                      key: const Key('header'),
+                      dataSource: oceanState.dataSource,
+                      timeZone: oceanState.timeZone,
+                      onTimeZoneChange: (timeZone) {
+                        context.read<OceanDataBloc>().add(
+                          SetTimeZoneEvent(timeZone),
+                        );
+                      },
+                      connectionStatus: oceanState.connectionStatus,
+                      dataQuality: oceanState.dataQuality,
+                      showDataStatus: true,
+                      showTutorial: tutorialState is TutorialInProgress,
+                      onTutorialToggle: () {
+                        if (tutorialState is TutorialInProgress) {
+                          context.read<TutorialBloc>().add(const CloseTutorialEvent());
+                        } else {
+                          context.read<TutorialBloc>().add(const StartTutorialEvent());
+                        }
+                      },
+                      tutorialStep: tutorialState is TutorialInProgress ? tutorialState.currentStep : 0,
+                      isFirstTimeUser: tutorialState is TutorialNotStarted,
+                      apiStatus: oceanState.connectionStatus,
+                      apiMetrics: oceanState.connectionDetails,
+                      chatMetrics: oceanState.chatMessages.length,
+                      onShowApiConfig: () {
+                        setState(() {
+                          showApiConfig = true;
+                        });
+                      },
+                      onResetApiMetrics: () {
+                        context.read<OceanDataBloc>().add(const ResetApiMetricsEvent());
+                      },
+                    ),
+
+                  // Main Content
+                  Expanded(
+                    child: Column(
+                      children: [
+                        // Control Panel
+                        Container(
+                          key: const Key('control-panel'),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Color(0x4DEC4899), // border-pink-500/30
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: oceanState is OceanDataLoadedState
+                              ? ControlPanelWidget(
+                                  isLoading: oceanState.isLoading,
+                                  availableModels: oceanState.availableModels,
+                                  availableDepths: oceanState.availableDepths,
+                                  dataLoaded: oceanState.dataLoaded,
+                                  selectedArea: oceanState.selectedArea,
+                                  selectedModel: oceanState.selectedModel,
+                                  selectedDepth: oceanState.selectedDepth,
+                                  startDate: oceanState.startDate,
+                                  endDate: oceanState.endDate,
+                                  timeZone: oceanState.timeZone,
+                                  currentFrame: oceanState.currentFrame,
+                                  isPlaying: oceanState.isPlaying,
+                                  playbackSpeed: oceanState.playbackSpeed,
+                                  loopMode: oceanState.loopMode,
+                                  holoOceanPOV: oceanState.holoOceanPOV,
+                                  availableDates: oceanState.availableDates,
+                                  availableTimes: oceanState.availableTimes,
+                                  totalFrames: oceanState.totalFrames,
+                                  data: oceanState.data,
+                                  mapLayerVisibility: oceanState.mapLayerVisibility,
+                                  isSstHeatmapVisible: oceanState.isSstHeatmapVisible,
+                                  currentsVectorScale: oceanState.currentsVectorScale,
+                                  currentsColorBy: oceanState.currentsColorBy,
+                                  heatmapScale: oceanState.heatmapScale,
+                                  windVelocityParticleCount: oceanState.windVelocityParticleCount,
+                                  windVelocityParticleOpacity: oceanState.windVelocityParticleOpacity,
+                                  windVelocityParticleSpeed: oceanState.windVelocityParticleSpeed,
+                                  apiStatus: oceanState.connectionStatus,
+                                  onAreaChange: (area) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetSelectedAreaEvent(area),
+                                    );
+                                  },
+                                  onModelChange: (model) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetSelectedModelEvent(model),
+                                    );
+                                  },
+                                  onDepthChange: (depth) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetSelectedDepthEvent(depth),
+                                    );
+                                  },
+                                  onDateRangeChange: (startDate, endDate) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetDateRangeEvent(startDate, endDate),
+                                    );
+                                  },
+                                  onTimeZoneChange: (timeZone) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetTimeZoneEvent(timeZone),
+                                    );
+                                  },
+                                  onPlayToggle: () {
+                                    context.read<OceanDataBloc>().add(
+                                      const TogglePlaybackEvent(),
+                                    );
+                                  },
+                                  onSpeedChange: (speed) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetPlaybackSpeedEvent(speed),
+                                    );
+                                  },
+                                  onLoopModeChange: (loopMode) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetLoopModeEvent(loopMode),
+                                    );
+                                  },
+                                  onFrameChange: (frame) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetCurrentFrameEvent(frame),
+                                    );
+                                  },
+                                  onReset: () {
+                                    context.read<OceanDataBloc>().add(
+                                      const ResetDataEvent(),
+                                    );
+                                  },
+                                  onRefreshData: () {
+                                    context.read<OceanDataBloc>().add(
+                                      const RefreshDataEvent(),
+                                    );
+                                  },
+                                  onLayerToggle: (layer) {
+                                    context.read<OceanDataBloc>().add(
+                                      ToggleMapLayerEvent(layer),
+                                    );
+                                  },
+                                  onSstHeatmapToggle: () {
+                                    context.read<OceanDataBloc>().add(
+                                      const ToggleSstHeatmapEvent(),
+                                    );
+                                  },
+                                  onCurrentsScaleChange: (scale) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetCurrentsVectorScaleEvent(scale),
+                                    );
+                                  },
+                                  onCurrentsColorChange: (colorBy) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetCurrentsColorByEvent(colorBy),
+                                    );
+                                  },
+                                  onHeatmapScaleChange: (scale) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetHeatmapScaleEvent(scale),
+                                    );
+                                  },
+                                  onWindVelocityParticleCountChange: (count) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetWindVelocityParticleCountEvent(count),
+                                    );
+                                  },
+                                  onWindVelocityParticleOpacityChange: (opacity) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetWindVelocityParticleOpacityEvent(opacity),
+                                    );
+                                  },
+                                  onWindVelocityParticleSpeedChange: (speed) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetWindVelocityParticleSpeedEvent(speed),
+                                    );
+                                  },
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+
+                        // Map and Output Section
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.4, // Responsive height
+                          child: Row(
+                            children: [
+                              // Map Container
+                              Expanded(
+                                flex: isOutputCollapsed ? 5 : 1,
+                                child: Container(
+                                  key: const Key('map-container'),
+                                  child: oceanState is OceanDataLoadedState
+                                      ? MapContainerWidget(
+                                          stationData: oceanState.stationData,
+                                          timeSeriesData: oceanState.timeSeriesData,
+                                          rawData: oceanState.rawData,
+                                          currentsGeoJSON: oceanState.currentsGeoJSON,
+                                          currentFrame: oceanState.currentFrame,
+                                          selectedDepth: oceanState.selectedDepth,
+                                          selectedArea: oceanState.selectedArea,
+                                          holoOceanPOV: oceanState.holoOceanPOV,
+                                          currentDate: oceanState.currentDate,
+                                          currentTime: oceanState.currentTime,
+                                          mapLayerVisibility: oceanState.mapLayerVisibility,
+                                          isSstHeatmapVisible: oceanState.isSstHeatmapVisible,
+                                          currentsVectorScale: oceanState.currentsVectorScale,
+                                          currentsColorBy: oceanState.currentsColorBy,
+                                          heatmapScale: oceanState.heatmapScale,
+                                          isOutputCollapsed: isOutputCollapsed,
+                                          availableDepths: oceanState.availableDepths,
+                                          windVelocityParticleCount: oceanState.windVelocityParticleCount,
+                                          windVelocityParticleOpacity: oceanState.windVelocityParticleOpacity,
+                                          windVelocityParticleSpeed: oceanState.windVelocityParticleSpeed,
+                                          onPOVChange: (pov) {
+                                            context.read<OceanDataBloc>().add(
+                                              SetHoloOceanPOVEvent(pov),
+                                            );
+                                          },
+                                          onDepthChange: (depth) {
+                                            context.read<OceanDataBloc>().add(
+                                              SetSelectedDepthEvent(depth),
+                                            );
+                                          },
+                                          onStationSelect: (station) {
+                                            context.read<OceanDataBloc>().add(
+                                              SetSelectedStationEvent(station),
+                                            );
+                                          },
+                                          onEnvironmentUpdate: (envData) {
+                                            context.read<OceanDataBloc>().add(
+                                              SetEnvDataEvent(envData),
+                                            );
+                                          },
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              ),
+
+                              // Output Module
+                              Expanded(
+                                flex: isOutputCollapsed ? 1 : 1,
+                                child: Container(
+                                  key: const Key('output-module'),
+                                  child: oceanState is OceanDataLoadedState
+                                      ? OutputModuleWidget(
+                                          chatMessages: oceanState.chatMessages,
+                                          timeSeriesData: oceanState.timeSeriesData,
+                                          currentFrame: oceanState.currentFrame,
+                                          selectedDepth: oceanState.selectedDepth,
+                                          isTyping: oceanState.isTyping,
+                                          isCollapsed: isOutputCollapsed,
+                                          apiStatus: oceanState.connectionStatus,
+                                          apiMetrics: oceanState.connectionDetails,
+                                          chatMetrics: oceanState.chatMessages.length,
+                                          onToggleCollapse: () {
+                                            setState(() {
+                                              isOutputCollapsed = !isOutputCollapsed;
+                                            });
+                                          },
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Data Panels
+                        Container(
+                          key: const Key('data-panels'),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: Color(0x4D10B981), // border-green-500/30
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: oceanState is OceanDataLoadedState
+                              ? DataPanelsWidget(
+                                  envData: oceanState.envData,
+                                  holoOceanPOV: oceanState.holoOceanPOV,
+                                  selectedDepth: oceanState.selectedDepth,
+                                  timeSeriesData: oceanState.timeSeriesData,
+                                  currentFrame: oceanState.currentFrame,
+                                  data: oceanState.data,
+                                  availableDepths: oceanState.availableDepths,
+                                  apiStatus: oceanState.connectionStatus,
+                                  onDepthChange: (depth) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetSelectedDepthEvent(depth),
+                                    );
+                                  },
+                                  onPOVChange: (pov) {
+                                    context.read<OceanDataBloc>().add(
+                                      SetHoloOceanPOVEvent(pov),
+                                    );
+                                  },
+                                  onRefreshData: () {
+                                    context.read<OceanDataBloc>().add(
+                                      const RefreshDataEvent(),
+                                    );
+                                  },
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Chatbot (Floating/Overlay)
+                  if (oceanState is OceanDataLoadedState)
+                    Positioned(
+                      bottom: 20,
+                      right: 20,
+                      child: ChatbotWidget(
+                        key: const Key('chatbot'),
+                        timeSeriesData: oceanState.timeSeriesData,
+                        data: oceanState.data,
+                        dataSource: oceanState.dataSource,
+                        selectedDepth: oceanState.selectedDepth,
+                        availableDepths: oceanState.availableDepths,
+                        selectedArea: oceanState.selectedArea,
+                        selectedModel: oceanState.selectedModel,
+                        playbackSpeed: oceanState.playbackSpeed,
+                        currentFrame: oceanState.currentFrame,
+                        holoOceanPOV: oceanState.holoOceanPOV,
+                        envData: oceanState.envData,
+                        timeZone: oceanState.timeZone,
+                        startDate: oceanState.startDate,
+                        endDate: oceanState.endDate,
+                        apiStatus: oceanState.connectionStatus,
+                        apiConfig: oceanState.connectionDetails,
+                        onAddMessage: (message) {
+                          context.read<OceanDataBloc>().add(
+                            AddChatMessageEvent(message),
+                          );
+                        },
+                      ),
+                    ),
+
+                  // Tutorial
+                  if (tutorialState is TutorialInProgress)
+                    TutorialWidget(
+                      isOpen: true,
+                      tutorialStep: tutorialState.currentStep,
+                      onClose: () {
+                        context.read<TutorialBloc>().add(const CloseTutorialEvent());
+                      },
+                      onComplete: () {
+                        context.read<TutorialBloc>().add(const CompleteTutorialEvent());
+                      },
+                      onStepChange: (step) {
+                        context.read<TutorialBloc>().add(SetTutorialStepEvent(step));
+                      },
+                    ),
+
+                  // Tutorial Overlay
+                  if (tutorialState is TutorialInProgress)
+                    TutorialOverlayWidget(
+                      isActive: true,
+                      targetSelector: _getTutorialTarget(tutorialState.currentStep),
+                      highlightType: 'spotlight',
+                      showPointer: tutorialState.currentStep > 0,
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
