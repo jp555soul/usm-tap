@@ -1,6 +1,7 @@
 // lib/presentation/blocs/map/map_bloc.dart
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../../data/models/map_bounds.dart';
 import '../../domain/entities/station_data_entity.dart';
 import '../../domain/repositories/map_repository.dart';
 import '../../domain/usecases/map/get_stations_usecase.dart';
