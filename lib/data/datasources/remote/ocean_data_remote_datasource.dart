@@ -3,9 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../core/errors/exceptions.dart';
-import '../../domain/entities/station_data_entity.dart';
+import 'package:usm_tap/core/constants/app_constants.dart';
+import 'package:usm_tap/core/errors/exceptions.dart';
+import 'package:usm_tap/domain/entities/station_data_entity.dart';
 
 /// Ocean Data Service
 /// Handles loading, processing, and validation of oceanographic data from the isdata.ai API.
@@ -204,7 +204,7 @@ class DataService {
       filteredData = filteredData.where((row) {
         final data = row as Map<String, dynamic>;
         return data['depth'] != null &&
-               (data['depth'] as num) - depthFilter).abs() <= 5;
+               ((data['depth'] as num) - depthFilter).abs() <= 5;
       }).toList();
     }
     
@@ -276,7 +276,7 @@ class DataService {
       vectorData = vectorData.where((row) {
         final data = row as Map<String, dynamic>;
         return data['depth'] != null &&
-               (data['depth'] as num) - depthFilter).abs() <= 5;
+               ((data['depth'] as num) - depthFilter).abs() <= 5;
       }).toList();
     }
     
@@ -316,14 +316,15 @@ class DataService {
         final times = cell['times'] as List<String>;
         final depths = cell['depths'] as List<double>;
         
-        return {
+        final newRow = {
           'lat': cell['lat'],
           'lon': cell['lon'],
-          'direction': _calculateCircularMean(directions),
-          'magnitude': magnitudes.reduce((a, b) => a + b) / magnitudes.length,
           'time': (times..sort((a, b) => DateTime.parse(b).compareTo(DateTime.parse(a)))).first,
           'depth': depths.reduce((a, b) => a + b) / depths.length,
         };
+        newRow[directionKey] = _calculateCircularMean(directions);
+        newRow[magnitudeKey] = magnitudes.reduce((a, b) => a + b) / magnitudes.length;
+        return newRow;
       }).toList();
     }
     
@@ -346,8 +347,8 @@ class DataService {
     
     return vectorData.asMap().entries.map((entry) {
       final row = entry.value as Map<String, dynamic>;
-      final direction = double.parse(row['direction'].toString());
-      final magnitude = double.parse(row['magnitude'].toString());
+      final direction = double.parse(row[directionKey].toString());
+      final magnitude = double.parse(row[magnitudeKey].toString());
       return {
         'id': 'vector_${entry.key}',
         'latitude': row['lat'],

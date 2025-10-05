@@ -128,17 +128,22 @@ Future<void> init() async {
   );
 
   // Local Data Sources (equivalent to encrypted storage and session management)
+  sl.registerLazySingleton(
+    () => EncryptedStorageService(
+      prefs: sl(),
+      sessionKeyService: sl(),
+    ),
+  );
+
   sl.registerLazySingleton<EncryptedStorageLocalDataSource>(
     () => EncryptedStorageLocalDataSourceImpl(
-      sessionKeyService: sl(),
-      secureStorage: sl(),
+      encryptedStorageService: sl(),
     ),
   );
 
   sl.registerLazySingleton<SessionKeyLocalDataSource>(
     () => SessionKeyLocalDataSourceImpl(
       sessionKeyService: sl(),
-      secureStorage: sl(),
     ),
   );
 
