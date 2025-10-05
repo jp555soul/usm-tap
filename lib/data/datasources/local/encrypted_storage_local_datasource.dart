@@ -17,11 +17,11 @@ class EncryptedStorageService {
   }) : _prefs = prefs,
        _sessionKeyService = sessionKeyService;
   
-  /// Sets an item in encrypted storage
+  /// Saves data to encrypted storage
   /// @param key - The storage key
   /// @param value - The value to store (will be JSON encoded)
-  Future<void> setItem(String key, dynamic value) async {
-    final sessionKey = _sessionKeyService.getSessionKey();
+  Future<void> saveData(String key, dynamic value) async {
+    final sessionKey = await _sessionKeyService.getSessionKey();
     
     if (sessionKey != null && sessionKey.isNotEmpty) {
       try {
@@ -38,11 +38,11 @@ class EncryptedStorageService {
     }
   }
   
-  /// Gets an item from encrypted storage
+  /// Gets data from encrypted storage
   /// @param key - The storage key
   /// @returns The decrypted value or null if not found/error
-  dynamic getItem(String key) {
-    final sessionKey = _sessionKeyService.getSessionKey();
+  Future<dynamic> getData(String key) async {
+    final sessionKey = await _sessionKeyService.getSessionKey();
     final storedValue = _prefs.getString(key);
     
     if (storedValue == null) {
@@ -66,9 +66,9 @@ class EncryptedStorageService {
     }
   }
   
-  /// Removes an item from storage
+  /// Deletes data from storage
   /// @param key - The storage key
-  Future<void> removeItem(String key) async {
+  Future<void> deleteData(String key) async {
     await _prefs.remove(key);
   }
   
@@ -194,9 +194,9 @@ class EncryptedStorageService {
 
 /// Local data source implementation for encrypted storage
 abstract class EncryptedStorageLocalDataSource {
-  Future<void> setItem(String key, dynamic value);
-  dynamic getItem(String key);
-  Future<void> removeItem(String key);
+  Future<void> saveData(String key, dynamic value);
+  Future<dynamic> getData(String key);
+  Future<void> deleteData(String key);
   Future<void> clear();
   bool containsKey(String key);
   Set<String> getKeys();
@@ -210,18 +210,18 @@ class EncryptedStorageLocalDataSourceImpl implements EncryptedStorageLocalDataSo
   }) : _encryptedStorageService = encryptedStorageService;
   
   @override
-  Future<void> setItem(String key, dynamic value) async {
-    await _encryptedStorageService.setItem(key, value);
+  Future<void> saveData(String key, dynamic value) async {
+    await _encryptedStorageService.saveData(key, value);
   }
   
   @override
-  dynamic getItem(String key) {
-    return _encryptedStorageService.getItem(key);
+  Future<dynamic> getData(String key) {
+    return _encryptedStorageService.getData(key);
   }
   
   @override
-  Future<void> removeItem(String key) async {
-    await _encryptedStorageService.removeItem(key);
+  Future<void> deleteData(String key) async {
+    await _encryptedStorageService.deleteData(key);
   }
   
   @override
