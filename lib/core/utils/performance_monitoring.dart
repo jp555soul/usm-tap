@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 /// Performance monitoring utility equivalent to React's reportWebVitals
 /// Handles performance metrics, memory usage, and app lifecycle monitoring
