@@ -28,7 +28,7 @@ class AppRouter {
           settings: settings,
         );
       
-      case settings:
+      case '/settings':
         return MaterialPageRoute(
           builder: (_) => const Placeholder(), // Settings page
           settings: settings,
