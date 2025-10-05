@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
+import 'package:lg_controller/domain/usecases/animation/control_animation_usecase.dart';
 
 // ============================================================================
 // EVENTS
