@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import '../../domain/usecases/animation/control_animation_usecase.dart';
+import '../../../domain/usecases/animation/control_animation_usecase.dart';
 
 // Events
 abstract class AnimationEvent extends Equatable {

@@ -2,9 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../data/datasources/remote/ocean_data_remote_datasource.dart';
-import '../../domain/usecases/ocean_data/load_all_data_usecase.dart';
-import '../blocs/auth/auth_bloc.dart';
+import '../../../data/datasources/remote/ocean_data_remote_datasource.dart';
+import '../../../domain/usecases/ocean_data/load_all_data_usecase.dart';
+import '../auth/auth_bloc.dart';
 
 // EVENTS
 abstract class DataManagementEvent extends Equatable {
@@ -535,6 +535,7 @@ class DataManagementBloc extends Bloc<DataManagementEvent, DataManagementState> 
         final models = allData
             .map((row) => row['model'] as String?)
             .where((m) => m != null)
+            .cast<String>()
             .toSet()
             .toList()
           ..sort();

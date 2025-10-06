@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import '../holoocean/holoocean_panel.dart';
-import '../../services/encrypted_storage_service.dart';
+import '../../../data/datasources/local/encrypted_storage_local_datasource.dart';
 import '../auth/login_button.dart';
 import '../auth/logout_button.dart';
 import '../auth/profile.dart';
