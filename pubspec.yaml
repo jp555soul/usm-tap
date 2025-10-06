@@ -29,6 +29,10 @@ dependencies:
   flutter_appauth: ^6.0.0
   connectivity_plus: ^5.0.0
   flutter_secure_storage: ^9.0.0
+  fl_chart: ^0.66.0
+  flutter_markdown: ^0.6.18
+  markdown: ^7.1.1
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:
@@ -45,3 +49,4 @@ flutter:
     - assets/web/
     - assets/web/static/js/
     - assets/web/static/css/
+    - assets/vids/recording.mp4
