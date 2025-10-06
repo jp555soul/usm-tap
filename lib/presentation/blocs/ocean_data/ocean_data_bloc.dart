@@ -1,14 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../domain/entities/ocean_data_entity.dart';
-import '../../domain/entities/station_data_entity.dart';
-import '../../domain/entities/connection_status_entity.dart';
-import '../../domain/entities/env_data_entity.dart';
-import '../../domain/usecases/ocean_data/get_ocean_data_usecase.dart';
-import '../../domain/usecases/ocean_data/update_time_range_usecase.dart';
-import '../../domain/usecases/animation/control_animation_usecase.dart';
-import '../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
+import '../../../domain/entities/ocean_data_entity.dart';
+import '../../../domain/entities/station_data_entity.dart';
+import '../../../domain/entities/connection_status_entity.dart';
+import '../../../domain/entities/env_data_entity.dart';
+import '../../../domain/usecases/ocean_data/get_ocean_data_usecase.dart';
+import '../../../domain/usecases/ocean_data/update_time_range_usecase.dart';
+import '../../../domain/usecases/animation/control_animation_usecase.dart';
+import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
 
 // EVENTS
 abstract class OceanDataEvent extends Equatable {

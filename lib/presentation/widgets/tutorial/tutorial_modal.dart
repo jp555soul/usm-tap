@@ -2,6 +2,7 @@
 // FILE: lib/presentation/widgets/tutorial/tutorial_modal.dart
 // ============================================================================
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

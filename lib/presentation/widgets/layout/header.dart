@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import '../holoocean/holoocean_panel.dart';
-import '../../services/encrypted_storage_service.dart';
+import '../../../data/datasources/local/encrypted_storage_local_datasource.dart';
 import '../auth/login_button.dart';
 import '../auth/logout_button.dart';
 import '../auth/profile.dart';
@@ -48,7 +48,7 @@ class _HeaderState extends State<Header> {
   Timer? _timer;
   bool _showSettings = false;
   bool _showHoloOceanPanel = false;
-  final EncryptedStorageService _storage = EncryptedStorageService();
+  final EncryptedStorageLocalDataSource _storage = EncryptedStorageLocalDataSource();
 
   @override
   void initState() {
@@ -342,10 +342,10 @@ class _HeaderState extends State<Header> {
 
         // Auth Section
         if (widget.isAuthenticated) ...[
-          const Profile(),
-          const LogoutButton(),
+          Profile(),
+          LogoutButton(),
         ] else
-          const LoginButton(),
+          LoginButton(),
 
         // Settings Button
         _buildSettingsButton(isSmall),
@@ -452,7 +452,7 @@ class _HeaderState extends State<Header> {
                   ),
                 ],
               ),
-              child: const SingleChildScrollView(
+              child: SingleChildScrollView(
                 child: HoloOceanPanel(),
               ),
             ),
