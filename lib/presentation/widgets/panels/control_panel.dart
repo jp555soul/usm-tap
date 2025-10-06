@@ -142,7 +142,7 @@ class _ControlPanelState extends State<ControlPanel> {
       case 'blue': return Colors.blue[400]!;
       case 'red': return Colors.red[400]!;
       case 'indigo': return Colors.indigo[400]!;
-      case 'emerald': return Colors.emerald[400]!;
+      case 'emerald': return Colors.green[400]!;
       case 'orange': return Colors.orange[400]!;
       default: return Colors.grey[400]!;
     }
@@ -153,7 +153,7 @@ class _ControlPanelState extends State<ControlPanel> {
       case 'blue': return Colors.blue[600]!;
       case 'red': return Colors.red[600]!;
       case 'indigo': return Colors.indigo[600]!;
-      case 'emerald': return Colors.emerald[600]!;
+      case 'emerald': return Colors.green[600]!;
       case 'orange': return Colors.orange[600]!;
       default: return Colors.grey[600]!;
     }
