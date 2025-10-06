@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'dart:math' as math;
 
-import '../../data/datasources/remote/holoocean_service_remote_datasource.dart';
-import '../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
-import '../../domain/usecases/holoocean/set_target_usecase.dart';
-import '../blocs/auth/auth_bloc.dart';
+import '../../../data/datasources/remote/holoocean_service_remote_datasource.dart';
+import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
+import '../../../domain/usecases/holoocean/set_target_usecase.dart';
+import '../auth/auth_bloc.dart';
 
 // EVENTS
 abstract class HoloOceanEvent extends Equatable {

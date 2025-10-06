@@ -4,9 +4,9 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../data/models/chat_message.dart';
 import '../../../data/models/params.dart';
-import '../../domain/repositories/chat_repository.dart';
-import '../../domain/usecases/chat/send_message_usecase.dart';
-import '../../domain/usecases/chat/get_chat_history_usecase.dart';
+import '../../../domain/repositories/chat_repository.dart';
+import '../../../domain/usecases/chat/send_message_usecase.dart';
+import '../../../domain/usecases/chat/get_chat_history_usecase.dart';
 
 // Events
 abstract class ChatEvent extends Equatable {

@@ -549,7 +549,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     emit(const OceanDataLoadingState(isInitialLoad: true));
     
     try {
-      final result = await _getOceanDataUseCase();
+      final result = await _getOceanDataUseCase(
+        GetOceanDataParams(
+          startDate: DateTime.now().subtract(const Duration(days: 7)),
+          endDate: DateTime.now(),
+        ),
+      );
       
       if (result.isRight()) {
         final oceanData = result.getOrElse(() => []);
@@ -612,7 +617,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       emit(currentState.copyWith(isLoading: true));
       
       try {
-        final result = await _getOceanDataUseCase();
+        final result = await _getOceanDataUseCase(
+          GetOceanDataParams(
+            startDate: currentState.startDate,
+            endDate: currentState.endDate,
+          ),
+        );
         
         if (result.isRight()) {
           final oceanData = result.getOrElse(() => []);
