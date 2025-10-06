@@ -5,17 +5,17 @@ import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// Data Sources
-import 'data/datasources/local/encrypted_storage_local_datasource.dart';
-import 'data/datasources/local/session_key_local_datasource.dart';
-import 'data/datasources/local/session_key_service.dart';
-import 'data/datasources/remote/ai_service_remote_datasource.dart';
-import 'data/datasources/remote/ocean_data_remote_datasource.dart';
-import 'data/datasources/remote/holoocean_service_remote_datasource.dart';
-
 // Services
 import 'data/services/ai_service.dart';
 import 'data/services/holoocean_service.dart';
+import 'data/datasources/local/session_key_service.dart';
+
+// Data Sources
+import 'data/datasources/local/encrypted_storage_local_datasource.dart';
+import 'data/datasources/local/session_key_local_datasource.dart';
+import 'data/datasources/remote/ai_service_remote_datasource.dart';
+import 'data/datasources/remote/ocean_data_remote_datasource.dart';
+import 'data/datasources/remote/holoocean_service_remote_datasource.dart';
 
 // Repositories
 import 'data/repositories/auth_repository_impl.dart';
@@ -251,7 +251,7 @@ Future<void> init() async {
   // HoloOcean BLoC (equivalent to useHoloOcean hook)
   sl.registerFactory(
     () => HoloOceanBloc(
-      holoOceanService: sl(),
+      holoOceanService: sl<HoloOceanServiceRemoteDataSource>(),
       authBloc: sl(),
     ),
   );
