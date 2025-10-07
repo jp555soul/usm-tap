@@ -379,13 +379,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             SetHeatmapScaleEvent(scale),
                                           );
                                     },
-                                    onWindVelocityParticleOpacityChange:
-                                        (opacity) {
-                                      context.read<OceanDataBloc>().add(
-                                            SetWindVelocityParticleOpacityEvent(
-                                                opacity),
-                                          );
-                                    },
                                     onWindVelocityParticleSpeedChange: (speed) {
                                       context.read<OceanDataBloc>().add(
                                             SetWindVelocityParticleSpeedEvent(
