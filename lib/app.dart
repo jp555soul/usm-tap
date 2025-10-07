@@ -299,7 +299,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     playbackSpeed: oceanState.playbackSpeed,
                                     loopMode: oceanState.loopMode,
                                     holoOceanPOV: oceanState.holoOceanPOV,
-                                    availableDates: oceanState.availableDates,
                                     availableTimes: oceanState.availableTimes,
                                     totalFrames: oceanState.totalFrames,
                                     data: oceanState.data,
@@ -453,8 +452,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             currentTime: oceanState.currentTime,
                                             mapLayerVisibility:
                                                 oceanState.mapLayerVisibility,
-                                            isSstHeatmapVisible:
-                                                oceanState.isSstHeatmapVisible,
                                             currentsVectorScale:
                                                 oceanState.currentsVectorScale,
                                             currentsColorBy:
