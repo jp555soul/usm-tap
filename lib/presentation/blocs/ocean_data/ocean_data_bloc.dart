@@ -197,7 +197,7 @@ class SetWindVelocityParticleSpeedEvent extends OceanDataEvent {
 }
 
 class AddChatMessageEvent extends OceanDataEvent {
-  final Map<String, dynamic> message;
+  final ChatMessage message;
   const AddChatMessageEvent(this.message);
   
   @override
@@ -894,15 +894,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   ) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      final updatedMessages = List<ChatMessage>.from(currentState.chatMessages);
-      updatedMessages.add(ChatMessage(
-        id: event.message['id'] as String? ?? DateTime.now().toIso8601String(),
-        content: event.message['content'] as String? ?? '',
-        isUser: event.message['isUser'] as bool? ?? false,
-        timestamp: event.message['timestamp'] != null
-            ? DateTime.parse(event.message['timestamp'] as String)
-            : DateTime.now(),
-      ));
+      final updatedMessages = List<ChatMessage>.from(currentState.chatMessages)
+        ..add(event.message);
       emit(currentState.copyWith(chatMessages: updatedMessages));
     }
   }

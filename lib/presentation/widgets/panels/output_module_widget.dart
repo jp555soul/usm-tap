@@ -6,6 +6,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../data/models/chat_message.dart';
 
 class OutputModuleWidget extends StatefulWidget {
   final List<ChatMessage> chatMessages;
@@ -909,24 +910,6 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
 }
 
 // Supporting classes
-class ChatMessage {
-  final String id;
-  final String content;
-  final bool isUser;
-  final String source;
-  final DateTime timestamp;
-  final int retryAttempt;
-
-  ChatMessage({
-    required this.id,
-    required this.content,
-    required this.isUser,
-    this.source = '',
-    required this.timestamp,
-    this.retryAttempt = 0,
-  });
-}
-
 class ApiMetrics {
   final int totalApiResponses;
   final int totalLocalResponses;

@@ -21,6 +21,7 @@ import 'presentation/widgets/panels/output_module_widget.dart';
 import 'presentation/widgets/chatbot/chatbot_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
+import 'data/models/chat_message.dart';
 import 'domain/entities/env_data_entity.dart';
 import 'domain/entities/station_data_entity.dart';
 
@@ -310,6 +311,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
                                     heatmapScale: oceanState.heatmapScale,
+                                    availableDates: oceanState.availableDates,
                                     windVelocityParticleCount:
                                         oceanState.windVelocityParticleCount,
                                     windVelocityParticleOpacity:
@@ -542,6 +544,8 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 oceanState.chatMessages,
                                             timeSeriesData:
                                                 oceanState.timeSeriesData,
+                                            currentsGeoJSON:
+                                                oceanState.currentsGeoJSON,
                                             currentFrame:
                                                 oceanState.currentFrame,
                                             selectedDepth:
@@ -626,8 +630,18 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                           startDate: oceanState.startDate,
                           endDate: oceanState.endDate,
                           onAddMessage: (message) {
+                            final chatMessage = ChatMessage(
+                              id: message['id'] as String? ?? DateTime.now().toIso8601String(),
+                              content: message['content'] as String? ?? '',
+                              isUser: message['isUser'] as bool? ?? false,
+                              timestamp: message['timestamp'] is String
+                                  ? DateTime.parse(message['timestamp'] as String)
+                                  : DateTime.now(),
+                              source: message['source'] as String? ?? '',
+                              retryAttempt: message['retryAttempt'] as int? ?? 0,
+                            );
                             context.read<OceanDataBloc>().add(
-                                  AddChatMessageEvent(message),
+                                  AddChatMessageEvent(chatMessage),
                                 );
                           },
                         ),

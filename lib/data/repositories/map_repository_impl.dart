@@ -16,7 +16,19 @@ class MapRepositoryImpl implements MapRepository {
     MapBounds bounds,
   ) async {
     try {
-      final allStations = await remoteDataSource.getStations();
+      final dynamicStations = await remoteDataSource.getStations();
+      final allStations = (dynamicStations as List).map((s) {
+        final map = s as Map<String, dynamic>;
+        return StationDataEntity(
+          id: map['id'] as String,
+          name: map['name'] as String,
+          latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+          longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+          type: map['type'] as String?,
+          description: map['description'] as String?,
+          isActive: map['isActive'] as bool? ?? true,
+        );
+      }).toList();
 
       final stationsInBounds = allStations.where((station) {
         return station.latitude >= bounds.south &&
@@ -40,7 +52,19 @@ class MapRepositoryImpl implements MapRepository {
     String stationId,
   ) async {
     try {
-      final stations = await remoteDataSource.getStations();
+      final dynamicStations = await remoteDataSource.getStations();
+      final stations = (dynamicStations as List).map((s) {
+        final map = s as Map<String, dynamic>;
+        return StationDataEntity(
+          id: map['id'] as String,
+          name: map['name'] as String,
+          latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+          longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+          type: map['type'] as String?,
+          description: map['description'] as String?,
+          isActive: map['isActive'] as bool? ?? true,
+        );
+      }).toList();
       final station = stations.firstWhere(
         (s) => s.id == stationId,
         orElse: () => throw ServerException('Station not found'),
@@ -72,7 +96,19 @@ class MapRepositoryImpl implements MapRepository {
     bool? activeOnly,
   }) async {
     try {
-      final allStations = await remoteDataSource.getStations();
+      final dynamicStations = await remoteDataSource.getStations();
+      final allStations = (dynamicStations as List).map((s) {
+        final map = s as Map<String, dynamic>;
+        return StationDataEntity(
+          id: map['id'] as String,
+          name: map['name'] as String,
+          latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+          longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+          type: map['type'] as String?,
+          description: map['description'] as String?,
+          isActive: map['isActive'] as bool? ?? true,
+        );
+      }).toList();
 
       var filtered = allStations;
 
