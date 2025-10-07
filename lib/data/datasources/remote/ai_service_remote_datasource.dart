@@ -11,8 +11,8 @@ abstract class AiServiceRemoteDataSource {
 
   Future<bool> testAPIConnection();
 
-  Future<dynamic> sendMessage({required Map<String, dynamic> params});
-  Stream<dynamic> sendMessageStream({required Map<String, dynamic> params});
+  Future<dynamic> sendMessage({required String message});
+  Stream<dynamic> sendMessageStream({required String message});
 }
 
 /// Implementation of [AiServiceRemoteDataSource]
@@ -44,16 +44,16 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   }
 
   @override
-  Future<dynamic> sendMessage({required Map<String, dynamic> params}) async {
+  Future<dynamic> sendMessage({required String message}) async {
     // This is a placeholder implementation.
     // In a real scenario, this would call the AI service.
     return Future.value({
-      'response': 'This is a mock response to your message: ${params['message']}'
+      'response': 'This is a mock response to your message: $message'
     });
   }
 
   @override
-  Stream<dynamic> sendMessageStream({required Map<String, dynamic> params}) {
+  Stream<dynamic> sendMessageStream({required String message}) {
     // This is a placeholder implementation for a streaming response.
     return Stream.fromIterable([
       {'chunk': 'This '},

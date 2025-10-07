@@ -12,6 +12,11 @@ class EnvDataEntity extends Equatable {
   final double? visibility;
   final double? cloudCover;
   final String? weatherCondition;
+  final double? temperature;
+  final double? salinity;
+  final double? currentDirection;
+  final double? currentSpeed;
+  final double? pressure;
   final Map<String, dynamic>? additionalData;
 
   const EnvDataEntity({
@@ -26,6 +31,11 @@ class EnvDataEntity extends Equatable {
     this.visibility,
     this.cloudCover,
     this.weatherCondition,
+    this.temperature,
+    this.salinity,
+    this.currentDirection,
+    this.currentSpeed,
+    this.pressure,
     this.additionalData,
   });
 
@@ -42,6 +52,11 @@ class EnvDataEntity extends Equatable {
         visibility,
         cloudCover,
         weatherCondition,
+        temperature,
+        salinity,
+        currentDirection,
+        currentSpeed,
+        pressure,
         additionalData,
       ];
 
@@ -57,6 +72,11 @@ class EnvDataEntity extends Equatable {
     double? visibility,
     double? cloudCover,
     String? weatherCondition,
+    double? temperature,
+    double? salinity,
+    double? currentDirection,
+    double? currentSpeed,
+    double? pressure,
     Map<String, dynamic>? additionalData,
   }) {
     return EnvDataEntity(
@@ -71,6 +91,11 @@ class EnvDataEntity extends Equatable {
       visibility: visibility ?? this.visibility,
       cloudCover: cloudCover ?? this.cloudCover,
       weatherCondition: weatherCondition ?? this.weatherCondition,
+      temperature: temperature ?? this.temperature,
+      salinity: salinity ?? this.salinity,
+      currentDirection: currentDirection ?? this.currentDirection,
+      currentSpeed: currentSpeed ?? this.currentSpeed,
+      pressure: pressure ?? this.pressure,
       additionalData: additionalData ?? this.additionalData,
     );
   }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import '../../../injection_container.dart' as di;
-import '../holoocean/holoocean_panel.dart';
+import '../panels/holoocean_panel_widget.dart';
 import '../../../data/datasources/local/encrypted_storage_local_datasource.dart';
 import '../auth/login_button.dart';
 import '../auth/logout_button.dart';
@@ -465,7 +465,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
                 ],
               ),
               child: SingleChildScrollView(
-                child: HoloOceanPanel(),
+                child: HoloOceanPanelWidget(),
               ),
             ),
           ),

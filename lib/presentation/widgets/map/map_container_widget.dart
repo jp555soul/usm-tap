@@ -27,6 +27,7 @@ class MapContainerWidget extends StatefulWidget {
   final String currentsColorBy;
   final double heatmapScale;
   final List<double> availableDepths;
+  final Map<String, dynamic> currentsGeoJSON;
 
   const MapContainerWidget({
     Key? key,
