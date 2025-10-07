@@ -1,5 +1,4 @@
 /// Application-wide constants
-/// Equivalent to React environment variables (process.env)
 class AppConstants {
   // Private constructor to prevent instantiation
   AppConstants._();
