@@ -14,6 +14,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
 
   ConnectionStatusEntity _currentStatus = const ConnectionStatusEntity(
     state: ConnectionState.disconnected,
+    connected: false,
+    endpoint: '',
   );
 
   HoloOceanRepositoryImpl({required this.remoteDataSource});
@@ -24,9 +26,11 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
     Map<String, dynamic>? config,
   }) async {
     try {
-      _updateStatus(const ConnectionStatusEntity(
+      _updateStatus(ConnectionStatusEntity(
         state: ConnectionState.connecting,
         message: 'Connecting to HoloOcean...',
+        endpoint: endpoint ?? '',
+        connected: false,
       ));
 
       await remoteDataSource.connect(
@@ -38,7 +42,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
         state: ConnectionState.connected,
         message: 'Connected to HoloOcean',
         connectedAt: DateTime.now(),
-        endpoint: endpoint,
+        endpoint: endpoint ?? '',
+        connected: true,
       );
 
       _updateStatus(status);
@@ -47,6 +52,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
       final errorStatus = ConnectionStatusEntity(
         state: ConnectionState.error,
         message: e.message,
+        endpoint: endpoint ?? '',
+        connected: false,
       );
       _updateStatus(errorStatus);
       return Left(ServerFailure(e.message));
@@ -54,6 +61,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
       final errorStatus = ConnectionStatusEntity(
         state: ConnectionState.error,
         message: e.message,
+        endpoint: endpoint ?? '',
+        connected: false,
       );
       _updateStatus(errorStatus);
       return Left(NetworkFailure(e.message));
@@ -61,6 +70,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
       final errorStatus = ConnectionStatusEntity(
         state: ConnectionState.error,
         message: 'Connection failed: ${e.toString()}',
+        endpoint: endpoint ?? '',
+        connected: false,
       );
       _updateStatus(errorStatus);
       return Left(ServerFailure('Unexpected error: ${e.toString()}'));
@@ -75,6 +86,8 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
       _updateStatus(const ConnectionStatusEntity(
         state: ConnectionState.disconnected,
         message: 'Disconnected from HoloOcean',
+        endpoint: '',
+        connected: false,
       ));
 
       return const Right(null);
@@ -89,11 +102,14 @@ class HoloOceanRepositoryImpl implements HoloOceanRepository {
   Future<Either<Failure, ConnectionStatusEntity>> getConnectionStatus() async {
     try {
       final isConnected = await remoteDataSource.isConnected();
+      final lastEndpoint = _currentStatus.endpoint;
 
       final status = ConnectionStatusEntity(
         state: isConnected ? ConnectionState.connected : ConnectionState.disconnected,
         message: isConnected ? 'Connected' : 'Disconnected',
         lastActivity: DateTime.now(),
+        endpoint: lastEndpoint,
+        connected: isConnected,
       );
 
       _updateStatus(status);

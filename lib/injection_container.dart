@@ -114,7 +114,7 @@ Future<void> init() async {
   
   // Remote Data Sources (equivalent to services)
   sl.registerLazySingleton<OceanDataRemoteDataSource>(
-    () => OceanDataRemoteDataSourceImpl(dio: sl()),
+    () => OceanDataRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<AiServiceRemoteDataSource>(

@@ -1,6 +1,7 @@
 // lib/data/datasources/local/session_key_service.dart
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -15,7 +16,9 @@ class SessionKeyService {
   /// Generate a new session key
   Future<String> generateSessionKey() async {
     final random = Random.secure();
-    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+    final bytes = Uint8List.fromList(
+      List<int>.generate(32, (_) => random.nextInt(256)),
+    );
     final key = base64Url.encode(bytes);
     
     await _secureStorage.write(key: _sessionKeyKey, value: key);
@@ -61,7 +64,7 @@ class SessionKeyService {
   }
 
   /// Derive a key from the session key
-  Future<List<int>> deriveKey({String? salt}) async {
+  Future<Uint8List> deriveKey({String? salt}) async {
     final sessionKey = await getSessionKey();
     if (sessionKey == null) {
       throw Exception('No session key found');
@@ -74,7 +77,8 @@ class SessionKeyService {
     final keyBytes = utf8.encode(sessionKey);
     final combined = [...keyBytes, ...saltBytes];
     
-    return sha256.convert(combined).bytes;
+    final digestBytes = sha256.convert(combined).bytes;
+    return Uint8List.fromList(digestBytes);
   }
 
   String _generateSessionId() {
