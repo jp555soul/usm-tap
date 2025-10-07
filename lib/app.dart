@@ -354,11 +354,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             const ResetDataEvent(),
                                           );
                                     },
-                                    onRefreshData: () {
-                                      context.read<OceanDataBloc>().add(
-                                            const RefreshDataEvent(),
-                                          );
-                                    },
                                     onLayerToggle: (layer) {
                                       context.read<OceanDataBloc>().add(
                                             ToggleMapLayerEvent(layer),
