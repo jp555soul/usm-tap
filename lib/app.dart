@@ -334,11 +334,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             SetTimeZoneEvent(timeZone),
                                           );
                                     },
-                                    onPlayToggle: () {
-                                      context.read<OceanDataBloc>().add(
-                                            const TogglePlaybackEvent(),
-                                          );
-                                    },
                                     onSpeedChange: (speed) {
                                       context.read<OceanDataBloc>().add(
                                             SetPlaybackSpeedEvent(speed),
