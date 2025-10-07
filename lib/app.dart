@@ -226,7 +226,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                   children: [
                     // Header
                     if (oceanState is OceanDataLoadedState)
-                      Header(
+                      HeaderWidget(
                         key: const Key('header'),
                         dataSource: oceanState.dataSource,
                         timeZone: oceanState.timeZone,
@@ -237,7 +237,17 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                         },
                         connectionStatus:
                             oceanState.connectionStatus?.state.name ?? 'disconnected',
-                        dataQuality: oceanState.dataQuality,
+                        dataQuality: oceanState.dataQuality != null
+                            ? DataQuality(
+                                stations: (oceanState.dataQuality!['stations'] as int?) ?? 0,
+                                measurements: (oceanState.dataQuality!['measurements'] as int?) ?? 0,
+                                lastUpdate:
+                                    oceanState.dataQuality!['lastUpdate'] != null
+                                        ? DateTime.parse(
+                                            oceanState.dataQuality!['lastUpdate'] as String)
+                                        : null,
+                              )
+                            : null,
                         showDataStatus: true,
                         showTutorial: tutorialState is TutorialInProgress,
                         onTutorialToggle: (value) {
@@ -501,8 +511,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 oceanState.selectedDepth,
                                             isTyping: oceanState.isTyping,
                                             isCollapsed: isOutputCollapsed,
-                                            apiStatus:
-                                                oceanState.connectionStatus,
                                             apiMetrics:
                                                 oceanState.connectionDetails,
                                             chatMetrics: oceanState
@@ -540,7 +548,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     selectedDepth: oceanState.selectedDepth,
                                     timeSeriesData: oceanState.timeSeriesData,
                                     currentFrame: oceanState.currentFrame,
-                                    data: oceanState.data,
                                     availableDepths: oceanState.availableDepths,
                                     apiStatus: oceanState.connectionStatus,
                                     onDepthChange: (depth) {
@@ -586,7 +593,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                           timeZone: oceanState.timeZone,
                           startDate: oceanState.startDate,
                           endDate: oceanState.endDate,
-                          apiStatus: oceanState.connectionStatus,
                           apiConfig: oceanState.connectionDetails,
                           onAddMessage: (message) {
                             context.read<OceanDataBloc>().add(

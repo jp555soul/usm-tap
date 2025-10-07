@@ -32,7 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (result == null) {
-        return Left(AuthFailure('Login cancelled'));
+        return Left(const AuthFailure('Login cancelled'));
       }
 
       _accessToken = result.accessToken;
@@ -71,7 +71,7 @@ class AuthRepositoryImpl implements AuthRepository {
       if (_currentUser != null) {
         return Right(_currentUser!);
       }
-      return Left(AuthFailure('No user logged in'));
+      return Left(const AuthFailure('No user logged in'));
     } on Exception catch (e) {
       return Left(AuthFailure('Failed to get user profile: ${e.toString()}'));
     }
@@ -94,7 +94,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, String>> getAccessToken() async {
     try {
       if (_accessToken == null || _accessToken!.isEmpty) {
-        return Left(AuthFailure('No access token available'));
+        return Left(const AuthFailure('No access token available'));
       }
       return Right(_accessToken!);
     } on Exception catch (e) {

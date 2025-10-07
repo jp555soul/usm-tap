@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -155,7 +156,7 @@ class EncryptedStorageService {
   /// @param keyString - The input key string
   /// @param length - The desired key length in bytes
   /// @returns The derived key bytes
-  List<int> _deriveKey(String keyString, int length) {
+  Uint8List _deriveKey(String keyString, int length) {
     final keyBytes = utf8.encode(keyString);
     
     // If key is already the right length, return it
@@ -169,7 +170,7 @@ class EncryptedStorageService {
       while (paddedKey.length < length) {
         paddedKey.addAll(keyBytes);
       }
-      return paddedKey.sublist(0, length);
+      return Uint8List.fromList(paddedKey.sublist(0, length));
     }
     
     // If key is too long, truncate it

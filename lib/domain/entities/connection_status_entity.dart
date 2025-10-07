@@ -13,20 +13,22 @@ class ConnectionStatusEntity extends Equatable {
   final String? message;
   final DateTime? connectedAt;
   final DateTime? lastActivity;
-  final String? endpoint;
+  final String endpoint;
   final int? retryCount;
   final Map<String, dynamic>? metadata;
   final bool hasApiKey;
+  final bool connected;
 
   const ConnectionStatusEntity({
     required this.state,
     this.message,
     this.connectedAt,
     this.lastActivity,
-    this.endpoint,
+    this.endpoint = '',
     this.retryCount,
     this.metadata,
     this.hasApiKey = false,
+    this.connected = false,
   });
 
   bool get isConnected => state == ConnectionState.connected;
@@ -44,6 +46,7 @@ class ConnectionStatusEntity extends Equatable {
         retryCount,
         metadata,
         hasApiKey,
+        connected,
       ];
 
   ConnectionStatusEntity copyWith({
@@ -55,6 +58,7 @@ class ConnectionStatusEntity extends Equatable {
     int? retryCount,
     Map<String, dynamic>? metadata,
     bool? hasApiKey,
+    bool? connected,
   }) {
     return ConnectionStatusEntity(
       state: state ?? this.state,
@@ -65,6 +69,7 @@ class ConnectionStatusEntity extends Equatable {
       retryCount: retryCount ?? this.retryCount,
       metadata: metadata ?? this.metadata,
       hasApiKey: hasApiKey ?? this.hasApiKey,
+      connected: connected ?? this.connected,
     );
   }
 }
