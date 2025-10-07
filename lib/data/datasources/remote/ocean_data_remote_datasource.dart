@@ -116,9 +116,9 @@ abstract class OceanDataRemoteDataSource {
 
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
 
-  Future<dynamic> getOceanData({required Map<String, dynamic> params});
+  Future<dynamic> getOceanData({DateTime? startDate});
   Future<List<dynamic>> getStations();
-  Future<dynamic> getEnvironmentalData({required Map<String, dynamic> params});
+  Future<dynamic> getEnvironmentalData({DateTime? timestamp});
   Future<List<dynamic>> getAvailableModels(String stationId);
   Future<List<double>> getAvailableDepths(String stationId);
 }
@@ -1220,9 +1220,9 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   }
 
   @override
-  Future<dynamic> getOceanData({required Map<String, dynamic> params}) async {
+  Future<dynamic> getOceanData({DateTime? startDate}) async {
     // TODO: Implement actual data fetching
-    debugPrint('Fetching ocean data with params: $params');
+    debugPrint('Fetching ocean data with startDate: $startDate');
     await Future.delayed(const Duration(seconds: 1));
     return Future.value({'data': 'Sample ocean data'});
   }
@@ -1239,9 +1239,9 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   }
 
   @override
-  Future<dynamic> getEnvironmentalData({required Map<String, dynamic> params}) async {
+  Future<dynamic> getEnvironmentalData({DateTime? timestamp}) async {
     // TODO: Implement actual environmental data fetching
-    debugPrint('Fetching environmental data with params: $params');
+    debugPrint('Fetching environmental data with timestamp: $timestamp');
     await Future.delayed(const Duration(seconds: 1));
     return Future.value({'temp': '25C', 'salinity': '35PSU'});
   }

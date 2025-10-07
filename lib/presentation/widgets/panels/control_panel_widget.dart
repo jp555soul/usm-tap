@@ -86,6 +86,7 @@ class ControlPanelWidget extends StatefulWidget {
     this.currentsColorBy = 'speed',
     this.availableModels = const [],
     this.availableDepths = const [],
+    this.availableDates = const [],
     this.totalFrames = 24,
     this.data = const [],
     this.dataLoaded = false,

@@ -43,7 +43,18 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
   Future<Either<Failure, List<StationDataEntity>>> getStations() async {
     try {
       final stations = await remoteDataSource.getStations();
-      return Right(stations);
+      final stationEntities = (stations as List).map((s) {
+        final map = s as Map<String, dynamic>;
+        return StationDataEntity(
+          id: map['id'] as String,
+          name: map['name'] as String,
+          latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+          longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+          type: map['type'] as String?,
+          description: map['description'] as String?,
+        );
+      }).toList();
+      return Right(stationEntities);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } on NetworkException catch (e) {
@@ -97,7 +108,7 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
   ) async {
     try {
       final models = await remoteDataSource.getAvailableModels(stationId);
-      return Right(models);
+      return Right((models as List).map((m) => m.toString()).toList());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } on NetworkException catch (e) {
