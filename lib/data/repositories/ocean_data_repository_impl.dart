@@ -52,6 +52,7 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
           longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
           type: map['type'] as String?,
           description: map['description'] as String?,
+          isActive: map['isActive'] as bool? ?? true,
         );
       }).toList();
       return Right(stationEntities);
