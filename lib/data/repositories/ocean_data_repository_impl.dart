@@ -25,7 +25,6 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
       final data = await remoteDataSource.getOceanData(
         startDate: startDate,
         endDate: endDate,
-        model: model,
       );
       return Right(data);
     } on ServerException catch (e) {
