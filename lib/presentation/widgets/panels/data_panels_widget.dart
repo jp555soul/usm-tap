@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:video_player/video_player.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../domain/entities/env_data_entity.dart';
 
 // Assuming these BLoCs exist based on previous context
 // import '../blocs/ocean_data/ocean_data_bloc.dart';
 // import '../blocs/holoocean/holoocean_bloc.dart';
-// import '../../domain/entities/env_data_entity.dart';
 
 class DataPanelsWidget extends StatefulWidget {
   final EnvDataEntity? envData;
@@ -794,23 +794,4 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
       ),
     );
   }
-}
-
-// Entity placeholder - replace with actual entity from domain layer
-class EnvDataEntity {
-  final double? temperature;
-  final double? salinity;
-  final double? pressure;
-  final double? currentDirection;
-  final double? currentSpeed;
-  final double depth;
-
-  const EnvDataEntity({
-    this.temperature,
-    this.salinity,
-    this.pressure,
-    this.currentDirection,
-    this.currentSpeed,
-    this.depth = 0,
-  });
 }
