@@ -309,8 +309,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
                                     heatmapScale: oceanState.heatmapScale,
-                                    windVelocityParticleCount:
-                                        oceanState.windVelocityParticleCount,
                                     windVelocityParticleOpacity:
                                         oceanState.windVelocityParticleOpacity,
                                     windVelocityParticleSpeed:
@@ -460,8 +458,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 isOutputCollapsed,
                                             availableDepths:
                                                 oceanState.availableDepths,
-                                            windVelocityParticleSpeed: oceanState
-                                                .windVelocityParticleSpeed,
                                             onPOVChange: (pov) {
                                               context.read<OceanDataBloc>().add(
                                                     SetHoloOceanPOVEvent(pov),
