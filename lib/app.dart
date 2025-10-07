@@ -379,12 +379,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             SetHeatmapScaleEvent(scale),
                                           );
                                     },
-                                    onWindVelocityParticleSpeedChange: (speed) {
-                                      context.read<OceanDataBloc>().add(
-                                            SetWindVelocityParticleSpeedEvent(
-                                                speed),
-                                          );
-                                    },
                                   )
                                 : const SizedBox.shrink(),
                           ),
