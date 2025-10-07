@@ -4,7 +4,7 @@ import 'dart:convert';
 
 /// Flutter widget that embeds the React MapContainer via WebView
 /// Handles bidirectional communication between Flutter and React
-class MapWebViewContainer extends StatefulWidget {
+class MapContainerWidget extends StatefulWidget {
   final List<Map<String, dynamic>> stationData;
   final List<Map<String, dynamic>> timeSeriesData;
   final List<Map<String, dynamic>> rawData;
@@ -71,10 +71,10 @@ class MapWebViewContainer extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<MapWebViewContainer> createState() => _MapWebViewContainerState();
+  State<MapContainerWidget> createState() => _MapContainerWidgetState();
 }
 
-class _MapWebViewContainerState extends State<MapWebViewContainer> {
+class _MapContainerWidgetState extends State<MapContainerWidget> {
   late WebViewController _controller;
   bool _isLoading = true;
   String? _error;
@@ -283,7 +283,7 @@ class _MapWebViewContainerState extends State<MapWebViewContainer> {
   }
 
   @override
-  void didUpdateWidget(MapWebViewContainer oldWidget) {
+  void didUpdateWidget(MapContainerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     
     // Send updates to React when props change

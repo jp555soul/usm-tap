@@ -511,10 +511,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 oceanState.selectedDepth,
                                             isTyping: oceanState.isTyping,
                                             isCollapsed: isOutputCollapsed,
-                                            apiMetrics:
-                                                oceanState.connectionDetails,
-                                            chatMetrics: oceanState
-                                                .chatMessages.length,
                                             onToggleCollapse: () {
                                               setState(() {
                                                 isOutputCollapsed =
@@ -549,7 +545,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     timeSeriesData: oceanState.timeSeriesData,
                                     currentFrame: oceanState.currentFrame,
                                     availableDepths: oceanState.availableDepths,
-                                    apiStatus: oceanState.connectionStatus,
                                     onDepthChange: (depth) {
                                       context.read<OceanDataBloc>().add(
                                             SetSelectedDepthEvent(depth),
@@ -593,7 +588,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                           timeZone: oceanState.timeZone,
                           startDate: oceanState.startDate,
                           endDate: oceanState.endDate,
-                          apiConfig: oceanState.connectionDetails,
                           onAddMessage: (message) {
                             context.read<OceanDataBloc>().add(
                                   AddChatMessageEvent(message),

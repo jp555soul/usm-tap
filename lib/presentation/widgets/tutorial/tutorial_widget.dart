@@ -8,7 +8,7 @@ import 'tutorial_modal.dart';
 import 'tutorial_steps.dart';
 import 'dart:ui';
 
-class Tutorial extends StatefulWidget {
+class TutorialWidget extends StatefulWidget {
   final bool isOpen;
   final VoidCallback? onClose;
   final VoidCallback? onComplete;
@@ -25,10 +25,10 @@ class Tutorial extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<Tutorial> createState() => _TutorialState();
+  State<TutorialWidget> createState() => _TutorialWidgetState();
 }
 
-class _TutorialState extends State<Tutorial> {
+class _TutorialWidgetState extends State<TutorialWidget> {
   late int _currentStep;
   bool _isAnimating = false;
   Set<int> _completedSteps = {};
@@ -41,7 +41,7 @@ class _TutorialState extends State<Tutorial> {
   }
 
   @override
-  void didUpdateWidget(Tutorial oldWidget) {
+  void didUpdateWidget(TutorialWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.tutorialStep != oldWidget.tutorialStep) {
       setState(() => _currentStep = widget.tutorialStep);
