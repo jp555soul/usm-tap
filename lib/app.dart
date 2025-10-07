@@ -309,8 +309,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
                                     heatmapScale: oceanState.heatmapScale,
-                                    windVelocityParticleOpacity:
-                                        oceanState.windVelocityParticleOpacity,
                                     windVelocityParticleSpeed:
                                         oceanState.windVelocityParticleSpeed,
                                     apiStatus: oceanState.connectionStatus,
@@ -430,6 +428,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     key: const Key('map-container'),
                                     child: oceanState is OceanDataLoadedState
                                         ? MapContainerWidget(
+                                            mapboxToken: AppConstants.mapboxAccessToken,
                                             stationData: oceanState.stationData,
                                             timeSeriesData:
                                                 oceanState.timeSeriesData,
