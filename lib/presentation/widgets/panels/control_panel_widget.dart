@@ -26,7 +26,7 @@ const List<MapLayer> allMapLayers = [
   MapLayer(key: 'windVelocity', label: 'Wind Velocity', icon: Icons.flash_on_rounded, color: 'red'),
 ];
 
-class ControlPanel extends StatefulWidget {
+class ControlPanelWidget extends StatefulWidget {
   final bool isLoading;
   final String selectedArea;
   final String selectedModel;
@@ -109,16 +109,16 @@ class ControlPanel extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ControlPanel> createState() => _ControlPanelState();
+  State<ControlPanelWidget> createState() => _ControlPanelWidgetState();
 }
 
-class _ControlPanelState extends State<ControlPanel> {
+class _ControlPanelWidgetState extends State<ControlPanelWidget> {
   bool _showLayerControls = true;
   bool _showLayerToggles = false;
   Map<String, String> _errors = {};
 
   @override
-  void didUpdateWidget(ControlPanel oldWidget) {
+  void didUpdateWidget(ControlPanelWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     _validateInputs();
   }
