@@ -309,7 +309,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
                                     heatmapScale: oceanState.heatmapScale,
-                                    apiStatus: oceanState.connectionStatus,
                                     onAreaChange: (area) {
                                       context.read<OceanDataBloc>().add(
                                             SetSelectedAreaEvent(area),
@@ -427,7 +426,14 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     child: oceanState is OceanDataLoadedState
                                         ? MapContainerWidget(
                                             mapboxToken: AppConstants.mapboxAccessToken,
-                                            stationData: oceanState.stationData.map((s) => s.toJson()).toList(),
+                                            stationData: oceanState.stationData.map((s) => {
+                                              'id': s.id,
+                                              'name': s.name,
+                                              'latitude': s.latitude,
+                                              'longitude': s.longitude,
+                                              'type': s.type,
+                                              'description': s.description,
+                                            }).toList(),
                                             timeSeriesData:
                                                 oceanState.timeSeriesData,
                                             rawData: [oceanState.rawData],
