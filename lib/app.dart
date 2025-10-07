@@ -299,7 +299,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     playbackSpeed: oceanState.playbackSpeed,
                                     loopMode: oceanState.loopMode,
                                     holoOceanPOV: oceanState.holoOceanPOV,
-                                    availableTimes: oceanState.availableTimes,
                                     totalFrames: oceanState.totalFrames,
                                     data: oceanState.data,
                                     mapLayerVisibility:
@@ -462,8 +461,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 isOutputCollapsed,
                                             availableDepths:
                                                 oceanState.availableDepths,
-                                            windVelocityParticleCount: oceanState
-                                                .windVelocityParticleCount,
                                             windVelocityParticleOpacity:
                                                 oceanState
                                                     .windVelocityParticleOpacity,
