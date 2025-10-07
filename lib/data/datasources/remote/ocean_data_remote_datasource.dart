@@ -7,13 +7,124 @@ import 'package:usm_tap/core/constants/app_constants.dart';
 import 'package:usm_tap/core/errors/exceptions.dart';
 import 'package:usm_tap/domain/entities/station_data_entity.dart';
 
+abstract class OceanDataRemoteDataSource {
+  String getTableNameForArea(String areaName);
+
+  Future<Map<String, dynamic>> loadAllData({
+    String? area,
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+
+  List<Map<String, dynamic>> processAPIData(
+    List<dynamic> rawData, {
+    double selectedDepth = 0,
+    int? maxDataPoints,
+  });
+
+  List<Map<String, dynamic>> processVectorData(
+    List<dynamic> rawData, {
+    int? maxDataPoints,
+    bool latestOnly = false,
+    double gridResolution = 0.01,
+    double? depthFilter,
+    String magnitudeKey = 'nspeed',
+    String directionKey = 'direction',
+  });
+
+  List<Map<String, dynamic>> processCurrentsData(
+    List<dynamic> rawData, {
+    int? maxDataPoints,
+    bool latestOnly = false,
+    double gridResolution = 0.01,
+    double? depthFilter,
+  });
+
+  Map<String, dynamic> generateCurrentsVectorData(
+    List<dynamic> rawData, {
+    double vectorScale = 0.009,
+    double minMagnitude = 0,
+    String colorBy = 'speed',
+    int maxVectors = 1000,
+    double? depthFilter,
+    String displayParameter = 'Current Speed',
+    String? magnitudeKey,
+    String? directionKey,
+  });
+
+  Map<String, dynamic> getCurrentsColorScale(
+    List<Map<String, dynamic>> currentsData, {
+    String colorBy = 'speed',
+  });
+
+  List<List<double>> generateTemperatureHeatmapData(
+    List<dynamic> rawData, {
+    double intensityScale = 1.0,
+    bool normalize = true,
+    double gridResolution = 0.01,
+    double? depthFilter,
+  });
+
+  List<List<double>> generateSalinityHeatmapData(
+    List<dynamic> rawData, {
+    double intensityScale = 1.0,
+    bool normalize = true,
+    double gridResolution = 0.01,
+    double? depthFilter,
+  });
+
+    List<List<double>> generateSshHeatmapData(
+    List<dynamic> rawData, {
+    double intensityScale = 1.0,
+    bool normalize = true,
+    double gridResolution = 0.01,
+    double? depthFilter,
+  });
+
+  List<List<double>> generatePressureHeatmapData(
+    List<dynamic> rawData, {
+    double intensityScale = 1.0,
+    bool normalize = true,
+    double gridResolution = 0.01,
+    double? depthFilter,
+  });
+
+  Map<String, dynamic> getTemperatureColorScale(
+    List<Map<String, dynamic>> temperatureData,
+  );
+
+  List<Map<String, dynamic>> getLatestTemperatureReadings(
+    List<dynamic> rawData, {
+    int maxPoints = 1000,
+  });
+
+  String formatTimeForDisplay(dynamic time);
+
+  bool isLikelyOnWater(double lat, double lon);
+
+  List<Map<String, dynamic>> generateOptimizedStationDataFromAPI(List<dynamic> rawData);
+
+  List<Map<String, dynamic>> validateOceanStations(
+    List<Map<String, dynamic>> stations,
+  );
+
+  List<Map<String, dynamic>> generateStationDataFromAPI(List<dynamic> rawData);
+
+  List<Map<String, dynamic>> generateStationDataFromAPINoGrouping(
+    List<dynamic> rawData,
+  );
+
+  Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
+}
+
+
 /// Ocean Data Service
 /// Handles loading, processing, and validation of oceanographic data from the isdata.ai API.
-class DataService {
+class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   final Dio _dio;
   late final ApiConfig _apiConfig;
   
-  DataService(this._dio) {
+  OceanDataRemoteDataSourceImpl(this._dio) {
     _initializeConfig();
   }
   
@@ -38,6 +149,7 @@ class DataService {
   /// Maps ocean area names to database table names
   /// @param areaName - The selected ocean area
   /// @returns The corresponding database table name
+  @override
   String getTableNameForArea(String areaName) {
     const areaTableMap = {
       'MBL': 'mbl_ngofs2',
@@ -51,6 +163,7 @@ class DataService {
   /// Loads data from the oceanographic API based on specified query parameters.
   /// @param queryParams - The query parameters for filtering data.
   /// @returns A promise that resolves to an object containing all the data rows from the API.
+  @override
   Future<Map<String, dynamic>> loadAllData({
     String? area,
     DateTime? startDate,
@@ -117,6 +230,7 @@ class DataService {
   /// @param selectedDepth - The depth to filter the data by.
   /// @param maxDataPoints - Maximum number of data points to return (null = no limit).
   /// @returns An array of processed data points for visualization.
+  @override
   List<Map<String, dynamic>> processAPIData(
     List<dynamic> rawData, {
     double selectedDepth = 0,
@@ -247,6 +361,7 @@ class DataService {
   /// @param rawData - The raw data from the API
   /// @param options - Processing options
   /// @returns Array of vector data points
+  @override
   List<Map<String, dynamic>> processVectorData(
     List<dynamic> rawData, {
     int? maxDataPoints,
@@ -366,6 +481,7 @@ class DataService {
   }
   
   /// Legacy function for backwards compatibility
+  @override
   List<Map<String, dynamic>> processCurrentsData(
     List<dynamic> rawData, {
     int? maxDataPoints,
@@ -408,6 +524,7 @@ class DataService {
   /// @param rawData - The raw data from the API
   /// @param options - Generation options
   /// @returns GeoJSON-like object for Mapbox vector layers
+  @override
   Map<String, dynamic> generateCurrentsVectorData(
     List<dynamic> rawData, {
     double vectorScale = 0.009,
@@ -520,6 +637,7 @@ class DataService {
   /// @param currentsData - Currents data for scale calculation
   /// @param colorBy - Property to base colors on ('speed', 'depth')
   /// @returns Color scale configuration
+  @override
   Map<String, dynamic> getCurrentsColorScale(
     List<Map<String, dynamic>> currentsData, {
     String colorBy = 'speed',
@@ -607,6 +725,7 @@ class DataService {
     }).toList();
   }
   
+  @override
   List<List<double>> generateTemperatureHeatmapData(
     List<dynamic> rawData, {
     double intensityScale = 1.0,
@@ -623,6 +742,7 @@ class DataService {
         depthFilter: depthFilter,
       );
   
+  @override
   List<List<double>> generateSalinityHeatmapData(
     List<dynamic> rawData, {
     double intensityScale = 1.0,
@@ -639,6 +759,7 @@ class DataService {
         depthFilter: depthFilter,
       );
   
+  @override
   List<List<double>> generateSshHeatmapData(
     List<dynamic> rawData, {
     double intensityScale = 1.0,
@@ -655,6 +776,7 @@ class DataService {
         depthFilter: depthFilter,
       );
   
+  @override
   List<List<double>> generatePressureHeatmapData(
     List<dynamic> rawData, {
     double intensityScale = 1.0,
@@ -674,6 +796,7 @@ class DataService {
   /// Gets temperature color scale configuration for visualization
   /// @param temperatureData - Temperature data for scale calculation
   /// @returns Color scale configuration
+  @override
   Map<String, dynamic> getTemperatureColorScale(
     List<Map<String, dynamic>> temperatureData,
   ) {
@@ -728,6 +851,7 @@ class DataService {
   /// @param rawData - The raw data from the API
   /// @param maxPoints - Maximum points to return
   /// @returns Latest temperature readings per location
+  @override
   List<Map<String, dynamic>> getLatestTemperatureReadings(
     List<dynamic> rawData, {
     int maxPoints = 1000,
@@ -755,6 +879,7 @@ class DataService {
   /// Formats a timestamp for display in charts.
   /// @param time - The time value to format.
   /// @returns The formatted time string (HH:MM).
+  @override
   String formatTimeForDisplay(dynamic time) {
     if (time == null) return '00:00';
     try {
@@ -766,6 +891,7 @@ class DataService {
   }
   
   /// Simple land/water detection using basic geographic rules
+  @override
   bool isLikelyOnWater(double lat, double lon) {
     // More permissive bounding box to ensure all relevant data is included.
     const gulfBounds = {'north': 31, 'south': 28, 'east': -86, 'west': -91};
@@ -799,6 +925,7 @@ class DataService {
   }
   
   /// Enhanced station generation with water filtering and deployment filtering
+  @override
   List<Map<String, dynamic>> generateOptimizedStationDataFromAPI(List<dynamic> rawData) {
     if (rawData.isEmpty) return [];
     
@@ -890,6 +1017,7 @@ class DataService {
   }
   
   /// Validate if coordinates represent real ocean monitoring locations
+  @override
   List<Map<String, dynamic>> validateOceanStations(
     List<Map<String, dynamic>> stations,
   ) {
@@ -910,6 +1038,7 @@ class DataService {
   }
   
   /// Generates station locations from data by grouping nearby coordinates
+  @override
   List<Map<String, dynamic>> generateStationDataFromAPI(List<dynamic> rawData) {
     if (rawData.isEmpty) return [];
     
@@ -965,6 +1094,7 @@ class DataService {
   }
   
   /// Alternative version that creates individual stations for each unique coordinate
+  @override
   List<Map<String, dynamic>> generateStationDataFromAPINoGrouping(
     List<dynamic> rawData,
   ) {
@@ -1021,6 +1151,7 @@ class DataService {
   }
   
   /// Debug function to validate coordinate data
+  @override
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData) {
     final validCoords = rawData.where((row) {
       final data = row as Map<String, dynamic>;

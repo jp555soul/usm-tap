@@ -1,9 +1,8 @@
 // lib/presentation/blocs/map/map_bloc.dart
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import '../../../data/models/map_bounds.dart';
 import '../../../domain/entities/station_data_entity.dart';
-import '../../../domain/repositories/map_repository.dart';
+import '../../../domain/repositories/map_repository.dart' as domain;
 import '../../../domain/usecases/map/get_stations_usecase.dart';
 import '../../../domain/usecases/map/select_station_usecase.dart';
 
@@ -33,7 +32,7 @@ class ClearStationSelectionEvent extends MapEvent {
 }
 
 class FilterStationsByBoundsEvent extends MapEvent {
-  final MapBounds bounds;
+  final domain.MapBounds bounds;
 
   const FilterStationsByBoundsEvent(this.bounds);
 
@@ -88,7 +87,7 @@ class MapLoaded extends MapState {
   final double centerLatitude;
   final double centerLongitude;
   final double zoom;
-  final MapBounds? currentBounds;
+  final domain.MapBounds? currentBounds;
 
   const MapLoaded({
     required this.stations,
@@ -119,7 +118,7 @@ class MapLoaded extends MapState {
     double? centerLatitude,
     double? centerLongitude,
     double? zoom,
-    MapBounds? currentBounds,
+    domain.MapBounds? currentBounds,
   }) {
     return MapLoaded(
       stations: stations ?? this.stations,
@@ -146,12 +145,12 @@ class MapError extends MapState {
 class MapBloc extends Bloc<MapEvent, MapState> {
   final GetStationsUseCase _getStationsUseCase;
   final SelectStationUseCase _selectStationUseCase;
-  final MapRepository _mapRepository;
+  final domain.MapRepository _mapRepository;
 
   MapBloc({
     required GetStationsUseCase getStationsUseCase,
     required SelectStationUseCase selectStationUseCase,
-    required MapRepository mapRepository,
+    required domain.MapRepository mapRepository,
   })  : _getStationsUseCase = getStationsUseCase,
         _selectStationUseCase = selectStationUseCase,
         _mapRepository = mapRepository,
