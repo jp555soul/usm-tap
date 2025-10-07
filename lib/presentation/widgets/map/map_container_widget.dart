@@ -69,6 +69,7 @@ class MapContainerWidget extends StatefulWidget {
     this.currentsColorBy = 'speed',
     this.heatmapScale = 1,
     this.availableDepths = const [],
+    this.currentsGeoJSON = const {},
   }) : super(key: key);
 
   @override

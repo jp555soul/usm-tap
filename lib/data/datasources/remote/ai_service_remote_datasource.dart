@@ -11,8 +11,8 @@ abstract class AiServiceRemoteDataSource {
 
   Future<bool> testAPIConnection();
 
-  Future<dynamic> sendMessage({required String message});
-  Stream<dynamic> sendMessageStream({required String message});
+  Future<dynamic> sendMessage({required String message, List<Map<String, dynamic>>? history});
+  Stream<dynamic> sendMessageStream({required String message, List<Map<String, dynamic>>? history});
 }
 
 /// Implementation of [AiServiceRemoteDataSource]
@@ -44,7 +44,7 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   }
 
   @override
-  Future<dynamic> sendMessage({required String message}) async {
+  Future<dynamic> sendMessage({required String message, List<Map<String, dynamic>>? history}) async {
     // This is a placeholder implementation.
     // In a real scenario, this would call the AI service.
     return Future.value({
@@ -53,7 +53,7 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   }
 
   @override
-  Stream<dynamic> sendMessageStream({required String message}) {
+  Stream<dynamic> sendMessageStream({required String message, List<Map<String, dynamic>>? history}) {
     // This is a placeholder implementation for a streaming response.
     return Stream.fromIterable([
       {'chunk': 'This '},
