@@ -116,10 +116,10 @@ abstract class OceanDataRemoteDataSource {
 
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
 
-  Future<dynamic> getOceanData({DateTime? startDate});
+  Future<dynamic> getOceanData({DateTime? startDate, required String endDate});
   Future<List<dynamic>> getStations();
   Future<dynamic> getEnvironmentalData({DateTime? timestamp});
-  Future<List<dynamic>> getAvailableModels(String stationId);
+  Future<List<dynamic>> getAvailableModels({required String stationId});
   Future<List<double>> getAvailableDepths(String stationId);
 }
 
@@ -1220,9 +1220,9 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   }
 
   @override
-  Future<dynamic> getOceanData({DateTime? startDate}) async {
+  Future<dynamic> getOceanData({DateTime? startDate, required String endDate}) async {
     // TODO: Implement actual data fetching
-    debugPrint('Fetching ocean data with startDate: $startDate');
+    debugPrint('Fetching ocean data with startDate: $startDate and endDate: $endDate');
     await Future.delayed(const Duration(seconds: 1));
     return Future.value({'data': 'Sample ocean data'});
   }
@@ -1247,7 +1247,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   }
 
   @override
-  Future<List<dynamic>> getAvailableModels(String stationId) async {
+  Future<List<dynamic>> getAvailableModels({required String stationId}) async {
     // TODO: Implement actual model fetching
     debugPrint('Fetching available models for station: $stationId');
     await Future.delayed(const Duration(milliseconds: 500));
