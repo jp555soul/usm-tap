@@ -67,7 +67,7 @@ class ControlPanelWidget extends StatefulWidget {
   final ValueChanged<double>? onHeatmapScaleChange;
   final VoidCallback? togglePlay;
 
-  const ControlPanel({
+  const ControlPanelWidget({
     Key? key,
     this.isLoading = false,
     this.selectedArea = '',

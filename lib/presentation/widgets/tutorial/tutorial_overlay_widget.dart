@@ -15,7 +15,7 @@ class TutorialOverlayWidget extends StatefulWidget {
   final String? pointerText;
   final VoidCallback? onTargetClick;
 
-  const TutorialOverlay({
+  const TutorialOverlayWidget({
     Key? key,
     this.isActive = false,
     this.targetSelector,

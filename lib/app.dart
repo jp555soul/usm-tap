@@ -21,6 +21,8 @@ import 'presentation/widgets/panels/output_module_widget.dart';
 import 'presentation/widgets/chatbot/chatbot_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
+import 'domain/entities/env_data_entity.dart';
+import 'domain/entities/station_data_entity.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -479,14 +481,49 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                   );
                                             },
                                             onStationSelect: (station) {
+                                              if (station == null) {
+                                                context.read<OceanDataBloc>().add(
+                                                      const SetSelectedStationEvent(null),
+                                                    );
+                                                return;
+                                              }
+                                              final stationEntity = StationDataEntity(
+                                                id: station['id'] as String? ?? 'default_id',
+                                                name: station['name'] as String? ?? 'Unknown Station',
+                                                latitude: (station['latitude'] as num?)?.toDouble() ?? 0.0,
+                                                longitude: (station['longitude'] as num?)?.toDouble() ?? 0.0,
+                                                type: station['type'] as String?,
+                                                description: station['description'] as String?,
+                                              );
                                               context.read<OceanDataBloc>().add(
                                                     SetSelectedStationEvent(
-                                                        station),
+                                                        stationEntity),
                                                   );
                                             },
                                             onEnvironmentUpdate: (envData) {
+                                              if (envData == null) return;
+
+                                              final timestampStr = envData['timestamp'] as String?;
+                                              final timestamp = timestampStr != null
+                                                  ? DateTime.tryParse(timestampStr) ?? DateTime.now()
+                                                  : DateTime.now();
+
+                                              final envEntity = EnvDataEntity(
+                                                timestamp: timestamp,
+                                                windSpeed: (envData['windSpeed'] as num?)?.toDouble(),
+                                                windDirection: (envData['windDirection'] as num?)?.toDouble(),
+                                                airTemperature: (envData['airTemperature'] as num?)?.toDouble(),
+                                                airPressure: (envData['airPressure'] as num?)?.toDouble(),
+                                                humidity: (envData['humidity'] as num?)?.toDouble(),
+                                                waveHeight: (envData['waveHeight'] as num?)?.toDouble(),
+                                                wavePeriod: (envData['wavePeriod'] as num?)?.toDouble(),
+                                                visibility: (envData['visibility'] as num?)?.toDouble(),
+                                                cloudCover: (envData['cloudCover'] as num?)?.toDouble(),
+                                                weatherCondition: envData['weatherCondition'] as String?,
+                                              );
+
                                               context.read<OceanDataBloc>().add(
-                                                    SetEnvDataEvent(envData),
+                                                    SetEnvDataEvent(envEntity),
                                                   );
                                             },
                                           )
