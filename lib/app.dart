@@ -297,7 +297,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     currentFrame: oceanState.currentFrame,
                                     isPlaying: oceanState.isPlaying,
                                     playbackSpeed: oceanState.playbackSpeed,
-                                    loopMode: oceanState.loopMode,
+                                    loopMode: oceanState.loopMode ? 'loop' : 'once',
                                     holoOceanPOV: oceanState.holoOceanPOV,
                                     totalFrames: oceanState.totalFrames,
                                     data: oceanState.data,
@@ -308,7 +308,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     currentsVectorScale:
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
-                                    heatmapScale: oceanState.heatmapScale,
+                                    heatmapScale: (oceanState.heatmapScale['value'] as num?)?.toDouble() ?? 1.0,
                                     onAreaChange: (area) {
                                       context.read<OceanDataBloc>().add(
                                             SetSelectedAreaEvent(area),
@@ -341,7 +341,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     },
                                     onLoopModeChange: (loopMode) {
                                       context.read<OceanDataBloc>().add(
-                                            SetLoopModeEvent(loopMode),
+                                            SetLoopModeEvent(loopMode == 'loop'),
                                           );
                                     },
                                     onFrameChange: (frame) {
@@ -376,7 +376,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     },
                                     onHeatmapScaleChange: (scale) {
                                       context.read<OceanDataBloc>().add(
-                                            SetHeatmapScaleEvent(scale),
+                                            SetHeatmapScaleEvent({'value': scale}),
                                           );
                                     },
                                   )
