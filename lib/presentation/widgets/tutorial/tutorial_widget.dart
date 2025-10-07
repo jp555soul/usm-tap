@@ -15,7 +15,7 @@ class TutorialWidget extends StatefulWidget {
   final int tutorialStep;
   final ValueChanged<int>? onStepChange;
 
-  const Tutorial({
+  const TutorialWidget({
     Key? key,
     this.isOpen = false,
     this.onClose,

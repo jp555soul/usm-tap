@@ -115,6 +115,12 @@ abstract class OceanDataRemoteDataSource {
   );
 
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
+
+  Future<dynamic> getOceanData({required Map<String, dynamic> params});
+  Future<List<dynamic>> getStations();
+  Future<dynamic> getEnvironmentalData({required Map<String, dynamic> params});
+  Future<List<dynamic>> getAvailableModels(String stationId);
+  Future<List<double>> getAvailableDepths(String stationId);
 }
 
 
@@ -1211,6 +1217,49 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
         return {'lat': data['lat'], 'lon': data['lon']};
       }).toList(),
     };
+  }
+
+  @override
+  Future<dynamic> getOceanData({required Map<String, dynamic> params}) async {
+    // TODO: Implement actual data fetching
+    debugPrint('Fetching ocean data with params: $params');
+    await Future.delayed(const Duration(seconds: 1));
+    return Future.value({'data': 'Sample ocean data'});
+  }
+
+  @override
+  Future<List<dynamic>> getStations() async {
+    // TODO: Implement actual station fetching
+    debugPrint('Fetching all stations');
+    await Future.delayed(const Duration(seconds: 1));
+    return Future.value([
+      {'id': 'station_1', 'name': 'Station Alpha'},
+      {'id': 'station_2', 'name': 'Station Beta'},
+    ]);
+  }
+
+  @override
+  Future<dynamic> getEnvironmentalData({required Map<String, dynamic> params}) async {
+    // TODO: Implement actual environmental data fetching
+    debugPrint('Fetching environmental data with params: $params');
+    await Future.delayed(const Duration(seconds: 1));
+    return Future.value({'temp': '25C', 'salinity': '35PSU'});
+  }
+
+  @override
+  Future<List<dynamic>> getAvailableModels(String stationId) async {
+    // TODO: Implement actual model fetching
+    debugPrint('Fetching available models for station: $stationId');
+    await Future.delayed(const Duration(milliseconds: 500));
+    return Future.value(['NGOFS2', 'RTOFS']);
+  }
+
+  @override
+  Future<List<double>> getAvailableDepths(String stationId) async {
+    // TODO: Implement actual depth fetching
+    debugPrint('Fetching available depths for station: $stationId');
+    await Future.delayed(const Duration(milliseconds: 500));
+    return Future.value([0.0, 10.0, 20.0, 50.0]);
   }
 }
 

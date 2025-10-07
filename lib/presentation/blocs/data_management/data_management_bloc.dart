@@ -543,7 +543,7 @@ class DataManagementBloc extends Bloc<DataManagementEvent, DataManagementState> 
         // Extract available depths
         final depths = allData
             .map((row) => row['depth'] as double?)
-            .where((d) => d != null)
+            .whereType<double>()
             .toSet()
             .toList()
           ..sort();

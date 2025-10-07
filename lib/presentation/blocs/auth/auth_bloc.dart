@@ -186,8 +186,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           
           emit(AuthenticatedState(
             user: user,
-            accessToken: authData['accessToken'] ?? '',
-            hasRefreshToken: authData['refreshToken'] != null,
+            accessToken: authData.accessToken ?? '',
+            hasRefreshToken: authData.refreshToken != null,
           ));
         } else {
           emit(AuthErrorState(userResult.fold((l) => l.message, (r) => 'Failed to get user profile')));
