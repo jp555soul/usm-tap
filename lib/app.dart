@@ -309,8 +309,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         oceanState.currentsVectorScale,
                                     currentsColorBy: oceanState.currentsColorBy,
                                     heatmapScale: oceanState.heatmapScale,
-                                    windVelocityParticleSpeed:
-                                        oceanState.windVelocityParticleSpeed,
                                     apiStatus: oceanState.connectionStatus,
                                     onAreaChange: (area) {
                                       context.read<OceanDataBloc>().add(
@@ -429,10 +427,10 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     child: oceanState is OceanDataLoadedState
                                         ? MapContainerWidget(
                                             mapboxToken: AppConstants.mapboxAccessToken,
-                                            stationData: oceanState.stationData,
+                                            stationData: oceanState.stationData.map((s) => s.toJson()).toList(),
                                             timeSeriesData:
                                                 oceanState.timeSeriesData,
-                                            rawData: oceanState.rawData,
+                                            rawData: [oceanState.rawData],
                                             currentsGeoJSON:
                                                 oceanState.currentsGeoJSON,
                                             currentFrame:
@@ -443,7 +441,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 oceanState.selectedArea,
                                             holoOceanPOV:
                                                 oceanState.holoOceanPOV,
-                                            currentDate: oceanState.currentDate,
+                                            currentDate: oceanState.currentDate.toIso8601String(),
                                             currentTime: oceanState.currentTime,
                                             mapLayerVisibility:
                                                 oceanState.mapLayerVisibility,
@@ -452,7 +450,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             currentsColorBy:
                                                 oceanState.currentsColorBy,
                                             heatmapScale:
-                                                oceanState.heatmapScale,
+                                                (oceanState.heatmapScale['value'] as num?)?.toDouble() ?? 1.0,
                                             isOutputCollapsed:
                                                 isOutputCollapsed,
                                             availableDepths:
