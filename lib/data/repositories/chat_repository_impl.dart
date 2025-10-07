@@ -29,7 +29,6 @@ class ChatRepositoryImpl implements ChatRepository {
           'isUser': m.isUser,
           'timestamp': m.timestamp.toIso8601String(),
         }).toList(),
-        context: context,
       );
 
       final chatMessage = ChatMessage(
@@ -67,7 +66,6 @@ class ChatRepositoryImpl implements ChatRepository {
           'isUser': m.isUser,
           'timestamp': m.timestamp.toIso8601String(),
         }).toList(),
-        context: context,
       );
 
       return Right(stream);
