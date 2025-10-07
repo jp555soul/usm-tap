@@ -8,7 +8,7 @@ abstract class EncryptionService {
   String encryptData(String data, String key);
   String decryptData(String encryptedData, String key);
   String hashData(String data);
-  List<int> deriveKey(String password, {String? salt});
+  Uint8List deriveKey(String password, {String? salt});
 }
 
 class EncryptionServiceImpl implements EncryptionService {
@@ -72,13 +72,13 @@ class EncryptionServiceImpl implements EncryptionService {
   }
 
   @override
-  List<int> deriveKey(String password, {String? salt}) {
+  Uint8List deriveKey(String password, {String? salt}) {
     final saltBytes = salt != null 
         ? utf8.encode(salt) 
-        : List<int>.filled(16, 0);
+        : Uint8List(16);
     
     final passwordBytes = utf8.encode(password);
-    final combined = [...passwordBytes, ...saltBytes];
+    final combined = Uint8List.fromList([...passwordBytes, ...saltBytes]);
     
     // Simple key derivation - in production, use PBKDF2
     var key = sha256.convert(combined).bytes;
@@ -88,10 +88,10 @@ class EncryptionServiceImpl implements EncryptionService {
       key = sha256.convert(key).bytes;
     }
     
-    return key;
+    return Uint8List.fromList(key);
   }
 
-  List<int> _normalizeKey(String key) {
+  Uint8List _normalizeKey(String key) {
     final keyBytes = utf8.encode(key);
     
     if (keyBytes.length == 32) {
@@ -100,7 +100,7 @@ class EncryptionServiceImpl implements EncryptionService {
       return keyBytes.sublist(0, 32);
     } else {
       // Pad with zeros if less than 32 bytes
-      return [...keyBytes, ...List<int>.filled(32 - keyBytes.length, 0)];
+      return Uint8List.fromList([...keyBytes, ...List<int>.filled(32 - keyBytes.length, 0)]);
     }
   }
 }

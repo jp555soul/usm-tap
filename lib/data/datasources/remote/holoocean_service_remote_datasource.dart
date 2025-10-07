@@ -4,23 +4,28 @@ import '../../services/holoocean_service.dart';
 
 // The interface expected by the repository and BLoCs
 abstract class HoloOceanServiceRemoteDataSource {
-  Future<void> connect({String? token});
+  Future<void> connect({String? endpoint, Map<String, dynamic>? config});
   Future<void> disconnect();
-  Future<void> setTarget(double lat, double lon, double depth, {String? time});
-  Future<void> getStatus();
+  Future<void> setTarget({required double latitude, required double longitude, required double depth, Map<String, dynamic>? parameters});
+  Future<Map<String, dynamic>> getStatus();
   Future<void> subscribe();
   void unsubscribe();
+  Future<bool> isConnected();
   Map<String, dynamic> getConnectionStatus();
+  Future<Map<String, dynamic>> getSensorData();
+  Future<Map<String, dynamic>> getLastStatus();
   Stream<Map<String, dynamic>> get onStatus;
   Stream<Map<String, dynamic>> get onTargetUpdated;
   Stream<Map<String, dynamic>> get onConnected;
   Stream<Map<String, dynamic>> get onDisconnected;
   Stream<Map<String, dynamic>> get onError;
+  Stream<Map<String, dynamic>> get onConnectionError;
 }
 
 class HoloOceanServiceRemoteDataSourceImpl implements HoloOceanServiceRemoteDataSource {
   final HoloOceanService _holoOceanService;
   StreamSubscription? _sensorSubscription;
+  Map<String, dynamic>? _lastStatus;
 
   // Stream controllers to emulate the event-based interface
   final _statusController = StreamController<Map<String, dynamic>>.broadcast();
@@ -42,12 +47,13 @@ class HoloOceanServiceRemoteDataSourceImpl implements HoloOceanServiceRemoteData
   Stream<Map<String, dynamic>> get onDisconnected => _disconnectedController.stream;
   @override
   Stream<Map<String, dynamic>> get onError => _errorController.stream;
+  @override
+  Stream<Map<String, dynamic>> get onConnectionError => _errorController.stream;
 
   @override
-  Future<void> connect({String? token}) async {
+  Future<void> connect({String? endpoint, Map<String, dynamic>? config}) async {
     try {
-      // The new service doesn't use a token in the connect method, assuming it's handled by Dio interceptors
-      await _holoOceanService.connect();
+      await _holoOceanService.connect(endpoint: endpoint, config: config);
       _connectedController.add({'status': 'connected'});
       subscribe(); // Automatically subscribe to the sensor stream on connect
     } catch (e) {
@@ -64,15 +70,15 @@ class HoloOceanServiceRemoteDataSourceImpl implements HoloOceanServiceRemoteData
   }
 
   @override
-  Future<void> setTarget(double lat, double lon, double depth, {String? time}) async {
+  Future<void> setTarget({required double latitude, required double longitude, required double depth, Map<String, dynamic>? parameters}) async {
     try {
       await _holoOceanService.setTarget(
-        latitude: lat,
-        longitude: lon,
+        latitude: latitude,
+        longitude: longitude,
         depth: depth,
-        parameters: time != null ? {'time': time} : null,
+        parameters: parameters,
       );
-       _targetUpdatedController.add({'lat': lat, 'lon': lon, 'depth': depth});
+       _targetUpdatedController.add({'lat': latitude, 'lon': longitude, 'depth': depth});
     } catch (e) {
       _errorController.add({'error': 'Set target failed', 'details': e.toString()});
       rethrow;
@@ -80,14 +86,21 @@ class HoloOceanServiceRemoteDataSourceImpl implements HoloOceanServiceRemoteData
   }
 
   @override
-  Future<void> getStatus() async {
+  Future<Map<String, dynamic>> getStatus() async {
     try {
       final status = await _holoOceanService.getStatus();
+      _lastStatus = status;
       _statusController.add(status);
+      return status;
     } catch (e) {
       _errorController.add({'error': 'Get status failed', 'details': e.toString()});
       rethrow;
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getLastStatus() async {
+    return _lastStatus ?? await getStatus();
   }
 
   @override
@@ -115,6 +128,21 @@ class HoloOceanServiceRemoteDataSourceImpl implements HoloOceanServiceRemoteData
   void unsubscribe() {
     _sensorSubscription?.cancel();
     _sensorSubscription = null;
+  }
+
+  @override
+  Future<bool> isConnected() async {
+    return _holoOceanService.isConnected;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getSensorData() async {
+    try {
+      return await _holoOceanService.getSensorData();
+    } catch (e) {
+      _errorController.add({'error': 'Get sensor data failed', 'details': e.toString()});
+      rethrow;
+    }
   }
 
   @override

@@ -122,7 +122,7 @@ class TutorialBloc extends Bloc<TutorialEvent, TutorialState> {
     {
       'title': 'Welcome to Ocean Platform',
       'description': 'This tutorial will guide you through the main features of the application.',
-      'target': null,
+      'target': '',
     },
     {
       'title': 'Interactive Map',

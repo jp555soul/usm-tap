@@ -3,13 +3,14 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import '../../../injection_container.dart' as di;
 import '../holoocean/holoocean_panel.dart';
 import '../../../data/datasources/local/encrypted_storage_local_datasource.dart';
 import '../auth/login_button.dart';
 import '../auth/logout_button.dart';
 import '../auth/profile.dart';
 
-class Header extends StatefulWidget {
+class HeaderWidget extends StatefulWidget {
   final String dataSource;
   final String timeZone;
   final ValueChanged<String>? onTimeZoneChange;
@@ -23,7 +24,7 @@ class Header extends StatefulWidget {
   final bool isFirstTimeUser;
   final bool isAuthenticated;
 
-  const Header({
+  const HeaderWidget({
     Key? key,
     this.dataSource = 'simulated',
     this.timeZone = 'UTC',
@@ -40,25 +41,37 @@ class Header extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<Header> createState() => _HeaderState();
+  State<HeaderWidget> createState() => _HeaderWidgetState();
 }
 
-class _HeaderState extends State<Header> {
+class _HeaderWidgetState extends State<HeaderWidget> {
   DateTime _currentTime = DateTime.now();
   Timer? _timer;
   bool _showSettings = false;
   bool _showHoloOceanPanel = false;
-  final EncryptedStorageService _storage = EncryptedStorageService();
+  late final EncryptedStorageService _storage;
+  bool _hasSeenTutorial = false;
 
   @override
   void initState() {
     super.initState();
+    _storage = di.sl<EncryptedStorageService>();
     _startTimer();
-    _checkFirstTimeUser();
+    _loadTutorialStatusAndCheck();
+  }
+
+  void _loadTutorialStatusAndCheck() async {
+    final seen = await _storage.getData('ocean-monitor-tutorial-completed');
+    if (mounted) {
+      setState(() {
+        _hasSeenTutorial = (seen != null);
+      });
+      _checkFirstTimeUser();
+    }
   }
 
   @override
-  void didUpdateWidget(Header oldWidget) {
+  void didUpdateWidget(HeaderWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isFirstTimeUser != oldWidget.isFirstTimeUser ||
         widget.showTutorial != oldWidget.showTutorial) {
@@ -80,8 +93,7 @@ class _HeaderState extends State<Header> {
 
   void _checkFirstTimeUser() {
     if (widget.isFirstTimeUser && !widget.showTutorial) {
-      final hasSeenTutorial = _storage.getItem('ocean-monitor-tutorial-completed');
-      if (hasSeenTutorial == null) {
+      if (!_hasSeenTutorial) {
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted && widget.onTutorialToggle != null) {
             widget.onTutorialToggle!(true);
@@ -462,9 +474,6 @@ class _HeaderState extends State<Header> {
   }
 
   Widget _buildTutorialButton(bool isSmall) {
-    final hasSeenTutorial =
-        _storage.getItem('ocean-monitor-tutorial-completed') != null;
-
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -509,7 +518,7 @@ class _HeaderState extends State<Header> {
             ),
           ),
         // First-time user indicator
-        if (widget.isFirstTimeUser && !hasSeenTutorial)
+        if (widget.isFirstTimeUser && !_hasSeenTutorial)
           Positioned(
             top: -4,
             right: -4,

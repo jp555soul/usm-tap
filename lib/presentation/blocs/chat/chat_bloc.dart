@@ -2,9 +2,9 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import '../../../data/models/chat_message.dart';
+import 'package:usm_tap/core/errors/failures.dart';
 import '../../../data/models/params.dart';
-import '../../../domain/repositories/chat_repository.dart';
+import '../../../domain/repositories/chat_repository.dart' as domain;
 import '../../../domain/usecases/chat/send_message_usecase.dart';
 import '../../../domain/usecases/chat/get_chat_history_usecase.dart';
 
@@ -56,7 +56,7 @@ class ClearChatHistoryEvent extends ChatEvent {
 }
 
 class AddMessageToChatEvent extends ChatEvent {
-  final ChatMessage message;
+  final domain.ChatMessage message;
 
   const AddMessageToChatEvent(this.message);
 
@@ -81,7 +81,7 @@ class ChatLoading extends ChatState {
 }
 
 class ChatLoaded extends ChatState {
-  final List<ChatMessage> messages;
+  final List<domain.ChatMessage> messages;
 
   const ChatLoaded(this.messages);
 
@@ -90,7 +90,7 @@ class ChatLoaded extends ChatState {
 }
 
 class ChatMessageSending extends ChatState {
-  final List<ChatMessage> messages;
+  final List<domain.ChatMessage> messages;
 
   const ChatMessageSending(this.messages);
 
@@ -99,7 +99,7 @@ class ChatMessageSending extends ChatState {
 }
 
 class ChatMessageStreaming extends ChatState {
-  final List<ChatMessage> messages;
+  final List<domain.ChatMessage> messages;
   final String streamingContent;
 
   const ChatMessageStreaming({
@@ -113,7 +113,7 @@ class ChatMessageStreaming extends ChatState {
 
 class ChatError extends ChatState {
   final String message;
-  final List<ChatMessage> messages;
+  final List<domain.ChatMessage> messages;
 
   const ChatError({
     required this.message,
@@ -128,15 +128,15 @@ class ChatError extends ChatState {
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final SendMessageUseCase _sendMessageUseCase;
   final GetChatHistoryUseCase _getChatHistoryUseCase;
-  final ChatRepository _chatRepository;
+  final domain.ChatRepository _chatRepository;
 
-  List<ChatMessage> _currentMessages = [];
+  List<domain.ChatMessage> _currentMessages = [];
   StreamSubscription? _streamSubscription;
 
   ChatBloc({
     required SendMessageUseCase sendMessageUseCase,
     required GetChatHistoryUseCase getChatHistoryUseCase,
-    required ChatRepository chatRepository,
+    required domain.ChatRepository chatRepository,
   })  : _sendMessageUseCase = sendMessageUseCase,
         _getChatHistoryUseCase = getChatHistoryUseCase,
         _chatRepository = chatRepository,
@@ -153,7 +153,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) async {
     // Add user message
-    final userMessage = ChatMessage(
+    final userMessage = domain.ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: event.message,
       isUser: true,
@@ -190,7 +190,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) async {
     // Add user message
-    final userMessage = ChatMessage(
+    final userMessage = domain.ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: event.message,
       isUser: true,
@@ -228,7 +228,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             ));
           },
           onDone: () {
-            final aiMessage = ChatMessage(
+            final aiMessage = domain.ChatMessage(
               id: DateTime.now().millisecondsSinceEpoch.toString(),
               content: streamingContent,
               isUser: false,
