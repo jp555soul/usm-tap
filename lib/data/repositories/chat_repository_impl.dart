@@ -68,7 +68,7 @@ class ChatRepositoryImpl implements ChatRepository {
         }).toList(),
       );
 
-      return Right(stream);
+      return Right(stream.cast<String>());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } on NetworkException catch (e) {

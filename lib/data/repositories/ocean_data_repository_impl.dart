@@ -25,7 +25,6 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
       final data = await remoteDataSource.getOceanData(
         startDate: startDate,
         endDate: endDate,
-        depth: depth,
         model: model,
       );
       return Right(data);
@@ -102,9 +101,11 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
   }
 
   @override
-  Future<Either<Failure, List<String>>> getAvailableModels() async {
+  Future<Either<Failure, List<String>>> getAvailableModels(
+      String stationId) async {
     try {
-      final models = await remoteDataSource.getAvailableModels();
+      final models =
+          await remoteDataSource.getAvailableModels(stationId: stationId);
       return Right((models as List).map((m) => m.toString()).toList());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
@@ -140,7 +141,7 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
     try {
       final data = await remoteDataSource.getOceanData(
         startDate: startDate,
-        endDate:endDate,
+        endDate: endDate.toIso8601String(),
       );
 
       // Calculate summary statistics
