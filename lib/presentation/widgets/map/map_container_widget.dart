@@ -28,7 +28,7 @@ class MapContainerWidget extends StatefulWidget {
   final double heatmapScale;
   final List<double> availableDepths;
 
-  const MapWebViewContainer({
+  const MapContainerWidget({
     Key? key,
     this.stationData = const [],
     this.timeSeriesData = const [],

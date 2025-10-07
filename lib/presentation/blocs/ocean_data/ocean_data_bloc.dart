@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../data/models/chat_message.dart';
 import '../../../domain/entities/ocean_data_entity.dart';
 import '../../../domain/entities/station_data_entity.dart';
 import '../../../domain/entities/connection_status_entity.dart';
@@ -51,7 +52,7 @@ class SetSelectedModelEvent extends OceanDataEvent {
 }
 
 class SetSelectedDepthEvent extends OceanDataEvent {
-  final String depth;
+  final double depth;
   const SetSelectedDepthEvent(this.depth);
   
   @override
@@ -245,7 +246,7 @@ class OceanDataLoadedState extends OceanDataState {
   // Ocean data
   final List<OceanDataEntity> data;
   final List<StationDataEntity> stationData;
-  final Map<String, dynamic> timeSeriesData;
+  final List<Map<String, dynamic>> timeSeriesData;
   final Map<String, dynamic> rawData;
   final Map<String, dynamic> currentsGeoJSON;
   final EnvDataEntity? envData;
@@ -253,7 +254,7 @@ class OceanDataLoadedState extends OceanDataState {
   // Selection states
   final String selectedArea;
   final String selectedModel;
-  final String selectedDepth;
+  final double selectedDepth;
   final String dataSource;
   final String timeZone;
   final DateTime startDate;
@@ -264,7 +265,7 @@ class OceanDataLoadedState extends OceanDataState {
   
   // Available options
   final List<String> availableModels;
-  final List<String> availableDepths;
+  final List<double> availableDepths;
   final List<DateTime> availableDates;
   final List<String> availableTimes;
   
@@ -297,7 +298,7 @@ class OceanDataLoadedState extends OceanDataState {
   final Map<String, dynamic>? dataQuality;
   
   // Chat
-  final List<Map<String, dynamic>> chatMessages;
+  final List<ChatMessage> chatMessages;
   final bool isTyping;
   
   const OceanDataLoadedState({
@@ -402,13 +403,13 @@ class OceanDataLoadedState extends OceanDataState {
     String? errorMessage,
     List<OceanDataEntity>? data,
     List<StationDataEntity>? stationData,
-    Map<String, dynamic>? timeSeriesData,
+    List<Map<String, dynamic>>? timeSeriesData,
     Map<String, dynamic>? rawData,
     Map<String, dynamic>? currentsGeoJSON,
     EnvDataEntity? envData,
     String? selectedArea,
     String? selectedModel,
-    String? selectedDepth,
+    double? selectedDepth,
     String? dataSource,
     String? timeZone,
     DateTime? startDate,
@@ -417,7 +418,7 @@ class OceanDataLoadedState extends OceanDataState {
     String? currentTime,
     StationDataEntity? selectedStation,
     List<String>? availableModels,
-    List<String>? availableDepths,
+    List<double>? availableDepths,
     List<DateTime>? availableDates,
     List<String>? availableTimes,
     int? currentFrame,
@@ -438,7 +439,7 @@ class OceanDataLoadedState extends OceanDataState {
     ConnectionStatusEntity? connectionStatus,
     Map<String, dynamic>? connectionDetails,
     Map<String, dynamic>? dataQuality,
-    List<Map<String, dynamic>>? chatMessages,
+    List<ChatMessage>? chatMessages,
     bool? isTyping,
   }) {
     return OceanDataLoadedState(
@@ -566,12 +567,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           hasError: false,
           data: oceanData,
           stationData: const [],
-          timeSeriesData: const {},
+          timeSeriesData: const [],
           rawData: const {},
           currentsGeoJSON: const {},
           selectedArea: 'default',
           selectedModel: 'default',
-          selectedDepth: '0m',
+          selectedDepth: 0.0,
           dataSource: 'API',
           timeZone: 'UTC',
           startDate: DateTime.now().subtract(const Duration(days: 7)),
@@ -579,7 +580,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           currentDate: DateTime.now(),
           currentTime: '00:00',
           availableModels: const ['default'],
-          availableDepths: const ['0m', '10m', '20m'],
+          availableDepths: const [0.0, 10.0, 20.0],
           availableDates: const [],
           availableTimes: const [],
           currentFrame: 0,
@@ -893,8 +894,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   ) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      final updatedMessages = List<Map<String, dynamic>>.from(currentState.chatMessages);
-      updatedMessages.add(event.message);
+      final updatedMessages = List<ChatMessage>.from(currentState.chatMessages);
+      updatedMessages.add(ChatMessage(
+        id: event.message['id'] as String? ?? DateTime.now().toIso8601String(),
+        content: event.message['content'] as String? ?? '',
+        isUser: event.message['isUser'] as bool? ?? false,
+        timestamp: event.message['timestamp'] != null
+            ? DateTime.parse(event.message['timestamp'] as String)
+            : DateTime.now(),
+      ));
       emit(currentState.copyWith(chatMessages: updatedMessages));
     }
   }

@@ -464,7 +464,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
                   ),
                 ],
               ),
-              child: const SingleChildScrollView(
+              child: SingleChildScrollView(
                 child: HoloOceanPanel(),
               ),
             ),
