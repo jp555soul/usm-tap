@@ -5,8 +5,8 @@ import 'package:equatable/equatable.dart';
 import 'package:usm_tap/core/errors/failures.dart';
 import '../../../data/models/params.dart';
 import '../../../domain/repositories/chat_repository.dart' as domain;
-import '../../../domain/usecases/chat/send_message_usecase.dart';
-import '../../../domain/usecases/chat/get_chat_history_usecase.dart';
+import '../../../domain/usecases/chat/send_message_usecase.dart' as usecase;
+import '../../../domain/usecases/chat/get_chat_history_usecase.dart' as history_usecase;
 
 // Events
 abstract class ChatEvent extends Equatable {
@@ -126,16 +126,16 @@ class ChatError extends ChatState {
 
 // BLoC
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
-  final SendMessageUseCase _sendMessageUseCase;
-  final GetChatHistoryUseCase _getChatHistoryUseCase;
+  final usecase.SendMessageUseCase _sendMessageUseCase;
+  final history_usecase.GetChatHistoryUseCase _getChatHistoryUseCase;
   final domain.ChatRepository _chatRepository;
 
   List<domain.ChatMessage> _currentMessages = [];
   StreamSubscription? _streamSubscription;
 
   ChatBloc({
-    required SendMessageUseCase sendMessageUseCase,
-    required GetChatHistoryUseCase getChatHistoryUseCase,
+    required usecase.SendMessageUseCase sendMessageUseCase,
+    required history_usecase.GetChatHistoryUseCase getChatHistoryUseCase,
     required domain.ChatRepository chatRepository,
   })  : _sendMessageUseCase = sendMessageUseCase,
         _getChatHistoryUseCase = getChatHistoryUseCase,
@@ -164,7 +164,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(ChatMessageSending(_currentMessages));
 
     final result = await _sendMessageUseCase(
-      SendMessageParams(
+      usecase.SendMessageParams(
         message: event.message,
         history: _currentMessages,
         context: event.context,
@@ -201,7 +201,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(ChatMessageSending(_currentMessages));
 
     final result = await _sendMessageUseCase.callStream(
-      SendMessageParams(
+      usecase.SendMessageParams(
         message: event.message,
         history: _currentMessages,
         context: event.context,
@@ -255,7 +255,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(const ChatLoading());
 
     final result = await _getChatHistoryUseCase(
-      GetChatHistoryParams(limit: event.limit),
+      history_usecase.GetChatHistoryParams(limit: event.limit),
     );
 
     result.fold(

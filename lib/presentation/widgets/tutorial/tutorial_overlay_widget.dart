@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-class TutorialOverlay extends StatefulWidget {
+class TutorialOverlayWidget extends StatefulWidget {
   final bool isActive;
   final String? targetSelector;
   final String highlightType;
@@ -28,10 +28,10 @@ class TutorialOverlay extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<TutorialOverlay> createState() => _TutorialOverlayState();
+  State<TutorialOverlayWidget> createState() => _TutorialOverlayWidgetState();
 }
 
-class _TutorialOverlayState extends State<TutorialOverlay>
+class _TutorialOverlayWidgetState extends State<TutorialOverlayWidget>
     with SingleTickerProviderStateMixin {
   Rect? _targetBounds;
   bool _isVisible = false;
@@ -51,7 +51,7 @@ class _TutorialOverlayState extends State<TutorialOverlay>
   }
 
   @override
-  void didUpdateWidget(TutorialOverlay oldWidget) {
+  void didUpdateWidget(TutorialOverlayWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive ||
         widget.targetSelector != oldWidget.targetSelector) {

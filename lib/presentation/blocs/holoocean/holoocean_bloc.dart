@@ -352,7 +352,7 @@ class HoloOceanBloc extends Bloc<HoloOceanEvent, HoloOceanState> {
     on<HandleHoloOceanConnectionErrorEvent>(_onHandleConnectionError);
   }
   
-  void _onInitialize(InitializeHoloOceanEvent event, Emitter<HoloOceanState> emit) {
+  Future<void> _onInitialize(InitializeHoloOceanEvent event, Emitter<HoloOceanState> emit) async {
     // Setup event listeners
     _connectedSubscription = _holoOceanService.onConnected.listen((data) {
       add(HandleHoloOceanConnectedEvent(data));
@@ -380,7 +380,7 @@ class HoloOceanBloc extends Bloc<HoloOceanEvent, HoloOceanState> {
     
     // Initialize state from service
     final serviceStatus = _holoOceanService.getConnectionStatus();
-    final lastStatus = _holoOceanService.getLastStatus();
+    final lastStatus = await _holoOceanService.getLastStatus();
     
     emit(HoloOceanLoadedState(
       isConnected: serviceStatus['isConnected'] as bool? ?? false,
@@ -422,7 +422,7 @@ class HoloOceanBloc extends Bloc<HoloOceanEvent, HoloOceanState> {
           token = authState.accessToken;
         }
         
-        await _holoOceanService.connect(token: token);
+        await _holoOceanService.connect();
       } catch (error) {
         emit(currentState.copyWith(
           connectionError: error.toString(),
@@ -467,7 +467,7 @@ class HoloOceanBloc extends Bloc<HoloOceanEvent, HoloOceanState> {
         
         // Reconnect via service (Note: need to add reconnect to remote datasource interface)
         await _holoOceanService.disconnect();
-        await _holoOceanService.connect(token: token);
+        await _holoOceanService.connect();
       } catch (error) {
         emit(currentState.copyWith(
           connectionError: error.toString(),
@@ -494,10 +494,10 @@ class HoloOceanBloc extends Bloc<HoloOceanEvent, HoloOceanState> {
       
       try {
         await _holoOceanService.setTarget(
-          event.lat,
-          event.lon,
-          event.depth,
-          time: event.time,
+          latitude: event.lat,
+          longitude: event.lon,
+          depth: event.depth,
+          parameters: event.time != null ? {'time': event.time} : null,
         );
         emit(currentState.copyWith(isSettingTarget: false));
       } catch (error) {
