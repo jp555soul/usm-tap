@@ -25,6 +25,7 @@ class OutputModuleWidget extends StatefulWidget {
   final Function(ChatMessage)? onShareResponse;
   final bool isTyping;
   final String typingMessage;
+  final Map<String, dynamic> currentsGeoJSON;
 
   const OutputModuleWidget({
     Key? key,
@@ -44,6 +45,7 @@ class OutputModuleWidget extends StatefulWidget {
     this.onShareResponse,
     this.isTyping = false,
     this.typingMessage = 'Processing...',
+    this.currentsGeoJSON = const {},
   }) : super(key: key);
 
   @override

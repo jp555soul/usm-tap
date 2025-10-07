@@ -99,4 +99,14 @@ class EnvDataEntity extends Equatable {
       additionalData: additionalData ?? this.additionalData,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'temperature': temperature,
+      'salinity': salinity,
+      'currentDirection': currentDirection,
+      'currentSpeed': currentSpeed,
+      'pressure': pressure,
+    };
+  }
 }

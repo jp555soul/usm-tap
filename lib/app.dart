@@ -21,7 +21,7 @@ import 'presentation/widgets/panels/output_module_widget.dart';
 import 'presentation/widgets/chatbot/chatbot_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
-import 'data/models/chat_message.dart';
+import 'data/models/chat_message.dart' as DataModels;
 import 'domain/entities/env_data_entity.dart';
 import 'domain/entities/station_data_entity.dart';
 
@@ -625,20 +625,18 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                           playbackSpeed: oceanState.playbackSpeed,
                           currentFrame: oceanState.currentFrame,
                           holoOceanPOV: oceanState.holoOceanPOV,
-                          envData: oceanState.envData,
+                          envData: oceanState.envData?.toJson() ?? {},
                           timeZone: oceanState.timeZone,
                           startDate: oceanState.startDate,
                           endDate: oceanState.endDate,
                           onAddMessage: (message) {
-                            final chatMessage = ChatMessage(
-                              id: message['id'] as String? ?? DateTime.now().toIso8601String(),
-                              content: message['content'] as String? ?? '',
-                              isUser: message['isUser'] as bool? ?? false,
-                              timestamp: message['timestamp'] is String
-                                  ? DateTime.parse(message['timestamp'] as String)
-                                  : DateTime.now(),
-                              source: message['source'] as String? ?? '',
-                              retryAttempt: message['retryAttempt'] as int? ?? 0,
+                            final chatMessage = DataModels.ChatMessage(
+                              id: message.id,
+                              content: message.content,
+                              isUser: message.isUser,
+                              timestamp: message.timestamp,
+                              source: message.source,
+                              retryAttempt: message.retryAttempt,
                             );
                             context.read<OceanDataBloc>().add(
                                   AddChatMessageEvent(chatMessage),
