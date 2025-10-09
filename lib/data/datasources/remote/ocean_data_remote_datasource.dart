@@ -149,7 +149,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
       timeout: const Duration(minutes: 10), // 10 minutes
       retries: 2,
       token: AppConstants.bearerToken,
-      database: const String.fromEnvironment('DB', defaultValue: ''),
+      database: AppConstants.blueDB,
     );
   }
   
@@ -177,9 +177,10 @@ Future<Map<String, dynamic>> loadAllData({
   DateTime? endDate,
 }) async {
   final selectedArea = area ?? 'USM';
-  final defaultStartDate = DateTime.parse('2025-08-01T11:00:00Z');
+  final defaultStartDate = DateTime.parse('2025-07-31T00:00:00Z');
+  final defaultEndDate = DateTime.parse('2025-08-01T00:00:00Z');
   final start = startDate ?? defaultStartDate;
-  final end = endDate ?? start;
+  final end = endDate ?? defaultEndDate;
   
   final tableName = getTableNameForArea(selectedArea);
   final baseQuery = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms FROM `${_apiConfig.database}.$tableName`';
@@ -187,14 +188,13 @@ Future<Map<String, dynamic>> loadAllData({
   
   final startISO = start.toIso8601String();
   final endISO = end.toIso8601String();
-  whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
+  //whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
   
   String query = baseQuery;
   if (whereClauses.isNotEmpty) {
     query += ' WHERE ${whereClauses.join(' AND ')}';
   }
   query += ' ORDER BY time DESC LIMIT 10000';
-  
   try {
     // Log request details
     debugPrint('=== API Request ===');
@@ -222,7 +222,7 @@ Future<Map<String, dynamic>> loadAllData({
     debugPrint('Status Message: ${response.statusMessage}');
     debugPrint('Response Headers: ${response.headers}');
     debugPrint('Response Data Type: ${response.data.runtimeType}');
-    debugPrint('Response Data: ${response.data}');
+    //debugPrint('Response Data: ${response.data}');
     
     if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
       final apiData = response.data as List;
