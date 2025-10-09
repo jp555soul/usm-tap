@@ -2,6 +2,11 @@
 class AppConstants {
   // Private constructor to prevent instantiation
   AppConstants._();
+
+  static const String blueDB = String.fromEnvironment(
+    'DB',
+    defaultValue: 'isdata-usmcom.usm_com',
+  );
   
   // Auth0 Configuration
   static const String auth0Domain = String.fromEnvironment(
