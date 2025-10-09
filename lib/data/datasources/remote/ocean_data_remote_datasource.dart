@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:usm_tap/core/constants/app_constants.dart';
 import 'package:usm_tap/core/errors/exceptions.dart';
 import 'package:usm_tap/domain/entities/station_data_entity.dart';
+import 'package:usm_tap/domain/entities/ocean_data_entity.dart';
 
 abstract class OceanDataRemoteDataSource {
   String getTableNameForArea(String areaName);
@@ -116,7 +117,7 @@ abstract class OceanDataRemoteDataSource {
 
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
 
-  Future<dynamic> getOceanData({DateTime? startDate, required String endDate});
+  Future<List<OceanDataEntity>> getOceanData({DateTime? startDate, required String endDate});
   Future<List<dynamic>> getStations();
   Future<dynamic> getEnvironmentalData({DateTime? timestamp});
   Future<List<dynamic>> getAvailableModels({required String stationId});
@@ -170,66 +171,88 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   /// @param queryParams - The query parameters for filtering data.
   /// @returns A promise that resolves to an object containing all the data rows from the API.
   @override
-  Future<Map<String, dynamic>> loadAllData({
-    String? area,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    final selectedArea = area ?? 'USM';
-    final defaultStartDate = DateTime.parse('2025-08-01T11:00:00Z');
-    final start = startDate ?? defaultStartDate;
-    final end = endDate ?? start;
-    
-    final tableName = getTableNameForArea(selectedArea);
-    final baseQuery = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms FROM `${_apiConfig.database}.$tableName`';
-    final whereClauses = <String>[];
-    
-    final startISO = start.toIso8601String();
-    final endISO = end.toIso8601String();
-    whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
-    
-    String query = baseQuery;
-    if (whereClauses.isNotEmpty) {
-      query += ' WHERE ${whereClauses.join(' AND ')}';
-    }
-    query += ' ORDER BY time DESC LIMIT 10000';
-    
-    try {
-      final response = await _dio.get(
-        '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
-        queryParameters: {'query': query},
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${_apiConfig.token}',
-          },
-          receiveTimeout: _apiConfig.timeout,
-        ),
-      );
-      
-      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-        final apiData = response.data as List;
-        
-        final allData = apiData.map((row) {
-          final dataMap = row as Map<String, dynamic>;
-          return {
-            ...dataMap,
-            'model': 'NGOFS2',
-            'area': selectedArea,
-            '_source_file': 'API_$selectedArea',
-            '_loaded_at': DateTime.now().toIso8601String(),
-          };
-        }).toList();
-        
-        return {'allData': allData};
-      } else {
-        throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}');
-      }
-    } catch (error) {
-      debugPrint('Failed to load data for area $selectedArea: $error');
-      return {'allData': []};
-    }
+Future<Map<String, dynamic>> loadAllData({
+  String? area,
+  DateTime? startDate,
+  DateTime? endDate,
+}) async {
+  final selectedArea = area ?? 'USM';
+  final defaultStartDate = DateTime.parse('2025-08-01T11:00:00Z');
+  final start = startDate ?? defaultStartDate;
+  final end = endDate ?? start;
+  
+  final tableName = getTableNameForArea(selectedArea);
+  final baseQuery = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms FROM `${_apiConfig.database}.$tableName`';
+  final whereClauses = <String>[];
+  
+  final startISO = start.toIso8601String();
+  final endISO = end.toIso8601String();
+  whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
+  
+  String query = baseQuery;
+  if (whereClauses.isNotEmpty) {
+    query += ' WHERE ${whereClauses.join(' AND ')}';
   }
+  query += ' ORDER BY time DESC LIMIT 10000';
+  
+  try {
+    // Log request details
+    debugPrint('=== API Request ===');
+    debugPrint('URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
+    debugPrint('Query: $query');
+    debugPrint('Database: ${_apiConfig.database}');
+    debugPrint('Table: $tableName');
+    
+    final response = await _dio.get(
+      '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
+      queryParameters: {'query': query},
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${_apiConfig.token}',
+        },
+        receiveTimeout: _apiConfig.timeout,
+        validateStatus: (status) => true, // Accept all status codes to see response
+      ),
+    );
+    
+    // Log response details
+    debugPrint('=== API Response ===');
+    debugPrint('Status Code: ${response.statusCode}');
+    debugPrint('Status Message: ${response.statusMessage}');
+    debugPrint('Response Headers: ${response.headers}');
+    debugPrint('Response Data Type: ${response.data.runtimeType}');
+    debugPrint('Response Data: ${response.data}');
+    
+    if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+      final apiData = response.data as List;
+      
+      final allData = apiData.map((row) {
+        final dataMap = row as Map<String, dynamic>;
+        return {
+          ...dataMap,
+          'model': 'NGOFS2',
+          'area': selectedArea,
+          '_source_file': 'API_$selectedArea',
+          '_loaded_at': DateTime.now().toIso8601String(),
+        };
+      }).toList();
+      
+      return {'allData': allData};
+    } else {
+      throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
+    }
+  } catch (error) {
+    debugPrint('=== API Error ===');
+    debugPrint('Error Type: ${error.runtimeType}');
+    debugPrint('Error: $error');
+    if (error is DioException) {
+      debugPrint('DioException Response: ${error.response?.data}');
+      debugPrint('DioException Message: ${error.message}');
+    }
+    return {'allData': []};
+  }
+}
   
   /// Processes raw data into a format suitable for time series charts.
   /// @param rawData - The raw data from the API.
@@ -876,7 +899,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
         ...point,
         'temperature': value,
         'id': 'temp_${point['latitude']}_${point['longitude']}',
-        'displayTemp': '${value.toStringAsFixed(1)}°C',
+        'displayTemp': '${value.toStringAsFixed(1)}Â°C',
         'coordinates': [point['longitude'], point['latitude']],
       };
     }).toList();
@@ -1220,46 +1243,83 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   }
 
   @override
-  Future<dynamic> getOceanData({DateTime? startDate, required String endDate}) async {
-    // TODO: Implement actual data fetching
-    debugPrint('Fetching ocean data with startDate: $startDate and endDate: $endDate');
-    await Future.delayed(const Duration(seconds: 1));
-    return Future.value({'data': 'Sample ocean data'});
+  Future<List<OceanDataEntity>> getOceanData({DateTime? startDate, required String endDate}) async {
+    try {
+      debugPrint('Fetching ocean data from API...');
+      final endDateTime = DateTime.parse(endDate);
+      final result = await loadAllData(
+        startDate: startDate,
+        endDate: endDateTime,
+      );
+      
+      final rawData = result['allData'] as List? ?? [];
+      debugPrint('Loaded ${rawData.length} data points from API');
+      
+      // Convert raw data to entities
+      return rawData.map((item) {
+        final data = item as Map<String, dynamic>;
+        final timestamp = data['time'] != null 
+            ? DateTime.parse(data['time']) 
+            : DateTime.now();
+        final lat = (data['lat'] as num?)?.toDouble() ?? 0.0;
+        final lon = (data['lon'] as num?)?.toDouble() ?? 0.0;
+        
+        return OceanDataEntity(
+          id: '${lat}_${lon}_${timestamp.millisecondsSinceEpoch}',
+          timestamp: timestamp,
+          latitude: lat,
+          longitude: lon,
+          depth: (data['depth'] as num?)?.toDouble() ?? 0.0,
+          temperature: (data['temp'] as num?)?.toDouble(),
+          salinity: (data['salinity'] as num?)?.toDouble(),
+          pressure: (data['pressure_dbars'] as num?)?.toDouble(),
+          additionalData: {
+            'currentSpeed': data['nspeed'],
+            'currentDirection': data['direction'],
+            'windDirection': data['ndirection'],
+            'ssh': data['ssh'],
+            'soundSpeed': data['sound_speed_ms'],
+            'model': data['model'],
+            'area': data['area'],
+            'sourceFile': data['_source_file'],
+          },
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching ocean data: $e');
+      throw ServerException('Failed to fetch ocean data: $e');
+    }
   }
 
   @override
   Future<List<dynamic>> getStations() async {
-    // TODO: Implement actual station fetching
-    debugPrint('Fetching all stations');
-    await Future.delayed(const Duration(seconds: 1));
-    return Future.value([
-      {'id': 'station_1', 'name': 'Station Alpha'},
-      {'id': 'station_2', 'name': 'Station Beta'},
-    ]);
+    try {
+      debugPrint('Fetching stations from API...');
+      final result = await loadAllData();
+      final rawData = result['allData'] as List? ?? [];
+      final stations = generateOptimizedStationDataFromAPI(rawData);
+      debugPrint('Generated ${stations.length} stations');
+      return stations;
+    } catch (e) {
+      debugPrint('Error fetching stations: $e');
+      return [];
+    }
   }
 
   @override
   Future<dynamic> getEnvironmentalData({DateTime? timestamp}) async {
-    // TODO: Implement actual environmental data fetching
-    debugPrint('Fetching environmental data with timestamp: $timestamp');
-    await Future.delayed(const Duration(seconds: 1));
-    return Future.value({'temp': '25C', 'salinity': '35PSU'});
+    debugPrint('Environmental data not yet implemented');
+    return Future.value({});
   }
 
   @override
   Future<List<dynamic>> getAvailableModels({required String stationId}) async {
-    // TODO: Implement actual model fetching
-    debugPrint('Fetching available models for station: $stationId');
-    await Future.delayed(const Duration(milliseconds: 500));
     return Future.value(['NGOFS2', 'RTOFS']);
   }
 
   @override
   Future<List<double>> getAvailableDepths(String stationId) async {
-    // TODO: Implement actual depth fetching
-    debugPrint('Fetching available depths for station: $stationId');
-    await Future.delayed(const Duration(milliseconds: 500));
-    return Future.value([0.0, 10.0, 20.0, 50.0]);
+    return Future.value([0.0, 10.0, 20.0, 30.0, 50.0, 100.0]);
   }
 }
 

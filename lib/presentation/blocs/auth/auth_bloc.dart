@@ -285,12 +285,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   
   void _logAuth0Configuration() {
     // Equivalent to console.log in React
-    print('Auth0 Configuration (SPA):');
-    print('Domain: ${AppConstants.auth0Domain}');
-    print('Client ID: ${AppConstants.auth0ClientId}');
-    print('Has Client Secret: ${AppConstants.auth0ClientSecret.isNotEmpty}');
-    print('Audience: ${AppConstants.auth0Audience.isNotEmpty ? AppConstants.auth0Audience : 'none (using default scopes)'}');
-    print('Callback URL: ${AppConstants.auth0CallbackUrl}');
+    // print('Auth0 Configuration (SPA):');
+    // print('Domain: ${AppConstants.auth0Domain}');
+    // print('Client ID: ${AppConstants.auth0ClientId}');
+    // print('Has Client Secret: ${AppConstants.auth0ClientSecret.isNotEmpty}');
+    // print('Audience: ${AppConstants.auth0Audience.isNotEmpty ? AppConstants.auth0Audience : 'none (using default scopes)'}');
+    // print('Callback URL: ${AppConstants.auth0CallbackUrl}');
   }
 }
 
