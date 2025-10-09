@@ -15,7 +15,7 @@ class AuthConfigurationErrorWidget extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF1E293B), // slate-800
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 600),

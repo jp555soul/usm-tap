@@ -6,7 +6,7 @@ class AppConstants {
   // Auth0 Configuration
   static const String auth0Domain = String.fromEnvironment(
     'AUTH0_DOMAIN',
-    defaultValue: 'https://dev-iehguv204612q2sk.us.auth0.com',
+    defaultValue: 'dev-iehguv204612q2sk.us.auth0.com',
   );
   
   static const String auth0ClientId = String.fromEnvironment(
@@ -26,7 +26,7 @@ class AppConstants {
   
   static const String auth0CallbackUrl = String.fromEnvironment(
     'AUTH0_CALLBACK_URL',
-    defaultValue: '',
+    defaultValue: 'http://localhost:3000/auth/callback',
   );
   
   static const String auth0Secret = String.fromEnvironment(

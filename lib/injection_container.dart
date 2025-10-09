@@ -94,7 +94,7 @@ Future<void> init() async {
   );
 
   sl.registerLazySingleton(
-    () => SessionKeyService(secureStorage: sl()),
+    () => SessionKeyService(secureStorage: sl(), prefs: sl()),
   );
 
   //! Services (Wrappers for Dio-based services)
