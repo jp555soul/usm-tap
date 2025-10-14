@@ -332,6 +332,13 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
   }
 
   Widget _buildAreaSelector(bool isSmall, bool isLarge) {
+    // Validate that the selected value exists in the dropdown items
+    // If "default" or invalid, use 'USM' as the default
+    const validAreas = ['', 'USM', 'MBL', 'MSR'];
+    final safeValue = validAreas.contains(widget.selectedArea) 
+        ? (widget.selectedArea.isEmpty ? 'USM' : widget.selectedArea)
+        : 'USM';
+    
     return SizedBox(
       width: isLarge ? 200 : (isSmall ? double.infinity : 180),
       child: Column(
@@ -346,7 +353,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
           ),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
-            value: widget.selectedArea.isEmpty ? null : widget.selectedArea,
+            value: safeValue,
             decoration: InputDecoration(
               contentPadding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
               border: OutlineInputBorder(borderSide: BorderSide(color: const Color(0xFF475569))),
@@ -356,12 +363,11 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             style: TextStyle(fontSize: isSmall ? 12 : 14, color: Colors.white),
             dropdownColor: const Color(0xFF334155),
             items: const [
-              DropdownMenuItem(value: '', child: Text('Select Area')),
               DropdownMenuItem(value: 'USM', child: Text('USM')),
               DropdownMenuItem(value: 'MBL', child: Text('MBL')),
               DropdownMenuItem(value: 'MSR', child: Text('MSR')),
             ],
-            onChanged: (value) => widget.onAreaChange?.call(value ?? ''),
+            onChanged: (value) => widget.onAreaChange?.call(value ?? 'USM'),
           ),
         ],
       ),
