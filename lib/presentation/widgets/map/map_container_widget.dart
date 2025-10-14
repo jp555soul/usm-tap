@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 /// Flutter widget that embeds the React MapContainer via WebView
 /// Handles bidirectional communication between Flutter and React
@@ -87,10 +89,17 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
     _initializeWebView();
   }
 
-  void _initializeWebView() {
+  Future<void> _initializeWebView() async {
     _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+    
+    // Only set background color on mobile platforms where it's supported
+    // macOS doesn't support the setOpaque method used internally by setBackgroundColor
+    if (Platform.isAndroid || Platform.isIOS) {
+      _controller.setBackgroundColor(const Color(0x00000000));
+    }
+    
+    _controller
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -119,23 +128,20 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
         onMessageReceived: (JavaScriptMessage message) {
           _handleMessageFromReact(message.message);
         },
-      )
-      ..loadRequest(Uri.parse(_getMapHtmlUrl()));
-  }
+      );
 
-  /// Get URL for the HTML file that hosts the React MapContainer
-  /// In production, this should point to your hosted HTML file
-  /// For development, you can use assets or a local server
-  String _getMapHtmlUrl() {
-    // Option 1: Use a local asset (requires flutter pub add flutter_inappwebview or similar)
-    // return 'file:///android_asset/flutter_assets/assets/map_bridge.html';
-    
-    // Option 2: Use a hosted URL
-    // return 'https://your-domain.com/map_bridge.html';
-    
-    // Option 3: Use data URL with inline HTML (shown below for completeness)
-    // return 'data:text/html;base64,${base64Encode(utf8.encode(_getInlineHtml()))}';
-    return 'assets/web/map_bridge.html';
+    // Load HTML content from assets and convert to data URI
+    try {
+      final htmlContent = await rootBundle.loadString('assets/web/map_bridge.html');
+      final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(htmlContent))}';
+      await _controller.loadRequest(Uri.parse(dataUri));
+    } catch (e) {
+      debugPrint('Error loading HTML from assets: $e');
+      // Fallback to inline HTML if asset loading fails
+      final inlineHtml = _getInlineHtml();
+      final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(inlineHtml))}';
+      await _controller.loadRequest(Uri.parse(dataUri));
+    }
   }
 
   /// Generate inline HTML that loads React and MapContainer
@@ -151,7 +157,7 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background-color: #1e293b; }
     #root { width: 100%; height: 100%; }
   </style>
 </head>
@@ -173,16 +179,16 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
         // Handle messages from Flutter
         switch(type) {
           case 'UPDATE_PROPS':
-            window.updateMapProps(data);
+            if (window.updateMapProps) window.updateMapProps(data);
             break;
           case 'UPDATE_FRAME':
-            window.updateFrame(data.currentFrame);
+            if (window.updateFrame) window.updateFrame(data.currentFrame);
             break;
           case 'UPDATE_DEPTH':
-            window.updateDepth(data.selectedDepth);
+            if (window.updateDepth) window.updateDepth(data.selectedDepth);
             break;
           case 'UPDATE_LAYER_VISIBILITY':
-            window.updateLayerVisibility(data);
+            if (window.updateLayerVisibility) window.updateLayerVisibility(data);
             break;
           default:
             console.log('Unknown message type:', type);

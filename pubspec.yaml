@@ -52,6 +52,7 @@ flutter:
     - assets/web/static/css/
     - assets/vids/recording.mp4
     - assets/icons/
+    - assets/web/map_bridge.html
 
 flutter_launcher_icons:
   windows:

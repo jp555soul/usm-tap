@@ -695,11 +695,26 @@ class _HeaderWidgetState extends State<HeaderWidget> {
   }
 
   Widget _buildBlueMvmtLogo(bool isSmall) {
-    return Image.asset(
-      'assets/icons/powered_by_bluemvmt.png',
-      height: isSmall ? 24 : 32,
-    );
-  }
+  return Image.asset(
+    'assets/icons/powered_by_bluemvmt.png',
+    height: isSmall ? 24 : 32,
+    errorBuilder: (context, error, stackTrace) {
+      // Fallback when image is missing
+      return Container(
+        height: isSmall ? 24 : 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          'Powered by BlueMvmt',
+          style: TextStyle(
+            fontSize: isSmall ? 10 : 12,
+            color: const Color(0xFF64748B),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    },
+  );
+}
 }
 
 // ============================================================================
