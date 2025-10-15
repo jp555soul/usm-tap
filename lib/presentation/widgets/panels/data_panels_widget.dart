@@ -201,7 +201,7 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
           crossAxisCount: isMobile ? 1 : isTablet ? 2 : 4,
           childAspectRatio: isMobile ? 1.2 : 1.0,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           children: [
             // Video Panel (spans 2 columns on larger screens)
             if (!isMobile)
