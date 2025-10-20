@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../data/models/chat_message.dart';
 import '../../../domain/entities/ocean_data_entity.dart';
 import '../../../domain/entities/station_data_entity.dart';
@@ -237,21 +239,16 @@ class OceanDataErrorState extends OceanDataState {
 }
 
 class OceanDataLoadedState extends OceanDataState {
-  // Core data properties
   final bool dataLoaded;
   final bool isLoading;
   final bool hasError;
   final String? errorMessage;
-  
-  // Ocean data
   final List<OceanDataEntity> data;
   final List<StationDataEntity> stationData;
   final List<Map<String, dynamic>> timeSeriesData;
   final Map<String, dynamic> rawData;
   final Map<String, dynamic> currentsGeoJSON;
   final EnvDataEntity? envData;
-  
-  // Selection states
   final String selectedArea;
   final String selectedModel;
   final double selectedDepth;
@@ -262,42 +259,28 @@ class OceanDataLoadedState extends OceanDataState {
   final DateTime currentDate;
   final String currentTime;
   final StationDataEntity? selectedStation;
-  
-  // Available options
   final List<String> availableModels;
   final List<double> availableDepths;
   final List<DateTime> availableDates;
   final List<String> availableTimes;
-  
-  // Animation controls (from useAnimationControl hook)
   final int currentFrame;
   final int totalFrames;
   final bool isPlaying;
   final double playbackSpeed;
   final bool loopMode;
-  
-  // Map visualization
   final Map<String, bool> mapLayerVisibility;
   final bool isSstHeatmapVisible;
   final double currentsVectorScale;
   final String currentsColorBy;
   final Map<String, dynamic> heatmapScale;
-  
-  // Wind velocity particles
   final int windVelocityParticleCount;
   final double windVelocityParticleOpacity;
   final double windVelocityParticleSpeed;
-  
-  // HoloOcean integration (from useHoloOcean hook)
   final Map<String, double> holoOceanPOV;
   final Map<String, dynamic> holoOcean;
-  
-  // Connection and quality
   final ConnectionStatusEntity? connectionStatus;
   final Map<String, dynamic>? connectionDetails;
   final Map<String, dynamic>? dataQuality;
-  
-  // Chat
   final List<ChatMessage> chatMessages;
   final bool isTyping;
   
@@ -350,97 +333,33 @@ class OceanDataLoadedState extends OceanDataState {
   
   @override
   List<Object?> get props => [
-    dataLoaded,
-    isLoading,
-    hasError,
-    errorMessage,
-    data,
-    stationData,
-    timeSeriesData,
-    rawData,
-    currentsGeoJSON,
-    envData,
-    selectedArea,
-    selectedModel,
-    selectedDepth,
-    dataSource,
-    timeZone,
-    startDate,
-    endDate,
-    currentDate,
-    currentTime,
-    selectedStation,
-    availableModels,
-    availableDepths,
-    availableDates,
-    availableTimes,
-    currentFrame,
-    totalFrames,
-    isPlaying,
-    playbackSpeed,
-    loopMode,
-    mapLayerVisibility,
-    isSstHeatmapVisible,
-    currentsVectorScale,
-    currentsColorBy,
-    heatmapScale,
-    windVelocityParticleCount,
-    windVelocityParticleOpacity,
-    windVelocityParticleSpeed,
-    holoOceanPOV,
-    holoOcean,
-    connectionStatus,
-    connectionDetails,
-    dataQuality,
-    chatMessages,
-    isTyping,
+    dataLoaded, isLoading, hasError, errorMessage, data, stationData, timeSeriesData,
+    rawData, currentsGeoJSON, envData, selectedArea, selectedModel, selectedDepth,
+    dataSource, timeZone, startDate, endDate, currentDate, currentTime, selectedStation,
+    availableModels, availableDepths, availableDates, availableTimes, currentFrame,
+    totalFrames, isPlaying, playbackSpeed, loopMode, mapLayerVisibility, isSstHeatmapVisible,
+    currentsVectorScale, currentsColorBy, heatmapScale, windVelocityParticleCount,
+    windVelocityParticleOpacity, windVelocityParticleSpeed, holoOceanPOV, holoOcean,
+    connectionStatus, connectionDetails, dataQuality, chatMessages, isTyping,
   ];
   
   OceanDataLoadedState copyWith({
-    bool? dataLoaded,
-    bool? isLoading,
-    bool? hasError,
-    String? errorMessage,
-    List<OceanDataEntity>? data,
-    List<StationDataEntity>? stationData,
-    List<Map<String, dynamic>>? timeSeriesData,
-    Map<String, dynamic>? rawData,
-    Map<String, dynamic>? currentsGeoJSON,
-    EnvDataEntity? envData,
-    String? selectedArea,
-    String? selectedModel,
-    double? selectedDepth,
-    String? dataSource,
-    String? timeZone,
-    DateTime? startDate,
-    DateTime? endDate,
-    DateTime? currentDate,
-    String? currentTime,
-    StationDataEntity? selectedStation,
-    List<String>? availableModels,
-    List<double>? availableDepths,
-    List<DateTime>? availableDates,
-    List<String>? availableTimes,
-    int? currentFrame,
-    int? totalFrames,
-    bool? isPlaying,
-    double? playbackSpeed,
-    bool? loopMode,
-    Map<String, bool>? mapLayerVisibility,
-    bool? isSstHeatmapVisible,
-    double? currentsVectorScale,
-    String? currentsColorBy,
-    Map<String, dynamic>? heatmapScale,
-    int? windVelocityParticleCount,
-    double? windVelocityParticleOpacity,
-    double? windVelocityParticleSpeed,
-    Map<String, double>? holoOceanPOV,
-    Map<String, dynamic>? holoOcean,
-    ConnectionStatusEntity? connectionStatus,
-    Map<String, dynamic>? connectionDetails,
-    Map<String, dynamic>? dataQuality,
-    List<ChatMessage>? chatMessages,
-    bool? isTyping,
+    bool? dataLoaded, bool? isLoading, bool? hasError, String? errorMessage,
+    List<OceanDataEntity>? data, List<StationDataEntity>? stationData,
+    List<Map<String, dynamic>>? timeSeriesData, Map<String, dynamic>? rawData,
+    Map<String, dynamic>? currentsGeoJSON, EnvDataEntity? envData, String? selectedArea,
+    String? selectedModel, double? selectedDepth, String? dataSource, String? timeZone,
+    DateTime? startDate, DateTime? endDate, DateTime? currentDate, String? currentTime,
+    StationDataEntity? selectedStation, List<String>? availableModels,
+    List<double>? availableDepths, List<DateTime>? availableDates, List<String>? availableTimes,
+    int? currentFrame, int? totalFrames, bool? isPlaying, double? playbackSpeed,
+    bool? loopMode, Map<String, bool>? mapLayerVisibility, bool? isSstHeatmapVisible,
+    double? currentsVectorScale, String? currentsColorBy, Map<String, dynamic>? heatmapScale,
+    int? windVelocityParticleCount, double? windVelocityParticleOpacity,
+    double? windVelocityParticleSpeed, Map<String, double>? holoOceanPOV,
+    Map<String, dynamic>? holoOcean, ConnectionStatusEntity? connectionStatus,
+    Map<String, dynamic>? connectionDetails, Map<String, dynamic>? dataQuality,
+    List<ChatMessage>? chatMessages, bool? isTyping,
   }) {
     return OceanDataLoadedState(
       dataLoaded: dataLoaded ?? this.dataLoaded,
@@ -491,7 +410,6 @@ class OceanDataLoadedState extends OceanDataState {
   }
 }
 
-// BLOC
 class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   final GetOceanDataUseCase _getOceanDataUseCase;
   final UpdateTimeRangeUseCase _updateTimeRangeUseCase;
@@ -508,8 +426,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
        _controlAnimationUseCase = controlAnimationUseCase,
        _connectHoloOceanUseCase = connectHoloOceanUseCase,
        super(const OceanDataInitialState()) {
-    
-    // Register event handlers
     on<LoadInitialDataEvent>(_onLoadInitialData);
     on<RefreshDataEvent>(_onRefreshData);
     on<ResetDataEvent>(_onResetData);
@@ -538,278 +454,230 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     on<SetWindVelocityParticleSpeedEvent>(_onSetWindVelocityParticleSpeed);
     on<AddChatMessageEvent>(_onAddChatMessage);
     on<ResetApiMetricsEvent>(_onResetApiMetrics);
-    
-    // Auto-load initial data
     add(const LoadInitialDataEvent());
   }
   
-  Future<void> _onLoadInitialData(
-    LoadInitialDataEvent event,
-    Emitter<OceanDataState> emit,
-  ) async {
-    emit(const OceanDataLoadingState(isInitialLoad: true));
-    
+  Future<ConnectionStatusEntity> _checkApiConnection() async {
     try {
-      final result = await _getOceanDataUseCase(
-        GetOceanDataParams(
-          startDate: DateTime.now().subtract(const Duration(days: 7)),
-          endDate: DateTime.now(),
-        ),
+      debugPrint('Checking API connection...');
+      final result = await _getOceanDataUseCase(GetOceanDataParams(
+        startDate: DateTime.now().subtract(const Duration(hours: 1)),
+        endDate: DateTime.now(),
+      ));
+      final isConnected = result.isRight();
+      final hasApiKey = AppConstants.bearerToken.isNotEmpty;
+      final endpoint = AppConstants.baseUrl;
+      debugPrint('API Connection Status: ${isConnected ? "Connected" : "Disconnected"}');
+      debugPrint('Has API Key: $hasApiKey');
+      debugPrint('Endpoint: $endpoint');
+      return ConnectionStatusEntity(
+        connected: isConnected,
+        state: isConnected ? ConnectionState.excellent : ConnectionState.disconnected,
+        endpoint: endpoint,
+        hasApiKey: hasApiKey,
       );
-      
+    } catch (e) {
+      debugPrint('API connection check failed: $e');
+      return ConnectionStatusEntity(
+        connected: false,
+        state: ConnectionState.disconnected,
+        endpoint: AppConstants.baseUrl,
+        hasApiKey: AppConstants.bearerToken.isNotEmpty,
+      );
+    }
+  }
+  
+  Map<String, dynamic> _calculateDataQuality(List<OceanDataEntity> data) {
+    if (data.isEmpty) {
+      return {'stations': 0, 'measurements': 0, 'lastUpdate': DateTime.now().toIso8601String()};
+    }
+    final uniqueStations = <String>{};
+    for (final item in data) {
+      uniqueStations.add('${item.latitude.toStringAsFixed(4)}_${item.longitude.toStringAsFixed(4)}');
+    }
+    final latestTimestamp = data.map((d) => d.timestamp).reduce((a, b) => a.isAfter(b) ? a : b);
+    debugPrint('Data Quality - Stations: ${uniqueStations.length}, Measurements: ${data.length}');
+    return {
+      'stations': uniqueStations.length,
+      'measurements': data.length,
+      'lastUpdate': latestTimestamp.toIso8601String(),
+    };
+  }
+  
+  Future<void> _onLoadInitialData(LoadInitialDataEvent event, Emitter<OceanDataState> emit) async {
+    emit(const OceanDataLoadingState(isInitialLoad: true));
+    try {
+      debugPrint('Loading initial ocean data...');
+      final connectionStatus = await _checkApiConnection();
+      final result = await _getOceanDataUseCase(GetOceanDataParams(
+        startDate: DateTime.now().subtract(const Duration(days: 7)),
+        endDate: DateTime.now(),
+      ));
       if (result.isRight()) {
         final oceanData = result.getOrElse(() => []);
-        
-        // Initialize default state (equivalent to React context initial values)
+        debugPrint('Loaded ${oceanData.length} ocean data points');
+        final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
-          dataLoaded: true,
-          isLoading: false,
-          hasError: false,
-          data: oceanData,
-          stationData: const [],
-          timeSeriesData: const [],
-          rawData: const {},
-          currentsGeoJSON: const {},
-          selectedArea: 'default',
-          selectedModel: 'default',
-          selectedDepth: 0.0,
-          dataSource: 'API',
-          timeZone: 'UTC',
+          dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
+          stationData: const [], timeSeriesData: const [], rawData: const {},
+          currentsGeoJSON: const {}, selectedArea: 'USM', selectedModel: 'NGOFS2',
+          selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: DateTime.now().subtract(const Duration(days: 7)),
-          endDate: DateTime.now(),
-          currentDate: DateTime.now(),
-          currentTime: '00:00',
-          availableModels: const ['default'],
-          availableDepths: const [0.0, 10.0, 20.0],
-          availableDates: const [],
-          availableTimes: const [],
-          currentFrame: 0,
-          totalFrames: 100,
-          isPlaying: false,
-          playbackSpeed: 1.0,
-          loopMode: false,
-          mapLayerVisibility: const {},
-          isSstHeatmapVisible: true,
-          currentsVectorScale: 1.0,
-          currentsColorBy: 'velocity',
-          heatmapScale: const {},
-          windVelocityParticleCount: 1000,
-          windVelocityParticleOpacity: 0.8,
-          windVelocityParticleSpeed: 1.0,
-          holoOceanPOV: const {'x': 0.0, 'y': 0.0, 'z': 0.0},
-          holoOcean: const {},
-          chatMessages: const [],
-          isTyping: false,
+          endDate: DateTime.now(), currentDate: DateTime.now(), currentTime: '00:00',
+          availableModels: const ['NGOFS2', 'RTOFS'],
+          availableDepths: const [0.0, 10.0, 20.0, 30.0, 50.0, 100.0],
+          availableDates: const [], availableTimes: const [], currentFrame: 0,
+          totalFrames: 100, isPlaying: false, playbackSpeed: 1.0, loopMode: false,
+          mapLayerVisibility: const {}, isSstHeatmapVisible: true,
+          currentsVectorScale: 1.0, currentsColorBy: 'velocity',
+          heatmapScale: const {'value': 1.0}, windVelocityParticleCount: 1000,
+          windVelocityParticleOpacity: 0.8, windVelocityParticleSpeed: 1.0,
+          holoOceanPOV: const {'x': 0.0, 'y': 0.0, 'z': 0.0}, holoOcean: const {},
+          connectionStatus: connectionStatus, dataQuality: dataQuality,
+          chatMessages: const [], isTyping: false,
         ));
       } else {
-        emit(OceanDataErrorState(result.fold((l) => l.message, (r) => 'Unknown error')));
+        final errorMessage = result.fold((l) => l.message, (r) => 'Unknown error');
+        debugPrint('Failed to load ocean data: $errorMessage');
+        emit(OceanDataErrorState(errorMessage));
       }
     } catch (e) {
+      debugPrint('Exception loading initial data: $e');
       emit(OceanDataErrorState(e.toString()));
     }
   }
   
-  Future<void> _onRefreshData(
-    RefreshDataEvent event,
-    Emitter<OceanDataState> emit,
-  ) async {
+  Future<void> _onRefreshData(RefreshDataEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
       emit(currentState.copyWith(isLoading: true));
-      
       try {
-        final result = await _getOceanDataUseCase(
-          GetOceanDataParams(
-            startDate: currentState.startDate,
-            endDate: currentState.endDate,
-          ),
-        );
-        
+        debugPrint('Refreshing ocean data...');
+        final connectionStatus = await _checkApiConnection();
+        final result = await _getOceanDataUseCase(GetOceanDataParams(
+          startDate: currentState.startDate, endDate: currentState.endDate,
+        ));
         if (result.isRight()) {
           final oceanData = result.getOrElse(() => []);
+          debugPrint('Refreshed ${oceanData.length} ocean data points');
+          final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
-            data: oceanData,
-            isLoading: false,
-            hasError: false,
+            data: oceanData, isLoading: false, hasError: false,
+            connectionStatus: connectionStatus, dataQuality: dataQuality,
           ));
         } else {
           emit(currentState.copyWith(
-            isLoading: false,
-            hasError: true,
+            isLoading: false, hasError: true,
             errorMessage: result.fold((l) => l.message, (r) => 'Unknown error'),
+            connectionStatus: connectionStatus,
           ));
         }
       } catch (e) {
-        emit(currentState.copyWith(
-          isLoading: false,
-          hasError: true,
-          errorMessage: e.toString(),
-        ));
+        debugPrint('Exception refreshing data: $e');
+        emit(currentState.copyWith(isLoading: false, hasError: true, errorMessage: e.toString()));
       }
     }
   }
   
-  void _onResetData(
-    ResetDataEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onResetData(ResetDataEvent event, Emitter<OceanDataState> emit) {
     add(const LoadInitialDataEvent());
   }
   
-  void _onCheckApiStatus(
-    CheckApiStatusEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
-    // Implementation for API status check
-  }
-  
-  void _onSetSelectedArea(
-    SetSelectedAreaEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  Future<void> _onCheckApiStatus(CheckApiStatusEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(selectedArea: event.area));
+      debugPrint('Checking API status...');
+      final connectionStatus = await _checkApiConnection();
+      emit(currentState.copyWith(connectionStatus: connectionStatus));
     }
   }
   
-  void _onSetSelectedModel(
-    SetSelectedModelEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetSelectedArea(SetSelectedAreaEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(selectedModel: event.model));
+      emit((state as OceanDataLoadedState).copyWith(selectedArea: event.area));
     }
   }
   
-  void _onSetSelectedDepth(
-    SetSelectedDepthEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetSelectedModel(SetSelectedModelEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(selectedDepth: event.depth));
+      emit((state as OceanDataLoadedState).copyWith(selectedModel: event.model));
     }
   }
   
-  void _onSetDateRange(
-    SetDateRangeEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetSelectedDepth(SetSelectedDepthEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(
-        startDate: event.startDate,
-        endDate: event.endDate,
-      ));
+      emit((state as OceanDataLoadedState).copyWith(selectedDepth: event.depth));
     }
   }
   
-  void _onSetTimeZone(
-    SetTimeZoneEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetDateRange(SetDateRangeEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(timeZone: event.timeZone));
+      emit((state as OceanDataLoadedState).copyWith(startDate: event.startDate, endDate: event.endDate));
     }
   }
   
-  void _onSetCurrentFrame(
-    SetCurrentFrameEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetTimeZone(SetTimeZoneEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(currentFrame: event.frame));
+      emit((state as OceanDataLoadedState).copyWith(timeZone: event.timeZone));
     }
   }
   
-  void _onTogglePlayback(
-    TogglePlaybackEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetCurrentFrame(SetCurrentFrameEvent event, Emitter<OceanDataState> emit) {
+    if (state is OceanDataLoadedState) {
+      emit((state as OceanDataLoadedState).copyWith(currentFrame: event.frame));
+    }
+  }
+  
+  void _onTogglePlayback(TogglePlaybackEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
       emit(currentState.copyWith(isPlaying: !currentState.isPlaying));
     }
   }
   
-  void _onPlayAnimation(
-    PlayAnimationEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onPlayAnimation(PlayAnimationEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(isPlaying: true));
+      emit((state as OceanDataLoadedState).copyWith(isPlaying: true));
     }
   }
   
-  void _onPauseAnimation(
-    PauseAnimationEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onPauseAnimation(PauseAnimationEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(isPlaying: false));
+      emit((state as OceanDataLoadedState).copyWith(isPlaying: false));
     }
   }
   
-  void _onSetPlaybackSpeed(
-    SetPlaybackSpeedEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetPlaybackSpeed(SetPlaybackSpeedEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(playbackSpeed: event.speed));
+      emit((state as OceanDataLoadedState).copyWith(playbackSpeed: event.speed));
     }
   }
   
-  void _onSetLoopMode(
-    SetLoopModeEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetLoopMode(SetLoopModeEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(loopMode: event.loopMode));
+      emit((state as OceanDataLoadedState).copyWith(loopMode: event.loopMode));
     }
   }
   
-  void _onSetHoloOceanPOV(
-    SetHoloOceanPOVEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetHoloOceanPOV(SetHoloOceanPOVEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(holoOceanPOV: event.pov));
+      emit((state as OceanDataLoadedState).copyWith(holoOceanPOV: event.pov));
     }
   }
   
-  void _onSetSelectedStation(
-    SetSelectedStationEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetSelectedStation(SetSelectedStationEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(selectedStation: event.station));
+      emit((state as OceanDataLoadedState).copyWith(selectedStation: event.station));
     }
   }
   
-  void _onSetEnvData(
-    SetEnvDataEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetEnvData(SetEnvDataEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(envData: event.envData));
+      emit((state as OceanDataLoadedState).copyWith(envData: event.envData));
     }
   }
   
-  void _onToggleMapLayer(
-    ToggleMapLayerEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onToggleMapLayer(ToggleMapLayerEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
       final updatedLayers = Map<String, bool>.from(currentState.mapLayerVisibility);
@@ -818,95 +686,60 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     }
   }
   
-  void _onToggleSstHeatmap(
-    ToggleSstHeatmapEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onToggleSstHeatmap(ToggleSstHeatmapEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
       emit(currentState.copyWith(isSstHeatmapVisible: !currentState.isSstHeatmapVisible));
     }
   }
   
-  void _onSetCurrentsVectorScale(
-    SetCurrentsVectorScaleEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetCurrentsVectorScale(SetCurrentsVectorScaleEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(currentsVectorScale: event.scale));
+      emit((state as OceanDataLoadedState).copyWith(currentsVectorScale: event.scale));
     }
   }
   
-  void _onSetCurrentsColorBy(
-    SetCurrentsColorByEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetCurrentsColorBy(SetCurrentsColorByEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(currentsColorBy: event.colorBy));
+      emit((state as OceanDataLoadedState).copyWith(currentsColorBy: event.colorBy));
     }
   }
   
-  void _onSetHeatmapScale(
-    SetHeatmapScaleEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetHeatmapScale(SetHeatmapScaleEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(heatmapScale: event.scale));
+      emit((state as OceanDataLoadedState).copyWith(heatmapScale: event.scale));
     }
   }
   
-  void _onSetWindVelocityParticleCount(
-    SetWindVelocityParticleCountEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetWindVelocityParticleCount(SetWindVelocityParticleCountEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(windVelocityParticleCount: event.count));
+      emit((state as OceanDataLoadedState).copyWith(windVelocityParticleCount: event.count));
     }
   }
   
-  void _onSetWindVelocityParticleOpacity(
-    SetWindVelocityParticleOpacityEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetWindVelocityParticleOpacity(SetWindVelocityParticleOpacityEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(windVelocityParticleOpacity: event.opacity));
+      emit((state as OceanDataLoadedState).copyWith(windVelocityParticleOpacity: event.opacity));
     }
   }
   
-  void _onSetWindVelocityParticleSpeed(
-    SetWindVelocityParticleSpeedEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onSetWindVelocityParticleSpeed(SetWindVelocityParticleSpeedEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(windVelocityParticleSpeed: event.speed));
+      emit((state as OceanDataLoadedState).copyWith(windVelocityParticleSpeed: event.speed));
     }
   }
   
-  void _onAddChatMessage(
-    AddChatMessageEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onAddChatMessage(AddChatMessageEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      final updatedMessages = List<ChatMessage>.from(currentState.chatMessages)
-        ..add(event.message);
+      final updatedMessages = List<ChatMessage>.from(currentState.chatMessages)..add(event.message);
       emit(currentState.copyWith(chatMessages: updatedMessages));
     }
   }
   
-  void _onResetApiMetrics(
-    ResetApiMetricsEvent event,
-    Emitter<OceanDataState> emit,
-  ) {
+  void _onResetApiMetrics(ResetApiMetricsEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
-      final currentState = state as OceanDataLoadedState;
-      emit(currentState.copyWith(connectionDetails: const {}));
+      emit((state as OceanDataLoadedState).copyWith(connectionDetails: const {}));
     }
   }
 }

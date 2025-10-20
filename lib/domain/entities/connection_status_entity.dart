@@ -6,6 +6,10 @@ enum ConnectionState {
   connected,
   error,
   reconnecting,
+  excellent,
+  good,
+  fair,
+  poor,
 }
 
 class ConnectionStatusEntity extends Equatable {
@@ -31,7 +35,11 @@ class ConnectionStatusEntity extends Equatable {
     this.connected = false,
   });
 
-  bool get isConnected => state == ConnectionState.connected;
+  bool get isConnected => state == ConnectionState.connected || 
+                          state == ConnectionState.excellent ||
+                          state == ConnectionState.good ||
+                          state == ConnectionState.fair ||
+                          state == ConnectionState.poor;
   bool get isConnecting => state == ConnectionState.connecting || 
                           state == ConnectionState.reconnecting;
   bool get hasError => state == ConnectionState.error;
