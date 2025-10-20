@@ -43,12 +43,20 @@ class AiService {
     Map<String, dynamic>? context,
   }) async {
     try {
+      // Merge default filters with provided context
+      final filters = {
+        'area': context?['area'] ?? {},
+        'date_range': context?['date_range'] ?? {},
+        'depth': context?['depth'] ?? {},
+        ...?context,
+      };
+
       final response = await _dio.post(
-        '/api/chat',
+        '/chat/',
         data: {
-          'message': message,
-          if (history != null) 'history': history,
-          if (context != null) 'context': context,
+          'input': message,
+          'filters': filters,
+          'thread_id': 'thread_${DateTime.now().millisecondsSinceEpoch}',
         },
       );
 
@@ -64,12 +72,20 @@ class AiService {
     Map<String, dynamic>? context,
   }) async* {
     try {
+      // Merge default filters with provided context
+      final filters = {
+        'area': context?['area'] ?? {},
+        'date_range': context?['date_range'] ?? {},
+        'depth': context?['depth'] ?? {},
+        ...?context,
+      };
+
       final response = await _dio.post(
-        '/api/chat/stream',
+        '/chat/stream',
         data: {
-          'message': message,
-          if (history != null) 'history': history,
-          if (context != null) 'context': context,
+          'input': message,
+          'filters': filters,
+          'thread_id': 'thread_${DateTime.now().millisecondsSinceEpoch}',
         },
         options: Options(
           responseType: ResponseType.stream,

@@ -66,6 +66,7 @@ import 'presentation/blocs/time_management/time_management_bloc.dart';
 import 'presentation/blocs/ui_controls/ui_controls_bloc.dart';
 
 // Core Services
+import 'core/constants/app_constants.dart';
 import 'core/network/network_info.dart';
 import 'core/utils/encryption_service.dart';
 
@@ -101,6 +102,7 @@ Future<void> init() async {
   sl.registerLazySingleton(
     () => AiService(
       dio: sl(),
+      token: AppConstants.bearerToken,
     ),
   );
 

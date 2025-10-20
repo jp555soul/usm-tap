@@ -28,8 +28,6 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   }) async {
-    // Note: The original implementation returned a String, but the repository layer
-    // expects a Map. This adapts the new service to the existing repository.
     final response = await _aiService.sendMessage(
       message: message,
       history: history,
@@ -45,21 +43,18 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
 
   @override
   Future<dynamic> sendMessage({required String message, List<Map<String, dynamic>>? history}) async {
-    // This is a placeholder implementation.
-    // In a real scenario, this would call the AI service.
-    return Future.value({
-      'response': 'This is a mock response to your message: $message'
-    });
+    final response = await _aiService.sendMessage(
+      message: message,
+      history: history,
+    );
+    return response;
   }
 
   @override
   Stream<dynamic> sendMessageStream({required String message, List<Map<String, dynamic>>? history}) {
-    // This is a placeholder implementation for a streaming response.
-    return Stream.fromIterable([
-      {'chunk': 'This '},
-      {'chunk': 'is a '},
-      {'chunk': 'streamed '},
-      {'chunk': 'response.'},
-    ]);
+    return _aiService.sendMessageStream(
+      message: message,
+      history: history,
+    );
   }
 }

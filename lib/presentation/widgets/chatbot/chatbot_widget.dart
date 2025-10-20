@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../blocs/chat/chat_bloc.dart';
+import '../../../domain/repositories/chat_repository.dart' as domain;
+import '../../../data/models/chat_message.dart' as data_models;
 
 class ChatbotWidget extends StatefulWidget {
   final List<Map<String, dynamic>> timeSeriesData;
@@ -50,9 +55,6 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
   
-  final List<ChatMessage> _chatMessages = [];
-  bool _isTyping = false;
-  int _retryCount = 0;
   bool _isInitialized = false;
   String _threadId = '';
   
@@ -65,15 +67,13 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
   bool _showApiStatus = false;
   
   Timer? _apiStatusTimer;
-  static const int maxRetries = 2;
 
   @override
   void initState() {
     super.initState();
     _threadId = _generateThreadId();
     _initializeChat();
-    _checkAPIStatus();
-    _apiStatusTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkAPIStatus());
+    _apiStatusTimer = Timer.periodic(const Duration(minutes: 1), (_) => _updateApiStatus());
   }
 
   @override
@@ -89,53 +89,36 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
     return 'thread_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  Future<void> _initializeChat() async {
-    if (_isInitialized || _chatMessages.isNotEmpty) return;
+  void _initializeChat() {
+    if (_isInitialized) return;
     
-    try {
-      final context = _buildContext();
-      final welcomeResponse = await _getAIResponse(
-        "Generate a welcome message for CubeAI oceanographic analysis platform",
-        context,
-      );
-      
-      if (welcomeResponse != null && !welcomeResponse.contains('[Local Response')) {
-        _addAIResponse(welcomeResponse, 'api');
-      } else {
-        throw Exception('API not available');
-      }
-    } catch (error) {
-      debugPrint('Failed to get API welcome message: $error');
-      _addAIResponse(
-        "Unable to connect to CubeAI services. Please check your connection and try again.",
-        'error',
-      );
-      setState(() {
-        _apiStatus = _apiStatus.copyWith(connected: false);
-      });
-    }
+    // Send initial message to get welcome response
+    final contextData = _buildContext();
+    context.read<ChatBloc>().add(SendChatMessageEvent(
+      message: "Generate a welcome message for CubeAI oceanographic analysis platform",
+      context: contextData,
+    ));
     
     setState(() {
       _isInitialized = true;
+      _apiStatus = _apiStatus.copyWith(
+        connected: true,
+        endpoint: '/api/chat',
+        timestamp: DateTime.now(),
+        hasApiKey: true,
+      );
     });
   }
 
-  Future<void> _checkAPIStatus() async {
-    try {
-      final status = await _getAPIStatus();
-      if (mounted) {
-        setState(() {
-          _apiStatus = status;
-        });
-      }
-    } catch (error) {
-      debugPrint('Failed to check API status: $error');
-      if (mounted) {
-        setState(() {
-          _apiStatus = _apiStatus.copyWith(connected: false);
-        });
-      }
-    }
+  void _updateApiStatus() {
+    // API status is now derived from ChatBloc state
+    final chatState = context.read<ChatBloc>().state;
+    setState(() {
+      _apiStatus = _apiStatus.copyWith(
+        connected: chatState is! ChatError,
+        timestamp: DateTime.now(),
+      );
+    });
   }
 
   Map<String, dynamic> _buildContext() {
@@ -159,53 +142,6 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
     };
   }
 
-  void _addUserMessage(String content) {
-    final message = ChatMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-      content: content,
-      isUser: true,
-      source: 'user',
-      timestamp: DateTime.now(),
-      retryAttempt: 0,
-    );
-    
-    setState(() {
-      _chatMessages.add(message);
-    });
-    
-    _scrollToBottom();
-  }
-
-  void _addAIResponse(String content, String source, {int retryAttempt = 0}) {
-    final message = ChatMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-      content: content,
-      isUser: false,
-      source: source,
-      timestamp: DateTime.now(),
-      retryAttempt: retryAttempt,
-    );
-    
-    setState(() {
-      _chatMessages.add(message);
-    });
-    
-    widget.onAddMessage?.call(message);
-    _scrollToBottom();
-  }
-
-  void _startTyping() {
-    setState(() {
-      _isTyping = true;
-    });
-  }
-
-  void _stopTyping() {
-    setState(() {
-      _isTyping = false;
-    });
-  }
-
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -218,80 +154,41 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
     });
   }
 
-  Future<void> _sendMessage() async {
+  void _sendMessage() {
     if (_inputController.text.trim().isEmpty) return;
     
-    final currentInput = _inputController.text;
-    _addUserMessage(currentInput);
+    final messageText = _inputController.text;
     _inputController.clear();
-    _startTyping();
-    setState(() {
-      _retryCount = 0;
-    });
 
-    try {
-      await _processAIResponse(currentInput);
-    } catch (error) {
-      debugPrint('Failed to process AI response: $error');
-      _addAIResponse(
-        'Sorry, I encountered an error processing your request. Please try again.',
-        'error',
-      );
-    } finally {
-      _stopTyping();
-    }
-  }
+    final contextData = _buildContext();
+    context.read<ChatBloc>().add(SendChatMessageEvent(
+      message: messageText,
+      context: contextData,
+    ));
 
-  Future<void> _processAIResponse(String message, [int retryAttempt = 0]) async {
-    try {
-      final context = _buildContext();
-      final aiResponse = await _getAIResponse(message, context);
-      
-      if (aiResponse == null || aiResponse.contains('[Local Response')) {
-        throw Exception('API not available');
-      }
-      
-      _addAIResponse(aiResponse, 'api', retryAttempt: retryAttempt);
-      setState(() {
-        _retryCount = 0;
-        _apiStatus = _apiStatus.copyWith(
-          connected: true,
-          timestamp: DateTime.now(),
-        );
-      });
-    } catch (error) {
-      debugPrint('AI response attempt ${retryAttempt + 1} failed: $error');
-      
-      if (retryAttempt < maxRetries) {
-        setState(() {
-          _retryCount = retryAttempt + 1;
-        });
-        
-        final delay = Duration(milliseconds: (1 << retryAttempt) * 1000);
-        await Future.delayed(delay);
-        
-        if (mounted) {
-          await _processAIResponse(message, retryAttempt + 1);
-        }
-      } else {
-        _addAIResponse(
-          'Unable to connect to CubeAI services. Please check your connection and try again.',
-          'error',
-        );
-        setState(() {
-          _apiStatus = _apiStatus.copyWith(connected: false);
-        });
-      }
-    }
+    _scrollToBottom();
   }
 
   void _retryLastMessage() {
-    final lastUserMessage = _chatMessages.reversed
-        .firstWhere((msg) => msg.isUser, orElse: () => ChatMessage.empty());
+    final chatState = context.read<ChatBloc>().state;
+    List<domain.ChatMessage> messages = [];
     
-    if (lastUserMessage.id.isNotEmpty) {
-      _startTyping();
-      _processAIResponse(lastUserMessage.content).then((_) => _stopTyping());
+    if (chatState is ChatLoaded) {
+      messages = chatState.messages;
+    } else if (chatState is ChatError) {
+      messages = chatState.messages;
+    }
+    
+    final lastUserMessage = messages.reversed
+        .where((msg) => msg.isUser)
+        .firstOrNull;
+    
+    if (lastUserMessage != null) {
+      final contextData = _buildContext();
+      context.read<ChatBloc>().add(SendChatMessageEvent(
+        message: lastUserMessage.content,
+        context: contextData,
+      ));
     }
   }
 
@@ -303,463 +200,480 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
     }
   }
 
-  String _getMessageStyle(ChatMessage msg) {
-    if (msg.isUser) return 'user';
-    return msg.source;
-  }
-
-  SourceIndicator _getSourceIndicator(String source) {
-    switch (source) {
-      case 'api':
-        return SourceIndicator(
-          icon: Icons.wifi,
-          color: Colors.green.shade400,
-          label: 'AI API',
-        );
-      case 'error':
-        return SourceIndicator(
-          icon: Icons.warning,
-          color: Colors.red.shade400,
-          label: 'Error',
-        );
-      default:
-        return SourceIndicator(
-          icon: Icons.message,
-          color: Colors.blue.shade400,
-          label: 'System',
-        );
+  SourceIndicator _getSourceIndicator(domain.ChatMessage msg) {
+    if (msg.isUser) {
+      return SourceIndicator(
+        icon: Icons.person,
+        color: Colors.blue.shade400,
+        label: 'You',
+      );
     }
-  }
-
-  // Mock API methods - replace with actual service calls
-  Future<String?> _getAIResponse(String message, Map<String, dynamic> context) async {
-    // TODO: Replace with actual AI service call
-    await Future.delayed(const Duration(seconds: 1));
-    return "This is a mock AI response to: $message";
-  }
-
-  Future<ApiStatus> _getAPIStatus() async {
-    // TODO: Replace with actual API status check
-    await Future.delayed(const Duration(milliseconds: 500));
-    return ApiStatus(
-      connected: true,
-      endpoint: '/api/v1/chat',
-      timestamp: DateTime.now(),
-      hasApiKey: true,
+    
+    return SourceIndicator(
+      icon: Icons.wifi,
+      color: Colors.green.shade400,
+      label: 'AI API',
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Chat Toggle Button
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: () {
-              setState(() {
-                _chatOpen = !_chatOpen;
-              });
-            },
-            backgroundColor: Colors.blue.shade500,
-            child: Stack(
-              children: [
-                const Icon(Icons.message, color: Colors.white),
-                if (_retryCount > 0)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.yellow.shade500,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        // Chat Window
-        if (_chatOpen)
+    return BlocListener<ChatBloc, ChatState>(
+      listener: (context, state) {
+        if (state is ChatLoaded || state is ChatMessageStreaming) {
+          _scrollToBottom();
+          setState(() {
+            _apiStatus = _apiStatus.copyWith(
+              connected: true,
+              timestamp: DateTime.now(),
+            );
+          });
+        } else if (state is ChatError) {
+          setState(() {
+            _apiStatus = _apiStatus.copyWith(connected: false);
+          });
+        }
+      },
+      child: Stack(
+        children: [
+          // Chat Toggle Button
           Positioned(
-            bottom: 80,
+            bottom: 16,
             right: 16,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.shade800.withOpacity(0.9),
-              child: Container(
-                width: 320,
-                constraints: const BoxConstraints(maxHeight: 500),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.blue.shade500.withOpacity(0.3),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.blue.shade900.withOpacity(0.2),
-                            Colors.cyan.shade900.withOpacity(0.2),
-                          ],
-                        ),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.blue.shade500.withOpacity(0.2),
-                          ),
-                        ),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
+            child: FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _chatOpen = !_chatOpen;
+                });
+              },
+              backgroundColor: Colors.blue.shade500,
+              child: BlocBuilder<ChatBloc, ChatState>(
+                builder: (context, state) {
+                  final hasError = state is ChatError;
+                  return Stack(
+                    children: [
+                      const Icon(Icons.message, color: Colors.white),
+                      if (hasError)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 12,
+                            height: 12,
                             decoration: BoxDecoration(
-                              color: _apiStatus.connected
-                                  ? Colors.green.shade400
-                                  : Colors.red.shade400,
+                              color: Colors.red.shade500,
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'CubeAI Assistant',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: Icon(
-                              _apiStatus.connected ? Icons.wifi : Icons.wifi_off,
-                              size: 14,
-                              color: Colors.grey.shade400,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _showApiStatus = !_showApiStatus;
-                              });
-                            },
-                            tooltip: 'API Status',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            color: Colors.grey.shade400,
-                            onPressed: () {
-                              setState(() {
-                                _chatOpen = false;
-                              });
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
 
-                    // API Status Panel
-                    if (_showApiStatus)
+          // Chat Window
+          if (_chatOpen)
+            Positioned(
+              bottom: 80,
+              right: 16,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.grey.shade800.withOpacity(0.9),
+                child: Container(
+                  width: 320,
+                  constraints: const BoxConstraints(maxHeight: 500),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.blue.shade500.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade700.withOpacity(0.5),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blue.shade900.withOpacity(0.2),
+                              Colors.cyan.shade900.withOpacity(0.2),
+                            ],
+                          ),
                           border: Border(
-                            bottom: BorderSide(color: Colors.grey.shade600),
+                            bottom: BorderSide(
+                              color: Colors.blue.shade500.withOpacity(0.2),
+                            ),
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'API Status:',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                                Text(
-                                  _apiStatus.connected ? 'Connected' : 'Disconnected',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _apiStatus.connected
-                                        ? Colors.green.shade400
-                                        : Colors.red.shade400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Endpoint: ${_apiStatus.endpoint.isNotEmpty ? _apiStatus.endpoint : 'N/A'}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade400,
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: _apiStatus.connected
+                                    ? Colors.green.shade400
+                                    : Colors.red.shade400,
+                                shape: BoxShape.circle,
                               ),
                             ),
-                            if (_apiStatus.timestamp != null)
+                            const SizedBox(width: 8),
+                            const Text(
+                              'CubeAI Assistant',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: Icon(
+                                _apiStatus.connected ? Icons.wifi : Icons.wifi_off,
+                                size: 14,
+                                color: Colors.grey.shade400,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _showApiStatus = !_showApiStatus;
+                                });
+                              },
+                              tooltip: 'API Status',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              color: Colors.grey.shade400,
+                              onPressed: () {
+                                setState(() {
+                                  _chatOpen = false;
+                                });
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // API Status Panel
+                      if (_showApiStatus)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade700.withOpacity(0.5),
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade600),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'API Status:',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  Text(
+                                    _apiStatus.connected ? 'Connected' : 'Disconnected',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: _apiStatus.connected
+                                          ? Colors.green.shade400
+                                          : Colors.red.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
                               Text(
-                                'Last check: ${TimeOfDay.fromDateTime(_apiStatus.timestamp!).format(context)}',
+                                'Endpoint: ${_apiStatus.endpoint.isNotEmpty ? _apiStatus.endpoint : 'N/A'}',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: Colors.grey.shade400,
                                 ),
                               ),
-                          ],
+                              if (_apiStatus.timestamp != null)
+                                Text(
+                                  'Last check: ${TimeOfDay.fromDateTime(_apiStatus.timestamp!).format(context)}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
 
-                    // Messages
-                    Flexible(
-                      child: Container(
-                        constraints: const BoxConstraints(maxHeight: 300),
-                        padding: const EdgeInsets.all(12),
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          itemCount: _chatMessages.length + (_isTyping ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _chatMessages.length && _isTyping) {
-                              return _buildTypingIndicator();
-                            }
+                      // Messages
+                      Flexible(
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 300),
+                          padding: const EdgeInsets.all(12),
+                          child: BlocBuilder<ChatBloc, ChatState>(
+                            builder: (context, state) {
+                              List<domain.ChatMessage> messages = [];
+                              bool isLoading = false;
+                              String? streamingContent;
 
-                            final msg = _chatMessages[index];
-                            final sourceInfo = _getSourceIndicator(msg.source);
+                              if (state is ChatLoaded) {
+                                messages = state.messages;
+                              } else if (state is ChatMessageSending) {
+                                messages = state.messages;
+                                isLoading = true;
+                              } else if (state is ChatMessageStreaming) {
+                                messages = state.messages;
+                                streamingContent = state.streamingContent;
+                              } else if (state is ChatError) {
+                                messages = state.messages;
+                              }
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: msg.isUser
-                                    ? Colors.blue.shade600.withOpacity(0.2)
-                                    : msg.source == 'error'
-                                        ? Colors.red.shade900.withOpacity(0.3)
-                                        : Colors.grey.shade700.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(8),
-                                border: !msg.isUser && msg.source == 'api'
-                                    ? Border(
-                                        left: BorderSide(
-                                          color: Colors.green.shade400,
-                                          width: 2,
-                                        ),
-                                      )
-                                    : !msg.isUser && msg.source == 'error'
-                                        ? Border(
-                                            left: BorderSide(
-                                              color: Colors.red.shade500,
-                                              width: 2,
-                                            ),
-                                          )
-                                        : null,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (!msg.isUser)
-                                    Icon(
-                                      sourceInfo.icon,
-                                      size: 12,
-                                      color: sourceInfo.color,
+                              return ListView.builder(
+                                controller: _scrollController,
+                                itemCount: messages.length + 
+                                    (isLoading ? 1 : 0) + 
+                                    (streamingContent != null ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (streamingContent != null && index == messages.length) {
+                                    return _buildStreamingMessage(streamingContent);
+                                  }
+
+                                  if (isLoading && index == messages.length) {
+                                    return _buildTypingIndicator();
+                                  }
+
+                                  final msg = messages[index];
+                                  final sourceInfo = _getSourceIndicator(msg);
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: msg.isUser
+                                          ? Colors.blue.shade600.withOpacity(0.2)
+                                          : Colors.grey.shade700.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: !msg.isUser
+                                          ? Border(
+                                              left: BorderSide(
+                                                color: Colors.green.shade400,
+                                                width: 2,
+                                              ),
+                                            )
+                                          : null,
                                     ),
-                                  if (!msg.isUser) const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Column(
+                                    child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          msg.content,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: msg.isUser
-                                                ? Colors.blue.shade100
-                                                : msg.source == 'error'
-                                                    ? Colors.red.shade200
-                                                    : Colors.grey.shade200,
+                                        if (!msg.isUser)
+                                          Icon(
+                                            sourceInfo.icon,
+                                            size: 12,
+                                            color: sourceInfo.color,
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              TimeOfDay.fromDateTime(msg.timestamp)
-                                                  .format(context),
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                            ),
-                                            if (!msg.isUser)
+                                        if (!msg.isUser) const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
                                               Text(
-                                                sourceInfo.label,
+                                                msg.content,
                                                 style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: sourceInfo.color,
+                                                  fontSize: 12,
+                                                  color: msg.isUser
+                                                      ? Colors.blue.shade100
+                                                      : Colors.grey.shade200,
                                                 ),
                                               ),
-                                          ],
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    TimeOfDay.fromDateTime(msg.timestamp)
+                                                        .format(context),
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.grey.shade400,
+                                                    ),
+                                                  ),
+                                                  if (!msg.isUser)
+                                                    Text(
+                                                      sourceInfo.label,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: sourceInfo.color,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-
-                    // Input Section
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: Colors.blue.shade500.withOpacity(0.2),
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: RawKeyboardListener(
-                                  focusNode: FocusNode(),
-                                  onKey: _handleKeyPress,
-                                  child: TextField(
-                                    controller: _inputController,
-                                    focusNode: _inputFocus,
-                                    maxLines: 2,
-                                    enabled: !_isTyping,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: 'Ask about currents, waves, temperature...',
-                                      hintStyle: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                      filled: true,
-                                      fillColor: Colors.grey.shade700,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      contentPadding: const EdgeInsets.all(8),
-                                    ),
-                                  ),
+
+                      // Input Section
+                      BlocBuilder<ChatBloc, ChatState>(
+                        builder: (context, state) {
+                          final isLoading = state is ChatMessageSending;
+                          final hasError = state is ChatError;
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: Colors.blue.shade500.withOpacity(0.2),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Column(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.send, size: 16),
-                                    color: Colors.white,
-                                    onPressed: _isTyping || _inputController.text.trim().isEmpty
-                                        ? null
-                                        : _sendMessage,
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: _isTyping || _inputController.text.trim().isEmpty
-                                          ? Colors.grey.shade600
-                                          : Colors.blue.shade600,
-                                      disabledBackgroundColor: Colors.grey.shade600,
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: RawKeyboardListener(
+                                        focusNode: FocusNode(),
+                                        onKey: _handleKeyPress,
+                                        child: TextField(
+                                          controller: _inputController,
+                                          focusNode: _inputFocus,
+                                          maxLines: 2,
+                                          enabled: !isLoading,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: 'Ask about currents, waves, temperature...',
+                                            hintStyle: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade400,
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.grey.shade700,
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                              borderSide: BorderSide(
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                            contentPadding: const EdgeInsets.all(8),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  if (_retryCount > 0)
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.send, size: 16),
+                                          color: Colors.white,
+                                          onPressed: isLoading || _inputController.text.trim().isEmpty
+                                              ? null
+                                              : _sendMessage,
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: isLoading || _inputController.text.trim().isEmpty
+                                                ? Colors.grey.shade600
+                                                : Colors.blue.shade600,
+                                            disabledBackgroundColor: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        if (hasError)
+                                          IconButton(
+                                            icon: const Icon(Icons.refresh, size: 14),
+                                            color: Colors.white,
+                                            onPressed: isLoading ? null : _retryLastMessage,
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.yellow.shade600,
+                                              padding: const EdgeInsets.all(8),
+                                              minimumSize: const Size(32, 32),
+                                            ),
+                                            tooltip: 'Retry last message',
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Quick Actions
+                                Row(
+                                  children: [
+                                    _buildQuickAction(
+                                      'Conditions',
+                                      'What are the current conditions?',
+                                      isLoading,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _buildQuickAction(
+                                      'Waves',
+                                      'Analyze wave patterns',
+                                      isLoading,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _buildQuickAction(
+                                      'Safety',
+                                      'Safety assessment',
+                                      isLoading,
+                                    ),
+                                    const Spacer(),
                                     IconButton(
-                                      icon: const Icon(Icons.refresh, size: 14),
-                                      color: Colors.white,
-                                      onPressed: _isTyping ? null : _retryLastMessage,
+                                      icon: const Icon(Icons.refresh, size: 12),
+                                      color: Colors.grey.shade300,
+                                      onPressed: _updateApiStatus,
                                       style: IconButton.styleFrom(
-                                        backgroundColor: Colors.yellow.shade600,
+                                        backgroundColor: Colors.grey.shade700,
                                         padding: const EdgeInsets.all(8),
                                         minimumSize: const Size(32, 32),
                                       ),
-                                      tooltip: 'Retry last message',
+                                      tooltip: 'Refresh API status',
                                     ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // Quick Actions
-                          Row(
-                            children: [
-                              _buildQuickAction(
-                                'Conditions',
-                                'What are the current conditions?',
-                              ),
-                              const SizedBox(width: 4),
-                              _buildQuickAction(
-                                'Waves',
-                                'Analyze wave patterns',
-                              ),
-                              const SizedBox(width: 4),
-                              _buildQuickAction(
-                                'Safety',
-                                'Safety assessment',
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.refresh, size: 12),
-                                color: Colors.grey.shade300,
-                                onPressed: _checkAPIStatus,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.grey.shade700,
-                                  padding: const EdgeInsets.all(8),
-                                  minimumSize: const Size(32, 32),
+                                  ],
                                 ),
-                                tooltip: 'Refresh API status',
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildQuickAction(String label, String message) {
+  Widget _buildQuickAction(String label, String message, bool disabled) {
     return Expanded(
       child: TextButton(
-        onPressed: _isTyping
+        onPressed: disabled
             ? null
             : () {
                 _inputController.text = message;
@@ -803,26 +717,75 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
           }),
           const SizedBox(width: 8),
           Text(
-            _retryCount > 0
-                ? 'Retrying ($_retryCount/$maxRetries)...'
-                : 'Analyzing...',
+            'Analyzing...',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey.shade400,
             ),
           ),
-          if (_retryCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.yellow.shade400),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreamingMessage(String content) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade700.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          left: BorderSide(
+            color: Colors.green.shade400,
+            width: 2,
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.wifi,
+            size: 12,
+            color: Colors.green.shade400,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade200,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.green.shade400),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Streaming...',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );
