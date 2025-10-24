@@ -14,7 +14,7 @@ class LoginButton extends StatelessWidget {
       //   responseType: 'code',
       // ));
     } catch (error) {
-      debugPrint('Login error: $error');
+      // debugPrint('Login error: $error');
     }
   }
 

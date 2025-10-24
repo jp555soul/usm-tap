@@ -18,8 +18,11 @@ abstract class OceanDataRepository {
   Future<Either<Failure, StationDataEntity>> getStationById(String id);
 
   Future<Either<Failure, EnvDataEntity>> getEnvironmentalData({
-    required DateTime timestamp,
+    DateTime? timestamp,
     String? stationId,
+    double? depth,
+    double? latitude,
+    double? longitude,
   });
 
   Future<Either<Failure, List<String>>> getAvailableModels(String stationId);

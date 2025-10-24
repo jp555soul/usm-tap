@@ -119,7 +119,7 @@ class LogoutButton extends StatelessWidget {
       final returnTo = Uri.base.origin;
       await _authService.logout(returnTo: returnTo);
     } catch (error) {
-      debugPrint('Logout error: $error');
+      // debugPrint('Logout error: $error');
     }
   }
 

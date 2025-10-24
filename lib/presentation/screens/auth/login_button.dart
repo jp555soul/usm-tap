@@ -94,7 +94,7 @@ class LoginButton extends StatelessWidget {
         ),
       );
     } catch (error) {
-      debugPrint('Login error: $error');
+      // debugPrint('Login error: $error');
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -201,7 +201,7 @@ class _LoginButtonState extends State<LoginButton> {
         responseType: 'code',
       );
     } catch (error) {
-      debugPrint('Login error: $error');
+      // debugPrint('Login error: $error');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

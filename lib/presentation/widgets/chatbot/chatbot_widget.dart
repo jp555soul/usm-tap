@@ -103,7 +103,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       _isInitialized = true;
       _apiStatus = _apiStatus.copyWith(
         connected: true,
-        endpoint: '/api/chat',
+        endpoint: '/chat',
         timestamp: DateTime.now(),
         hasApiKey: true,
       );

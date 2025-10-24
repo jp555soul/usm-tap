@@ -136,7 +136,7 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
       final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(htmlContent))}';
       await _controller.loadRequest(Uri.parse(dataUri));
     } catch (e) {
-      debugPrint('Error loading HTML from assets: $e');
+      // debugPrint('Error loading HTML from assets: $e');
       // Fallback to inline HTML if asset loading fails
       final inlineHtml = _getInlineHtml();
       final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(inlineHtml))}';
@@ -283,10 +283,10 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
           break;
         
         default:
-          debugPrint('Unknown message type from React: $type');
+          // debugPrint('Unknown message type from React: $type');
       }
     } catch (e) {
-      debugPrint('Error handling message from React: $e');
+      // debugPrint('Error handling message from React: $e');
     }
   }
 

@@ -82,12 +82,18 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
 
   @override
   Future<Either<Failure, EnvDataEntity>> getEnvironmentalData({
-    required DateTime timestamp,
+    DateTime? timestamp,
     String? stationId,
+    double? depth,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final envData = await remoteDataSource.getEnvironmentalData(
         timestamp: timestamp,
+        depth: depth,
+        latitude: latitude,
+        longitude: longitude,
       );
       return Right(envData);
     } on ServerException catch (e) {
