@@ -58,7 +58,7 @@ class ChatRepositoryImpl implements ChatRepository {
       // If still empty, try to get any text from the response
       if (content.isEmpty) {
         content = 'Received response but could not extract content';
-        print('Warning: Could not extract content from response: $response');
+        // print('Warning: Could not extract content from response: $response');
       }
 
       final chatMessage = ChatMessage(
@@ -182,7 +182,7 @@ class ChatRepositoryImpl implements ChatRepository {
       await localStorage.saveData('chat_history', history);
     } catch (e) {
       // Ignore storage errors for now
-      print('Failed to store message: $e');
+      // print('Failed to store message: $e');
     }
   }
 }
