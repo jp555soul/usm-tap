@@ -29,11 +29,41 @@ class ChatRepositoryImpl implements ChatRepository {
           'isUser': m.isUser,
           'timestamp': m.timestamp.toIso8601String(),
         }).toList(),
+        context: context,
       );
+
+      // Extract content from the nested response structure
+      String content = '';
+      
+      // Try to extract from run_items structure first (new API format)
+      if (response.containsKey('run_items') && response['run_items'] is List) {
+        final runItems = response['run_items'] as List;
+        if (runItems.isNotEmpty) {
+          final firstItem = runItems[0] as Map<String, dynamic>;
+          if (firstItem.containsKey('content') && firstItem['content'] is List) {
+            final contentList = firstItem['content'] as List;
+            if (contentList.isNotEmpty) {
+              final contentItem = contentList[0] as Map<String, dynamic>;
+              content = contentItem['text'] ?? '';
+            }
+          }
+        }
+      }
+      
+      // Fallback to direct message/content fields (old API format)
+      if (content.isEmpty) {
+        content = response['message'] ?? response['content'] ?? '';
+      }
+      
+      // If still empty, try to get any text from the response
+      if (content.isEmpty) {
+        content = 'Received response but could not extract content';
+        print('Warning: Could not extract content from response: $response');
+      }
 
       final chatMessage = ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: response['message'] ?? response['content'] ?? '',
+        content: content,
         isUser: false,
         timestamp: DateTime.now(),
         metadata: response,
@@ -59,13 +89,14 @@ class ChatRepositoryImpl implements ChatRepository {
     Map<String, dynamic>? context,
   }) async {
     try {
-      final stream = await remoteDataSource.sendMessageStream(
+      final stream = remoteDataSource.sendMessageStream(
         message: message,
         history: history?.map((m) => {
           'content': m.content,
           'isUser': m.isUser,
           'timestamp': m.timestamp.toIso8601String(),
         }).toList(),
+        context: context,
       );
 
       return Right(stream.cast<String>());

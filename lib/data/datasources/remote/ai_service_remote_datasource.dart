@@ -11,8 +11,17 @@ abstract class AiServiceRemoteDataSource {
 
   Future<bool> testAPIConnection();
 
-  Future<dynamic> sendMessage({required String message, List<Map<String, dynamic>>? history});
-  Stream<dynamic> sendMessageStream({required String message, List<Map<String, dynamic>>? history});
+  Future<dynamic> sendMessage({
+    required String message,
+    List<Map<String, dynamic>>? history,
+    Map<String, dynamic>? context,
+  });
+  
+  Stream<dynamic> sendMessageStream({
+    required String message,
+    List<Map<String, dynamic>>? history,
+    Map<String, dynamic>? context,
+  });
 }
 
 /// Implementation of [AiServiceRemoteDataSource]
@@ -42,19 +51,29 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   }
 
   @override
-  Future<dynamic> sendMessage({required String message, List<Map<String, dynamic>>? history}) async {
+  Future<dynamic> sendMessage({
+    required String message,
+    List<Map<String, dynamic>>? history,
+    Map<String, dynamic>? context,
+  }) async {
     final response = await _aiService.sendMessage(
       message: message,
       history: history,
+      context: context,
     );
     return response;
   }
 
   @override
-  Stream<dynamic> sendMessageStream({required String message, List<Map<String, dynamic>>? history}) {
+  Stream<dynamic> sendMessageStream({
+    required String message,
+    List<Map<String, dynamic>>? history,
+    Map<String, dynamic>? context,
+  }) {
     return _aiService.sendMessageStream(
       message: message,
       history: history,
+      context: context,
     );
   }
 }

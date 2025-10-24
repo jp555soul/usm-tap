@@ -421,7 +421,7 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
         );
       }
     } catch (e) {
-      debugPrint('Failed to copy response: $e');
+      // debugPrint('Failed to copy response: $e');
     }
   }
 
@@ -453,7 +453,7 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
         );
       }
     } catch (e) {
-      debugPrint('Failed to export response: $e');
+      // debugPrint('Failed to export response: $e');
     }
   }
 

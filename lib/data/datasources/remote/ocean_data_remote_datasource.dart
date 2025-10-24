@@ -7,6 +7,7 @@ import 'package:usm_tap/core/constants/app_constants.dart';
 import 'package:usm_tap/core/errors/exceptions.dart';
 import 'package:usm_tap/domain/entities/station_data_entity.dart';
 import 'package:usm_tap/domain/entities/ocean_data_entity.dart';
+import 'package:usm_tap/domain/entities/env_data_entity.dart';
 
 abstract class OceanDataRemoteDataSource {
   String getTableNameForArea(String areaName);
@@ -119,7 +120,7 @@ abstract class OceanDataRemoteDataSource {
 
   Future<List<OceanDataEntity>> getOceanData({DateTime? startDate, required String endDate});
   Future<List<dynamic>> getStations();
-  Future<dynamic> getEnvironmentalData({DateTime? timestamp});
+  Future<EnvDataEntity> getEnvironmentalData({DateTime? timestamp, double? depth, double? latitude, double? longitude});
   Future<List<dynamic>> getAvailableModels({required String stationId});
   Future<List<double>> getAvailableDepths(String stationId);
 }
@@ -130,6 +131,7 @@ abstract class OceanDataRemoteDataSource {
 class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   final Dio _dio;
   late final ApiConfig _apiConfig;
+  List<dynamic>? _cachedData;
   
   OceanDataRemoteDataSourceImpl(this._dio) {
     _initializeConfig();
@@ -140,7 +142,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
     if (kReleaseMode && 
         AppConstants.baseUrl.isNotEmpty && 
         !AppConstants.baseUrl.startsWith('https://')) {
-      debugPrint('Insecure API endpoint configured for production environment. Please use https.');
+      // debugPrint('Insecure API endpoint configured for production environment. Please use https.');
     }
     
     _apiConfig = ApiConfig(
@@ -197,11 +199,11 @@ Future<Map<String, dynamic>> loadAllData({
   query += ' ORDER BY time DESC LIMIT 10000';
   try {
     // Log request details
-    debugPrint('=== API Request ===');
-    debugPrint('URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
-    debugPrint('Query: $query');
-    debugPrint('Database: ${_apiConfig.database}');
-    debugPrint('Table: $tableName');
+    // debugPrint('=== API Request ===');
+    // debugPrint('URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
+    // debugPrint('Query: $query');
+    // debugPrint('Database: ${_apiConfig.database}');
+    // debugPrint('Table: $tableName');
     
     final response = await _dio.get(
       '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
@@ -217,12 +219,12 @@ Future<Map<String, dynamic>> loadAllData({
     );
     
     // Log response details
-    debugPrint('=== API Response ===');
-    debugPrint('Status Code: ${response.statusCode}');
-    debugPrint('Status Message: ${response.statusMessage}');
-    debugPrint('Response Headers: ${response.headers}');
-    debugPrint('Response Data Type: ${response.data.runtimeType}');
-    //debugPrint('Response Data: ${response.data}');
+    // debugPrint('=== API Response ===');
+    // debugPrint('Status Code: ${response.statusCode}');
+    // // debugPrint('Status Message: ${response.statusMessage}');
+    // // debugPrint('Response Headers: ${response.headers}');
+    // // debugPrint('Response Data Type: ${response.data.runtimeType}');
+    //// debugPrint('Response Data: ${response.data}');
     
     if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
       final apiData = response.data as List;
@@ -238,17 +240,19 @@ Future<Map<String, dynamic>> loadAllData({
         };
       }).toList();
       
+      _cachedData = allData;
+      
       return {'allData': allData};
     } else {
       throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
     }
   } catch (error) {
-    debugPrint('=== API Error ===');
-    debugPrint('Error Type: ${error.runtimeType}');
-    debugPrint('Error: $error');
+    // debugPrint('=== API Error ===');
+    // debugPrint('Error Type: ${error.runtimeType}');
+    // debugPrint('Error: $error');
     if (error is DioException) {
-      debugPrint('DioException Response: ${error.response?.data}');
-      debugPrint('DioException Message: ${error.message}');
+      // debugPrint('DioException Response: ${error.response?.data}');
+      // debugPrint('DioException Message: ${error.message}');
     }
     return {'allData': []};
   }
@@ -266,7 +270,7 @@ Future<Map<String, dynamic>> loadAllData({
     int? maxDataPoints,
   }) {
     if (rawData.isEmpty) {
-      debugPrint('No data to process');
+      // debugPrint('No data to process');
       return [];
     }
     
@@ -1245,7 +1249,7 @@ Future<Map<String, dynamic>> loadAllData({
   @override
   Future<List<OceanDataEntity>> getOceanData({DateTime? startDate, required String endDate}) async {
     try {
-      debugPrint('Fetching ocean data from API...');
+      // debugPrint('Fetching ocean data from API...');
       final endDateTime = DateTime.parse(endDate);
       final result = await loadAllData(
         startDate: startDate,
@@ -1253,7 +1257,7 @@ Future<Map<String, dynamic>> loadAllData({
       );
       
       final rawData = result['allData'] as List? ?? [];
-      debugPrint('Loaded ${rawData.length} data points from API');
+      // debugPrint('Loaded ${rawData.length} data points from API');
       
       // Convert raw data to entities
       return rawData.map((item) {
@@ -1286,7 +1290,7 @@ Future<Map<String, dynamic>> loadAllData({
         );
       }).toList();
     } catch (e) {
-      debugPrint('Error fetching ocean data: $e');
+      // debugPrint('Error fetching ocean data: $e');
       throw ServerException('Failed to fetch ocean data: $e');
     }
   }
@@ -1294,22 +1298,121 @@ Future<Map<String, dynamic>> loadAllData({
   @override
   Future<List<dynamic>> getStations() async {
     try {
-      debugPrint('Fetching stations from API...');
+      // debugPrint('Fetching stations from API...');
       final result = await loadAllData();
       final rawData = result['allData'] as List? ?? [];
       final stations = generateOptimizedStationDataFromAPI(rawData);
-      debugPrint('Generated ${stations.length} stations');
+      // debugPrint('Generated ${stations.length} stations');
       return stations;
     } catch (e) {
-      debugPrint('Error fetching stations: $e');
+      // debugPrint('Error fetching stations: $e');
       return [];
     }
   }
 
   @override
-  Future<dynamic> getEnvironmentalData({DateTime? timestamp}) async {
-    debugPrint('Environmental data not yet implemented');
-    return Future.value({});
+  Future<EnvDataEntity> getEnvironmentalData({
+    DateTime? timestamp,
+    double? depth,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      // debugPrint('Fetching environmental data...');
+      
+      if (_cachedData == null || _cachedData!.isEmpty) {
+        final result = await loadAllData();
+        _cachedData = result['allData'] as List?;
+      }
+      
+      if (_cachedData == null || _cachedData!.isEmpty) {
+        // debugPrint('No data available for environmental query');
+        return EnvDataEntity(
+          timestamp: timestamp ?? DateTime.now(),
+          temperature: null,
+          salinity: null,
+          currentDirection: null,
+          currentSpeed: null,
+          windSpeed: null,
+          windDirection: null,
+          pressure: null,
+        );
+      }
+      
+      Map<String, dynamic>? selectedData;
+      
+      if (timestamp != null || latitude != null || longitude != null || depth != null) {
+        List<Map<String, dynamic>> filteredData = _cachedData!.cast<Map<String, dynamic>>();
+        
+        if (depth != null) {
+          filteredData = filteredData.where((item) {
+            final itemDepth = (item['depth'] as num?)?.toDouble();
+            return itemDepth != null && (itemDepth - depth).abs() < 5.0;
+          }).toList();
+        }
+        
+        if (latitude != null && longitude != null) {
+          filteredData = filteredData.where((item) {
+            final itemLat = (item['lat'] as num?)?.toDouble();
+            final itemLon = (item['lon'] as num?)?.toDouble();
+            if (itemLat == null || itemLon == null) return false;
+            return (itemLat - latitude).abs() < 0.1 && (itemLon - longitude).abs() < 0.1;
+          }).toList();
+        }
+        
+        if (timestamp != null && filteredData.isNotEmpty) {
+          filteredData.sort((a, b) {
+            final aTime = a['time'] != null ? DateTime.parse(a['time']) : DateTime.now();
+            final bTime = b['time'] != null ? DateTime.parse(b['time']) : DateTime.now();
+            final aDiff = (aTime.difference(timestamp).inSeconds).abs();
+            final bDiff = (bTime.difference(timestamp).inSeconds).abs();
+            return aDiff.compareTo(bDiff);
+          });
+        }
+        
+        selectedData = filteredData.isNotEmpty ? filteredData.first : _cachedData!.first as Map<String, dynamic>;
+      } else {
+        selectedData = _cachedData!.first as Map<String, dynamic>;
+      }
+      
+      final dataTimestamp = selectedData['time'] != null 
+          ? DateTime.parse(selectedData['time']) 
+          : timestamp ?? DateTime.now();
+      
+      // debugPrint('Environmental data point selected: temp=${selectedData['temp']}, salinity=${selectedData['salinity']}, depth=${selectedData['depth']}');
+      
+      return EnvDataEntity(
+        timestamp: dataTimestamp,
+        temperature: (selectedData['temp'] as num?)?.toDouble(),
+        salinity: (selectedData['salinity'] as num?)?.toDouble(),
+        currentDirection: (selectedData['direction'] as num?)?.toDouble(),
+        currentSpeed: (selectedData['nspeed'] as num?)?.toDouble(),
+        windSpeed: (selectedData['nspeed'] as num?)?.toDouble(),
+        windDirection: (selectedData['ndirection'] as num?)?.toDouble(),
+        pressure: (selectedData['pressure_dbars'] as num?)?.toDouble(),
+        additionalData: {
+          'ssh': selectedData['ssh'],
+          'soundSpeed': selectedData['sound_speed_ms'],
+          'depth': selectedData['depth'],
+          'latitude': selectedData['lat'],
+          'longitude': selectedData['lon'],
+          'model': selectedData['model'],
+          'area': selectedData['area'],
+        },
+      );
+    } catch (e) {
+      // debugPrint('Error fetching environmental data: $e');
+      return EnvDataEntity(
+        timestamp: timestamp ?? DateTime.now(),
+        temperature: null,
+        salinity: null,
+        currentDirection: null,
+        currentSpeed: null,
+        windSpeed: null,
+        windDirection: null,
+        pressure: null,
+      );
+    }
   }
 
   @override

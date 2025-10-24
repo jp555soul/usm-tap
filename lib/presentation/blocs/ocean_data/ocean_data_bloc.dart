@@ -459,7 +459,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   
   Future<ConnectionStatusEntity> _checkApiConnection() async {
     try {
-      debugPrint('Checking API connection...');
+      // debugPrint('Checking API connection...');
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: DateTime.now().subtract(const Duration(hours: 1)),
         endDate: DateTime.now(),
@@ -467,9 +467,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final isConnected = result.isRight();
       final hasApiKey = AppConstants.bearerToken.isNotEmpty;
       final endpoint = AppConstants.baseUrl;
-      debugPrint('API Connection Status: ${isConnected ? "Connected" : "Disconnected"}');
-      debugPrint('Has API Key: $hasApiKey');
-      debugPrint('Endpoint: $endpoint');
+      // debugPrint('API Connection Status: ${isConnected ? "Connected" : "Disconnected"}');
+      // debugPrint('Has API Key: $hasApiKey');
+      // debugPrint('Endpoint: $endpoint');
       return ConnectionStatusEntity(
         connected: isConnected,
         state: isConnected ? ConnectionState.excellent : ConnectionState.disconnected,
@@ -477,7 +477,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         hasApiKey: hasApiKey,
       );
     } catch (e) {
-      debugPrint('API connection check failed: $e');
+      // debugPrint('API connection check failed: $e');
       return ConnectionStatusEntity(
         connected: false,
         state: ConnectionState.disconnected,
@@ -496,7 +496,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       uniqueStations.add('${item.latitude.toStringAsFixed(4)}_${item.longitude.toStringAsFixed(4)}');
     }
     final latestTimestamp = data.map((d) => d.timestamp).reduce((a, b) => a.isAfter(b) ? a : b);
-    debugPrint('Data Quality - Stations: ${uniqueStations.length}, Measurements: ${data.length}');
+    // debugPrint('Data Quality - Stations: ${uniqueStations.length}, Measurements: ${data.length}');
     return {
       'stations': uniqueStations.length,
       'measurements': data.length,
@@ -507,7 +507,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<void> _onLoadInitialData(LoadInitialDataEvent event, Emitter<OceanDataState> emit) async {
     emit(const OceanDataLoadingState(isInitialLoad: true));
     try {
-      debugPrint('Loading initial ocean data...');
+      // debugPrint('Loading initial ocean data...');
       final connectionStatus = await _checkApiConnection();
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: DateTime.now().subtract(const Duration(days: 7)),
@@ -515,7 +515,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       ));
       if (result.isRight()) {
         final oceanData = result.getOrElse(() => []);
-        debugPrint('Loaded ${oceanData.length} ocean data points');
+        // debugPrint('Loaded ${oceanData.length} ocean data points');
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
@@ -538,11 +538,11 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
       } else {
         final errorMessage = result.fold((l) => l.message, (r) => 'Unknown error');
-        debugPrint('Failed to load ocean data: $errorMessage');
+        // debugPrint('Failed to load ocean data: $errorMessage');
         emit(OceanDataErrorState(errorMessage));
       }
     } catch (e) {
-      debugPrint('Exception loading initial data: $e');
+      // debugPrint('Exception loading initial data: $e');
       emit(OceanDataErrorState(e.toString()));
     }
   }
@@ -552,14 +552,14 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final currentState = state as OceanDataLoadedState;
       emit(currentState.copyWith(isLoading: true));
       try {
-        debugPrint('Refreshing ocean data...');
+        // debugPrint('Refreshing ocean data...');
         final connectionStatus = await _checkApiConnection();
         final result = await _getOceanDataUseCase(GetOceanDataParams(
           startDate: currentState.startDate, endDate: currentState.endDate,
         ));
         if (result.isRight()) {
           final oceanData = result.getOrElse(() => []);
-          debugPrint('Refreshed ${oceanData.length} ocean data points');
+          // debugPrint('Refreshed ${oceanData.length} ocean data points');
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
             data: oceanData, isLoading: false, hasError: false,
@@ -573,7 +573,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           ));
         }
       } catch (e) {
-        debugPrint('Exception refreshing data: $e');
+        // debugPrint('Exception refreshing data: $e');
         emit(currentState.copyWith(isLoading: false, hasError: true, errorMessage: e.toString()));
       }
     }
@@ -586,7 +586,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<void> _onCheckApiStatus(CheckApiStatusEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      debugPrint('Checking API status...');
+      // debugPrint('Checking API status...');
       final connectionStatus = await _checkApiConnection();
       emit(currentState.copyWith(connectionStatus: connectionStatus));
     }

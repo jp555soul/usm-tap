@@ -31,7 +31,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     if (_hasProcessed) return;
 
     try {
-      debugPrint('Processing Auth0 callback for SPA...');
+      // debugPrint('Processing Auth0 callback for SPA...');
       setState(() => _hasProcessed = true);
 
       // Check for error in URL first
@@ -47,7 +47,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
       if (code != null) {
         // Process the authorization code
-        debugPrint('Auth0 SPA callback processing complete');
+        // debugPrint('Auth0 SPA callback processing complete');
         
         // Wait a moment to show loading state
         await Future.delayed(const Duration(milliseconds: 500));
@@ -57,7 +57,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
           Navigator.of(context).pushReplacementNamed('/');
         }
       } else {
-        debugPrint('No authorization code found in callback URL');
+        // debugPrint('No authorization code found in callback URL');
         
         // Redirect to home after a short delay
         await Future.delayed(const Duration(seconds: 2));
@@ -66,7 +66,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
         }
       }
     } catch (error) {
-      debugPrint('Error handling redirect callback: $error');
+      // debugPrint('Error handling redirect callback: $error');
       
       setState(() {
         _callbackError = error.toString();
@@ -217,7 +217,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
     if (_hasProcessed) return;
 
     try {
-      debugPrint('Processing Auth0 callback...');
+      // debugPrint('Processing Auth0 callback...');
       setState(() => _hasProcessed = true);
 
       final urlError = widget.queryParameters?['error'];
@@ -233,14 +233,14 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
         // Trigger auth callback processing via bloc
         context.read<AuthBloc>().add(ProcessAuthCallback(code: code));
       } else {
-        debugPrint('No authorization code found in callback URL');
+        // debugPrint('No authorization code found in callback URL');
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/');
         }
       }
     } catch (error) {
-      debugPrint('Error handling redirect callback: $error');
+      // debugPrint('Error handling redirect callback: $error');
       setState(() => _callbackError = error.toString());
       
       await Future.delayed(const Duration(seconds: 3));

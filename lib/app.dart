@@ -9,6 +9,7 @@ import 'core/router/app_router.dart';
 import 'presentation/blocs/auth/auth_bloc.dart';
 import 'presentation/blocs/ocean_data/ocean_data_bloc.dart';
 import 'presentation/blocs/tutorial/tutorial_bloc.dart';
+import 'presentation/blocs/chat/chat_bloc.dart';
 import 'data/datasources/local/session_key_service.dart';
 import 'injection_container.dart' as di;
 
@@ -92,7 +93,7 @@ class _MainAppWidgetState extends State<MainAppWidget> {
           final key = _generateSessionKey(secret, salt);
           _sessionKeyService.setSessionKey(key);
         } else {
-          debugPrint('AUTH0_CLIENT_SECRET is not set. Local storage will not be encrypted.');
+          // debugPrint('AUTH0_CLIENT_SECRET is not set. Local storage will not be encrypted.');
         }
       }
     });
@@ -254,6 +255,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
     super.initState();
     _checkApiStatus();
     _setupApiConfigListener();
+    _setupChatListener();
   }
 
   @override
@@ -278,6 +280,38 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
             setState(() {
               showApiConfig = true;
             });
+          }
+        }
+      }
+    });
+  }
+
+  void _setupChatListener() {
+    context.read<ChatBloc>().stream.listen((chatState) {
+      if (chatState is ChatLoaded) {
+        // Convert domain ChatMessages to data ChatMessages
+        final messages = chatState.messages.map((domainMsg) {
+          return DataModels.ChatMessage(
+            id: domainMsg.id,
+            content: domainMsg.content,
+            isUser: domainMsg.isUser,
+            timestamp: domainMsg.timestamp,
+            source: domainMsg.metadata?['source'] as String? ?? 'api',
+            retryAttempt: domainMsg.metadata?['retryAttempt'] as int? ?? 0,
+          );
+        }).toList();
+
+        // Update OceanDataBloc with the new messages
+        for (final message in messages) {
+          // Only add messages that don't already exist
+          final oceanState = context.read<OceanDataBloc>().state;
+          if (oceanState is OceanDataLoadedState) {
+            final existingIds = oceanState.chatMessages.map((m) => m.id).toSet();
+            if (!existingIds.contains(message.id)) {
+              context.read<OceanDataBloc>().add(
+                AddChatMessageEvent(message),
+              );
+            }
           }
         }
       }
