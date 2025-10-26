@@ -264,7 +264,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       // Don't emit error for status check failures
       if (kDebugMode) {
-        print('Auth status check failed: $e');
+        // print('Auth status check failed: $e');
       }
     }
   }
