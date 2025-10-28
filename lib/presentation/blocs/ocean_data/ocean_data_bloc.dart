@@ -247,7 +247,7 @@ class OceanDataLoadedState extends OceanDataState {
   final List<OceanDataEntity> data;
   final List<StationDataEntity> stationData;
   final List<Map<String, dynamic>> timeSeriesData;
-  final Map<String, dynamic> rawData;
+  final List<Map<String, dynamic>> rawData;
   final Map<String, dynamic> currentsGeoJSON;
   final EnvDataEntity? envData;
   final String selectedArea;
@@ -347,7 +347,7 @@ class OceanDataLoadedState extends OceanDataState {
   OceanDataLoadedState copyWith({
     bool? dataLoaded, bool? isLoading, bool? hasError, String? errorMessage,
     List<OceanDataEntity>? data, List<StationDataEntity>? stationData,
-    List<Map<String, dynamic>>? timeSeriesData, Map<String, dynamic>? rawData,
+    List<Map<String, dynamic>>? timeSeriesData, List<Map<String, dynamic>>? rawData,
     Map<String, dynamic>? currentsGeoJSON, EnvDataEntity? envData, String? selectedArea,
     String? selectedModel, double? selectedDepth, String? dataSource, String? timeZone,
     DateTime? startDate, DateTime? endDate, DateTime? currentDate, String? currentTime,
@@ -564,7 +564,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
-          stationData: const [], timeSeriesData: timeSeriesData, rawData: const {},
+          stationData: const [], timeSeriesData: timeSeriesData, rawData: const [],
           currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
