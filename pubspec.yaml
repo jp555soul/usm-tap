@@ -49,12 +49,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/web/
-    - assets/web/static/js/
-    - assets/web/static/css/
     - assets/vids/recording.mp4
     - assets/icons/
-    - assets/web/map_bridge.html
 
 flutter_launcher_icons:
   windows:

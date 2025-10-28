@@ -229,13 +229,13 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
                 ),
               ),
 
-            // Environmental Data Panel
-            if (widget.showEnvironmental)
-              _buildEnvironmentalPanel(dataQuality),
-
             // HoloOcean Panel
             if (widget.showHoloOcean)
               _buildHoloOceanPanel(),
+
+            // Environmental Data Panel
+            if (widget.showEnvironmental)
+              _buildEnvironmentalPanel(dataQuality),
 
             // Charts Panel
             if (widget.showCharts)
