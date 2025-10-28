@@ -252,6 +252,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🗺️ MAP BUILD: rawData.length=${widget.rawData.length}');
+    debugPrint('🗺️ MAP BUILD: temperature=${widget.mapLayerVisibility['temperature']}');
+    debugPrint('🗺️ MAP BUILD: stationData=${widget.stationData.length}, currentsGeoJSON=${widget.currentsGeoJSON.isNotEmpty}');
+
     // Build map tile URL with Mapbox token
     final mapboxStyleUrl = 'https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${widget.mapboxToken}';
 
