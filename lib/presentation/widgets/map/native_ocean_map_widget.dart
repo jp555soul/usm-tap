@@ -812,7 +812,7 @@ class HeatmapPainter extends CustomPainter {
 
       // Get color based on value and data type
       final color = _getColorForValue(value, dataField);
-      paint.color = color.withOpacity(0.7 * heatmapScale);
+      paint.color = color.withOpacity((0.7 * heatmapScale).clamp(0.0, 1.0));
 
       // Draw heatmap point with smaller radius
       canvas.drawCircle(
