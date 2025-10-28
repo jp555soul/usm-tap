@@ -247,7 +247,7 @@ class OceanDataLoadedState extends OceanDataState {
   final List<OceanDataEntity> data;
   final List<StationDataEntity> stationData;
   final List<Map<String, dynamic>> timeSeriesData;
-  final Map<String, dynamic> rawData;
+  final List<Map<String, dynamic>> rawData;
   final Map<String, dynamic> currentsGeoJSON;
   final EnvDataEntity? envData;
   final String selectedArea;
@@ -347,7 +347,7 @@ class OceanDataLoadedState extends OceanDataState {
   OceanDataLoadedState copyWith({
     bool? dataLoaded, bool? isLoading, bool? hasError, String? errorMessage,
     List<OceanDataEntity>? data, List<StationDataEntity>? stationData,
-    List<Map<String, dynamic>>? timeSeriesData, Map<String, dynamic>? rawData,
+    List<Map<String, dynamic>>? timeSeriesData, List<Map<String, dynamic>>? rawData,
     Map<String, dynamic>? currentsGeoJSON, EnvDataEntity? envData, String? selectedArea,
     String? selectedModel, double? selectedDepth, String? dataSource, String? timeZone,
     DateTime? startDate, DateTime? endDate, DateTime? currentDate, String? currentTime,
@@ -564,7 +564,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
-          stationData: const [], timeSeriesData: timeSeriesData, rawData: const {},
+          stationData: const [], timeSeriesData: timeSeriesData, rawData: const [],
           currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
@@ -572,7 +572,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           availableDepths: const [0.0, 10.0, 20.0, 30.0, 50.0, 100.0],
           availableDates: const [], availableTimes: const [], currentFrame: 0,
           totalFrames: 100, isPlaying: false, playbackSpeed: 1.0, loopMode: false,
-          mapLayerVisibility: const {}, isSstHeatmapVisible: true,
+          mapLayerVisibility: const {
+            'temperature': true,
+            'salinity': false,
+            'ssh': false,
+            'pressure': false,
+            'oceanCurrents': false,
+            'stations': true,
+            'windVelocity': false,
+          }, isSstHeatmapVisible: true,
           currentsVectorScale: 1.0, currentsColorBy: 'velocity',
           heatmapScale: const {'value': 1.0}, windVelocityParticleCount: 1000,
           windVelocityParticleOpacity: 0.8, windVelocityParticleSpeed: 1.0,
