@@ -548,7 +548,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                               }).toList(),
                                               timeSeriesData:
                                                   oceanState.timeSeriesData,
-                                              rawData: [oceanState.rawData],
+                                              rawData: oceanState.rawData,
                                               currentsGeoJSON:
                                                   oceanState.currentsGeoJSON,
                                               currentFrame:
