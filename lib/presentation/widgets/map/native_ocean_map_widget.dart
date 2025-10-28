@@ -176,6 +176,44 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     }).toList();
   }
 
+  /// Extract currents data from GeoJSON for particle painter
+  List<Map<String, dynamic>> _extractCurrentsData() {
+    final List<Map<String, dynamic>> currentsData = [];
+
+    try {
+      final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
+      if (features == null) return [];
+
+      for (final feature in features) {
+        final geometry = feature['geometry'] as Map<String, dynamic>?;
+        final properties = feature['properties'] as Map<String, dynamic>?;
+
+        if (geometry == null || properties == null) continue;
+
+        final coordinates = geometry['coordinates'] as List<dynamic>?;
+        if (coordinates == null || coordinates.length < 2) continue;
+
+        final lon = (coordinates[0] as num?)?.toDouble();
+        final lat = (coordinates[1] as num?)?.toDouble();
+        final u = (properties['u'] as num?)?.toDouble();
+        final v = (properties['v'] as num?)?.toDouble();
+
+        if (lon == null || lat == null || u == null || v == null) continue;
+
+        currentsData.add({
+          'lat': lat,
+          'lon': lon,
+          'u': u,
+          'v': v,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error extracting currents data: $e');
+    }
+
+    return currentsData;
+  }
+
   /// Build ocean currents vector markers
   List<Marker> _buildCurrentsVectorMarkers() {
     final showCurrents = widget.mapLayerVisibility['oceanCurrents'] ?? false;
@@ -290,7 +328,66 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               userAgentPackageName: 'com.usm.tap',
             ),
 
-            // Ocean currents vectors layer
+            // Temperature heatmap layer
+            if (widget.mapLayerVisibility['temperature'] ?? false)
+              CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'temp',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
+              ),
+
+            // Salinity heatmap layer
+            if (widget.mapLayerVisibility['salinity'] ?? false)
+              CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'salinity',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
+              ),
+
+            // SSH heatmap layer
+            if (widget.mapLayerVisibility['ssh'] ?? false)
+              CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'ssh',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
+              ),
+
+            // Pressure heatmap layer
+            if (widget.mapLayerVisibility['pressure'] ?? false)
+              CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'pressure_dbars',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
+              ),
+
+            // Particle animation layer for ocean currents
+            if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
+              CustomPaint(
+                painter: ParticlePainter(
+                  currentsData: _extractCurrentsData(),
+                  camera: _mapController.camera,
+                  vectorScale: widget.currentsVectorScale,
+                ),
+                size: Size.infinite,
+              ),
+
+            // Ocean currents vectors layer (fallback/alternative visualization)
             if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
               MarkerLayer(
                 markers: _buildCurrentsVectorMarkers(),
@@ -637,5 +734,387 @@ class _InfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Custom painter for rendering heatmaps (temperature, salinity, SSH, pressure)
+class HeatmapPainter extends CustomPainter {
+  final List<Map<String, dynamic>> rawData;
+  final String dataField;
+  final double heatmapScale;
+  final MapCamera camera;
+
+  HeatmapPainter({
+    required this.rawData,
+    required this.dataField,
+    required this.heatmapScale,
+    required this.camera,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (rawData.isEmpty) return;
+
+    // Create paint for heatmap points
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+
+    // Draw each data point as a colored circle
+    for (final point in rawData) {
+      final lat = (point['lat'] as num?)?.toDouble();
+      final lon = (point['lon'] as num?)?.toDouble();
+      final value = (point[dataField] as num?)?.toDouble();
+
+      if (lat == null || lon == null || value == null) continue;
+
+      // Convert lat/lon to screen coordinates
+      final latLng = LatLng(lat, lon);
+      final screenPoint = camera.latLngToScreenPoint(latLng);
+
+      // Skip if point is outside visible area
+      if (screenPoint.x < -100 || screenPoint.x > size.width + 100 ||
+          screenPoint.y < -100 || screenPoint.y > size.height + 100) {
+        continue;
+      }
+
+      // Get color based on value and data type
+      final color = _getColorForValue(value, dataField);
+      paint.color = color.withOpacity(0.5 * heatmapScale);
+
+      // Draw heatmap point
+      canvas.drawCircle(
+        Offset(screenPoint.x, screenPoint.y),
+        40 * heatmapScale,
+        paint,
+      );
+    }
+  }
+
+  /// Get color based on value and data field type
+  Color _getColorForValue(double value, String field) {
+    switch (field) {
+      case 'temp':
+      case 'temperature':
+        // Temperature: blue (cold) to red (warm)
+        // Range: 0-30°C
+        final normalized = ((value - 0) / 30).clamp(0.0, 1.0);
+        return Color.lerp(
+          Colors.blue.shade700,
+          Colors.red.shade600,
+          normalized,
+        ) ?? Colors.blue;
+
+      case 'salinity':
+        // Salinity: green (low) to purple (high)
+        // Range: 30-37 PSU
+        final normalized = ((value - 30) / 7).clamp(0.0, 1.0);
+        return Color.lerp(
+          Colors.green.shade400,
+          Colors.purple.shade600,
+          normalized,
+        ) ?? Colors.green;
+
+      case 'ssh':
+        // Sea Surface Height: blue (low) to yellow (high)
+        // Range: -0.5 to 0.5 meters
+        final normalized = ((value + 0.5) / 1.0).clamp(0.0, 1.0);
+        return Color.lerp(
+          Colors.blue.shade600,
+          Colors.yellow.shade600,
+          normalized,
+        ) ?? Colors.blue;
+
+      case 'pressure_dbars':
+        // Pressure: cyan (low) to orange (high)
+        // Range: 0-5000 dbars
+        final normalized = (value / 5000).clamp(0.0, 1.0);
+        return Color.lerp(
+          Colors.cyan.shade400,
+          Colors.orange.shade600,
+          normalized,
+        ) ?? Colors.cyan;
+
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  bool shouldRepaint(HeatmapPainter oldDelegate) {
+    return oldDelegate.rawData != rawData ||
+           oldDelegate.dataField != dataField ||
+           oldDelegate.heatmapScale != heatmapScale ||
+           oldDelegate.camera != camera;
+  }
+}
+
+/// Particle data for ocean current animation
+class _Particle {
+  double x;
+  double y;
+  double vx;
+  double vy;
+  double age;
+  final double maxAge;
+
+  _Particle({
+    required this.x,
+    required this.y,
+    this.vx = 0,
+    this.vy = 0,
+    this.age = 0,
+    this.maxAge = 100,
+  });
+}
+
+/// Custom painter for rendering animated ocean current particles
+class ParticlePainter extends CustomPainter {
+  final List<Map<String, dynamic>> currentsData;
+  final MapCamera camera;
+  final double vectorScale;
+  final int particleCount;
+  List<_Particle> particles = [];
+
+  ParticlePainter({
+    required this.currentsData,
+    required this.camera,
+    required this.vectorScale,
+    this.particleCount = 2000,
+  }) {
+    _initializeParticles();
+  }
+
+  /// Initialize particles at random positions
+  void _initializeParticles() {
+    if (particles.isEmpty) {
+      final random = math.Random();
+      for (int i = 0; i < particleCount; i++) {
+        particles.add(_Particle(
+          x: random.nextDouble(),
+          y: random.nextDouble(),
+          maxAge: 50 + random.nextDouble() * 50,
+        ));
+      }
+    }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (currentsData.isEmpty) return;
+
+    final paint = Paint()
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    // Update and draw each particle
+    for (final particle in particles) {
+      // Convert particle position to lat/lon
+      final bounds = camera.visibleBounds;
+      final lat = bounds.south + particle.y * (bounds.north - bounds.south);
+      final lon = bounds.west + particle.x * (bounds.east - bounds.west);
+
+      // Find nearest current data point
+      final velocity = _getNearestVelocity(lat, lon);
+
+      if (velocity != null) {
+        particle.vx = velocity['u']! * vectorScale;
+        particle.vy = velocity['v']! * vectorScale;
+
+        // Update particle position
+        particle.x += particle.vx * 0.01;
+        particle.y += particle.vy * 0.01;
+        particle.age += 1;
+
+        // Reset particle if too old or out of bounds
+        if (particle.age > particle.maxAge ||
+            particle.x < 0 || particle.x > 1 ||
+            particle.y < 0 || particle.y > 1) {
+          final random = math.Random();
+          particle.x = random.nextDouble();
+          particle.y = random.nextDouble();
+          particle.age = 0;
+        }
+
+        // Convert to screen coordinates
+        final latLng = LatLng(lat, lon);
+        final screenPoint = camera.latLngToScreenPoint(latLng);
+
+        // Draw particle with trail
+        final speed = math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        final opacity = (1 - particle.age / particle.maxAge).clamp(0.2, 0.8);
+        final color = _getParticleColor(speed).withOpacity(opacity);
+
+        paint.color = color;
+
+        // Draw particle as small circle
+        canvas.drawCircle(
+          Offset(screenPoint.x, screenPoint.y),
+          2,
+          paint..style = PaintingStyle.fill,
+        );
+
+        // Draw short trail
+        if (speed > 0.001) {
+          final trailEnd = Offset(
+            screenPoint.x - particle.vx * 5,
+            screenPoint.y - particle.vy * 5,
+          );
+          canvas.drawLine(
+            Offset(screenPoint.x, screenPoint.y),
+            trailEnd,
+            paint..style = PaintingStyle.stroke,
+          );
+        }
+      }
+    }
+  }
+
+  /// Get velocity at nearest data point
+  Map<String, double>? _getNearestVelocity(double lat, double lon) {
+    double minDist = double.infinity;
+    Map<String, double>? nearest;
+
+    for (final data in currentsData) {
+      final dataLat = (data['lat'] as num?)?.toDouble();
+      final dataLon = (data['lon'] as num?)?.toDouble();
+      final u = (data['u'] as num?)?.toDouble();
+      final v = (data['v'] as num?)?.toDouble();
+
+      if (dataLat == null || dataLon == null || u == null || v == null) continue;
+
+      final dist = math.sqrt(
+        math.pow(lat - dataLat, 2) + math.pow(lon - dataLon, 2),
+      );
+
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = {'u': u, 'v': v};
+      }
+    }
+
+    return nearest;
+  }
+
+  /// Get particle color based on speed
+  Color _getParticleColor(double speed) {
+    final normalizedSpeed = (speed * 100).clamp(0.0, 1.0);
+    return Color.lerp(
+      Colors.cyan.shade300,
+      Colors.pink.shade400,
+      normalizedSpeed,
+    ) ?? Colors.cyan;
+  }
+
+  @override
+  bool shouldRepaint(ParticlePainter oldDelegate) {
+    return oldDelegate.currentsData != currentsData ||
+           oldDelegate.camera != camera ||
+           oldDelegate.vectorScale != vectorScale;
+  }
+}
+
+/// Custom painter for rendering coordinate grid overlay
+class GridPainter extends CustomPainter {
+  final MapCamera camera;
+  final Color gridColor;
+  final double gridOpacity;
+
+  GridPainter({
+    required this.camera,
+    this.gridColor = Colors.white,
+    this.gridOpacity = 0.2,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = gridColor.withOpacity(gridOpacity)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    final bounds = camera.visibleBounds;
+    final zoom = camera.zoom;
+
+    // Calculate grid spacing based on zoom level
+    double gridSpacing;
+    if (zoom < 5) {
+      gridSpacing = 10.0; // 10 degrees
+    } else if (zoom < 7) {
+      gridSpacing = 5.0; // 5 degrees
+    } else if (zoom < 9) {
+      gridSpacing = 2.0; // 2 degrees
+    } else if (zoom < 11) {
+      gridSpacing = 1.0; // 1 degree
+    } else {
+      gridSpacing = 0.5; // 0.5 degrees
+    }
+
+    // Draw longitude lines (vertical)
+    final startLon = (bounds.west / gridSpacing).floor() * gridSpacing;
+    for (double lon = startLon; lon <= bounds.east; lon += gridSpacing) {
+      final topPoint = camera.latLngToScreenPoint(LatLng(bounds.north, lon));
+      final bottomPoint = camera.latLngToScreenPoint(LatLng(bounds.south, lon));
+
+      canvas.drawLine(
+        Offset(topPoint.x, topPoint.y),
+        Offset(bottomPoint.x, bottomPoint.y),
+        paint,
+      );
+
+      // Draw longitude label
+      textPainter.text = TextSpan(
+        text: '${lon.toStringAsFixed(1)}°E',
+        style: TextStyle(
+          color: gridColor.withOpacity(gridOpacity * 2),
+          fontSize: 10,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(topPoint.x - textPainter.width / 2, 5),
+      );
+    }
+
+    // Draw latitude lines (horizontal)
+    final startLat = (bounds.south / gridSpacing).floor() * gridSpacing;
+    for (double lat = startLat; lat <= bounds.north; lat += gridSpacing) {
+      final leftPoint = camera.latLngToScreenPoint(LatLng(lat, bounds.west));
+      final rightPoint = camera.latLngToScreenPoint(LatLng(lat, bounds.east));
+
+      canvas.drawLine(
+        Offset(leftPoint.x, leftPoint.y),
+        Offset(rightPoint.x, rightPoint.y),
+        paint,
+      );
+
+      // Draw latitude label
+      textPainter.text = TextSpan(
+        text: '${lat.toStringAsFixed(1)}°N',
+        style: TextStyle(
+          color: gridColor.withOpacity(gridOpacity * 2),
+          fontSize: 10,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(5, leftPoint.y - textPainter.height / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(GridPainter oldDelegate) {
+    return oldDelegate.camera != camera ||
+           oldDelegate.gridColor != gridColor ||
+           oldDelegate.gridOpacity != gridOpacity;
   }
 }
