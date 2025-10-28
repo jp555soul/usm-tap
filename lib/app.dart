@@ -664,6 +664,9 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                     ),
                                   ),
 
+                                  // Vertical spacing between map and bottom panels
+                                  const SizedBox(height: 24),
+
                                   // Data Panels
                                   SizedBox(
                                     //height: MediaQuery.of(context).size.height * 0.6,
