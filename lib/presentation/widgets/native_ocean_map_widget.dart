@@ -86,7 +86,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void initState() {
     super.initState();
     _mapController = MapController();
-    debugPrint('🗺️ NATIVE MAP INIT: ${DateTime.now()} - Instance: ${hashCode}');
+    debugPrint('🗺️ NATIVE MAP INIT: ${DateTime.now()} - Instance: $hashCode');
 
     // Set initial view after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -96,17 +96,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   @override
   void dispose() {
-    debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: ${hashCode}');
+    debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode');
     _mapController.dispose();
     super.dispose();
   }
 
   void _initializeMapView() {
-    final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
-    final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
-    final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
+    try {
+      final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
+      final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
+      final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
 
-    _mapController.move(LatLng(latitude, longitude), zoom);
+      _mapController.move(LatLng(latitude, longitude), zoom);
+    } catch (e) {
+      debugPrint('Error initializing map view: $e');
+    }
   }
 
   @override
@@ -121,7 +125,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   /// Build station markers if stations layer is visible
   List<Marker> _buildStationMarkers() {
-    if (!widget.mapLayerVisibility['stations']!) {
+    final showStations = widget.mapLayerVisibility['stations'] ?? false;
+    if (!showStations) {
       return [];
     }
 
@@ -135,7 +140,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         width: 40.0,
         height: 40.0,
         point: LatLng(lat, lon),
-        child: GestureDetector(
+        builder: (ctx) => GestureDetector(
           onTap: () {
             setState(() {
               _selectedStation = isSelected ? null : station;
@@ -158,7 +163,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                 ),
               ],
             ),
-            child: Center(
+            child: const Center(
               child: Icon(
                 Icons.location_on,
                 color: Colors.white,
@@ -171,14 +176,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     }).toList();
   }
 
-  /// Build ocean currents vectors if currents layer is visible
-  List<Widget> _buildCurrentsVectors() {
-    if (!widget.mapLayerVisibility['oceanCurrents']! ||
-        widget.currentsGeoJSON.isEmpty) {
+  /// Build ocean currents vector markers
+  List<Marker> _buildCurrentsVectorMarkers() {
+    final showCurrents = widget.mapLayerVisibility['oceanCurrents'] ?? false;
+    if (!showCurrents || widget.currentsGeoJSON.isEmpty) {
       return [];
     }
 
-    final List<Widget> vectors = [];
+    final List<Marker> vectors = [];
 
     try {
       // Parse GeoJSON features
@@ -204,17 +209,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         if (speed == 0) continue;
 
-        // Calculate color based on speed or other property
-        Color vectorColor = _getVectorColor(speed, properties);
+        // Calculate color based on speed
+        final vectorColor = _getVectorColor(speed, properties);
 
         vectors.add(
-          _CurrentVectorMarker(
-            position: LatLng(lat, lon),
-            u: u,
-            v: v,
-            speed: speed,
-            scale: widget.currentsVectorScale,
-            color: vectorColor,
+          Marker(
+            width: 30,
+            height: 30,
+            point: LatLng(lat, lon),
+            builder: (ctx) => CustomPaint(
+              painter: _VectorArrowPainter(
+                angle: math.atan2(v, u),
+                length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
+                color: vectorColor,
+              ),
+            ),
           ),
         );
       }
@@ -246,19 +255,19 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Build map tile URL with Mapbox token
     final mapboxStyleUrl = 'https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${widget.mapboxToken}';
 
+    final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
+    final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
+    final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
+
     return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: LatLng(
-              (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1,
-              (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0,
-            ),
-            initialZoom: (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0,
+            center: LatLng(latitude, longitude),
+            zoom: zoom,
             minZoom: 3.0,
             maxZoom: 18.0,
-            backgroundColor: const Color(0xFF0F172A),
             onTap: (tapPosition, point) {
               // Deselect station when tapping on map
               if (_selectedStation != null) {
@@ -274,13 +283,12 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             TileLayer(
               urlTemplate: mapboxStyleUrl,
               userAgentPackageName: 'com.usm.tap',
-              tileProvider: NetworkTileProvider(),
             ),
 
             // Ocean currents vectors layer
             if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
               MarkerLayer(
-                markers: _buildStationMarkers(),
+                markers: _buildCurrentsVectorMarkers(),
               ),
 
             // Station markers layer
@@ -288,10 +296,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               MarkerLayer(
                 markers: _buildStationMarkers(),
               ),
-
-            // Additional overlay for currents vectors
-            if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
-              ..._buildCurrentsVectors().map((w) => w),
           ],
         ),
 
@@ -313,9 +317,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               _MapButton(
                 icon: Icons.add,
                 onPressed: () {
-                  final currentZoom = _mapController.camera.zoom;
+                  final currentZoom = _mapController.zoom;
                   _mapController.move(
-                    _mapController.camera.center,
+                    _mapController.center,
                     currentZoom + 1,
                   );
                 },
@@ -325,9 +329,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               _MapButton(
                 icon: Icons.remove,
                 onPressed: () {
-                  final currentZoom = _mapController.camera.zoom;
+                  final currentZoom = _mapController.zoom;
                   _mapController.move(
-                    _mapController.camera.center,
+                    _mapController.center,
                     currentZoom - 1,
                   );
                 },
@@ -416,45 +420,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Custom marker widget for ocean current vectors
-class _CurrentVectorMarker extends StatelessWidget {
-  final LatLng position;
-  final double u;
-  final double v;
-  final double speed;
-  final double scale;
-  final Color color;
-
-  const _CurrentVectorMarker({
-    required this.position,
-    required this.u,
-    required this.v,
-    required this.speed,
-    required this.scale,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Calculate arrow angle and length
-    final angle = math.atan2(v, u);
-    final length = speed * scale * 100; // Scale for visibility
-
-    return Marker(
-      width: 30,
-      height: 30,
-      point: position,
-      child: CustomPaint(
-        painter: _VectorArrowPainter(
-          angle: angle,
-          length: length.clamp(5.0, 30.0),
-          color: color,
-        ),
-      ),
     );
   }
 }
