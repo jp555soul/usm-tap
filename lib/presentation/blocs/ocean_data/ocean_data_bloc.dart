@@ -528,7 +528,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         // Fetch environmental data and process time series data
         EnvDataEntity? envData;
         List<Map<String, dynamic>> timeSeriesData = const [];
-        
+        List<Map<String, dynamic>> rawData = const [];
+
         if (oceanData.isNotEmpty) {
           try {
             // Get raw data from the data source for processing
@@ -536,12 +537,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               startDate: startDate,
               endDate: endDate,
             );
-            final rawData = rawDataResult['allData'] as List?;
-            
-            if (rawData != null && rawData.isNotEmpty) {
+            final rawDataList = rawDataResult['allData'] as List?;
+
+            if (rawDataList != null && rawDataList.isNotEmpty) {
+              // Assign to outer scope variable
+              rawData = rawDataList.cast<Map<String, dynamic>>();
+
               // Get the first data point to extract parameters for environmental data
               final firstDataPoint = oceanData.first;
-              
+
               // Fetch environmental data using the remote data source
               envData = await _remoteDataSource.getEnvironmentalData(
                 timestamp: firstDataPoint.timestamp,
@@ -550,9 +554,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
                 longitude: firstDataPoint.longitude,
               );
               // debugPrint('Fetched environmental data: temp=${envData.temperature}, salinity=${envData.salinity}');
-              
+
               // Process raw data into time series format
-              timeSeriesData = _remoteDataSource.processAPIData(rawData);
+              timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
               // debugPrint('Processed ${timeSeriesData.length} time series data points');
             }
           } catch (e) {
@@ -564,7 +568,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
-          stationData: const [], timeSeriesData: timeSeriesData, rawData: (rawData ?? []).cast<Map<String, dynamic>>(),
+          stationData: const [], timeSeriesData: timeSeriesData, rawData: rawData,
           currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
@@ -616,7 +620,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           // Fetch environmental data and process time series data
           EnvDataEntity? envData;
           List<Map<String, dynamic>> timeSeriesData = const [];
-          
+          List<Map<String, dynamic>> rawData = const [];
+
           if (oceanData.isNotEmpty) {
             try {
               // Get raw data from the data source for processing
@@ -624,12 +629,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
                 startDate: currentState.startDate,
                 endDate: currentState.endDate,
               );
-              final rawData = rawDataResult['allData'] as List?;
-              
-              if (rawData != null && rawData.isNotEmpty) {
+              final rawDataList = rawDataResult['allData'] as List?;
+
+              if (rawDataList != null && rawDataList.isNotEmpty) {
+                // Assign to outer scope variable
+                rawData = rawDataList.cast<Map<String, dynamic>>();
+
                 // Get the first data point to extract parameters for environmental data
                 final firstDataPoint = oceanData.first;
-                
+
                 // Fetch environmental data using the remote data source
                 envData = await _remoteDataSource.getEnvironmentalData(
                   timestamp: firstDataPoint.timestamp,
@@ -638,9 +646,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
                   longitude: firstDataPoint.longitude,
                 );
                 // debugPrint('Fetched environmental data on refresh');
-                
+
                 // Process raw data into time series format
-                timeSeriesData = _remoteDataSource.processAPIData(rawData);
+                timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
                 // debugPrint('Processed ${timeSeriesData.length} time series data points on refresh');
               }
             } catch (e) {
@@ -652,7 +660,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
             data: oceanData, isLoading: false, hasError: false,
-            timeSeriesData: timeSeriesData, rawData: (rawData ?? []).cast<Map<String, dynamic>>(),
+            timeSeriesData: timeSeriesData, rawData: rawData,
             envData: envData, connectionStatus: connectionStatus, dataQuality: dataQuality,
           ));
         } else {
