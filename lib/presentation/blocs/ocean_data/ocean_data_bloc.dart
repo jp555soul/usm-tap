@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/chat_message.dart';
+import '../../../data/datasources/remote/ocean_data_remote_datasource.dart';
 import '../../../domain/entities/ocean_data_entity.dart';
 import '../../../domain/entities/station_data_entity.dart';
 import '../../../domain/entities/connection_status_entity.dart';
@@ -415,16 +416,19 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   final UpdateTimeRangeUseCase _updateTimeRangeUseCase;
   final ControlAnimationUseCase _controlAnimationUseCase;
   final ConnectHoloOceanUseCase _connectHoloOceanUseCase;
+  final OceanDataRemoteDataSource _remoteDataSource;
   
   OceanDataBloc({
     required GetOceanDataUseCase getOceanDataUseCase,
     required UpdateTimeRangeUseCase updateTimeRangeUseCase,
     required ControlAnimationUseCase controlAnimationUseCase,
     required ConnectHoloOceanUseCase connectHoloOceanUseCase,
+    required OceanDataRemoteDataSource remoteDataSource,
   }) : _getOceanDataUseCase = getOceanDataUseCase,
        _updateTimeRangeUseCase = updateTimeRangeUseCase,
        _controlAnimationUseCase = controlAnimationUseCase,
        _connectHoloOceanUseCase = connectHoloOceanUseCase,
+       _remoteDataSource = remoteDataSource,
        super(const OceanDataInitialState()) {
     on<LoadInitialDataEvent>(_onLoadInitialData);
     on<RefreshDataEvent>(_onRefreshData);
@@ -509,21 +513,61 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     try {
       // debugPrint('Loading initial ocean data...');
       final connectionStatus = await _checkApiConnection();
+      final startDate = DateTime.now().subtract(const Duration(days: 7));
+      final endDate = DateTime.now();
+      
       final result = await _getOceanDataUseCase(GetOceanDataParams(
-        startDate: DateTime.now().subtract(const Duration(days: 7)),
-        endDate: DateTime.now(),
+        startDate: startDate,
+        endDate: endDate,
       ));
+      
       if (result.isRight()) {
         final oceanData = result.getOrElse(() => []);
         // debugPrint('Loaded ${oceanData.length} ocean data points');
+        
+        // Fetch environmental data and process time series data
+        EnvDataEntity? envData;
+        List<Map<String, dynamic>> timeSeriesData = const [];
+        
+        if (oceanData.isNotEmpty) {
+          try {
+            // Get raw data from the data source for processing
+            final rawDataResult = await _remoteDataSource.loadAllData(
+              startDate: startDate,
+              endDate: endDate,
+            );
+            final rawData = rawDataResult['allData'] as List?;
+            
+            if (rawData != null && rawData.isNotEmpty) {
+              // Get the first data point to extract parameters for environmental data
+              final firstDataPoint = oceanData.first;
+              
+              // Fetch environmental data using the remote data source
+              envData = await _remoteDataSource.getEnvironmentalData(
+                timestamp: firstDataPoint.timestamp,
+                depth: 0.0, // Default depth
+                latitude: firstDataPoint.latitude,
+                longitude: firstDataPoint.longitude,
+              );
+              // debugPrint('Fetched environmental data: temp=${envData.temperature}, salinity=${envData.salinity}');
+              
+              // Process raw data into time series format
+              timeSeriesData = _remoteDataSource.processAPIData(rawData);
+              // debugPrint('Processed ${timeSeriesData.length} time series data points');
+            }
+          } catch (e) {
+            // debugPrint('Error fetching environmental data or processing time series: $e');
+            // Continue with empty data if there's an error
+          }
+        }
+        
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
-          stationData: const [], timeSeriesData: const [], rawData: const {},
-          currentsGeoJSON: const {}, selectedArea: 'USM', selectedModel: 'NGOFS2',
+          stationData: const [], timeSeriesData: timeSeriesData, rawData: const {},
+          currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
-          startDate: DateTime.now().subtract(const Duration(days: 7)),
-          endDate: DateTime.now(), currentDate: DateTime.now(), currentTime: '00:00',
+          startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
           availableDepths: const [0.0, 10.0, 20.0, 30.0, 50.0, 100.0],
           availableDates: const [], availableTimes: const [], currentFrame: 0,
@@ -560,9 +604,47 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         if (result.isRight()) {
           final oceanData = result.getOrElse(() => []);
           // debugPrint('Refreshed ${oceanData.length} ocean data points');
+          
+          // Fetch environmental data and process time series data
+          EnvDataEntity? envData;
+          List<Map<String, dynamic>> timeSeriesData = const [];
+          
+          if (oceanData.isNotEmpty) {
+            try {
+              // Get raw data from the data source for processing
+              final rawDataResult = await _remoteDataSource.loadAllData(
+                startDate: currentState.startDate,
+                endDate: currentState.endDate,
+              );
+              final rawData = rawDataResult['allData'] as List?;
+              
+              if (rawData != null && rawData.isNotEmpty) {
+                // Get the first data point to extract parameters for environmental data
+                final firstDataPoint = oceanData.first;
+                
+                // Fetch environmental data using the remote data source
+                envData = await _remoteDataSource.getEnvironmentalData(
+                  timestamp: firstDataPoint.timestamp,
+                  depth: currentState.selectedDepth,
+                  latitude: firstDataPoint.latitude,
+                  longitude: firstDataPoint.longitude,
+                );
+                // debugPrint('Fetched environmental data on refresh');
+                
+                // Process raw data into time series format
+                timeSeriesData = _remoteDataSource.processAPIData(rawData);
+                // debugPrint('Processed ${timeSeriesData.length} time series data points on refresh');
+              }
+            } catch (e) {
+              // debugPrint('Error fetching environmental data or processing time series on refresh: $e');
+              // Continue with empty data if there's an error
+            }
+          }
+          
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
             data: oceanData, isLoading: false, hasError: false,
+            timeSeriesData: timeSeriesData, envData: envData,
             connectionStatus: connectionStatus, dataQuality: dataQuality,
           ));
         } else {

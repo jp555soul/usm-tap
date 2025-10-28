@@ -238,6 +238,7 @@ Future<void> init() async {
       updateTimeRangeUseCase: sl(),
       controlAnimationUseCase: sl(),
       connectHoloOceanUseCase: sl(),
+      remoteDataSource: sl(),
     ),
   );
 

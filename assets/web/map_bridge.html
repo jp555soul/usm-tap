@@ -1,222 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#000000">
-  <title>CubeAI Map Container</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#000000"/>
+  <title>CubeAI Map</title>
+  <link href="static/css/main.c4e4820c.css" rel="stylesheet">
   
-  <!-- Mapbox GL CSS -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-  
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #1e293b;
-    }
-    
-    #root {
-      width: 100%;
-      height: 100%;
-    }
-    
-    /* Loading indicator */
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #0f172a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      transition: opacity 0.3s ease-out;
-    }
-    
-    .loading-overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-    
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid #334155;
-      border-top-color: #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-      margin-top: 20px;
-      color: #94a3b8;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <!-- Loading indicator -->
-  <div id="loading" class="loading-overlay">
-    <div class="spinner"></div>
-    <div class="loading-text">Loading Map...</div>
-  </div>
-  
-  <!-- React root -->
-  <div id="root"></div>
-  
-  <!-- Flutter Bridge Setup -->
   <script>
-    // Initialize Flutter bridge
+    console.log('[HTML] Loading map_bridge.html');
+    window.flutterBridgeReady = false;
+    window.flutterBridgeQueue = [];
     window.flutterBridge = {
-      // Send messages to Flutter
       sendToFlutter: function(type, data) {
         const message = JSON.stringify({ type, data });
-        
-        // For Flutter WebView
-        if (window.FlutterBridge && window.FlutterBridge.postMessage) {
-          window.FlutterBridge.postMessage(message);
+        if (!window.flutterBridgeReady) {
+          console.log('[Bridge] Queuing:', type);
+          window.flutterBridgeQueue.push(message);
+          return;
         }
-        
-        // Fallback for testing in regular browser
-        if (!window.FlutterBridge) {
-          console.log('[Bridge -> Flutter]', type, data);
+        if (window.FlutterBridge && window.FlutterBridge.postMessage) {
+          try {
+            window.FlutterBridge.postMessage(message);
+            console.log('[Bridge] Sent:', type);
+          } catch (e) { console.error('[Bridge] Error:', e); }
         }
       },
-      
-      // Receive messages from Flutter
       receiveFromFlutter: function(message) {
         try {
           const { type, data } = JSON.parse(message);
-          
-          console.log('[Flutter -> Bridge]', type, data);
-          
-          // Route to appropriate handler
-          switch(type) {
-            case 'UPDATE_PROPS':
-              if (window.updateMapProps) {
-                window.updateMapProps(data);
-              }
-              break;
-            
-            case 'UPDATE_FRAME':
-              if (window.updateFrame) {
-                window.updateFrame(data.currentFrame);
-              }
-              break;
-            
-            case 'UPDATE_DEPTH':
-              if (window.updateDepth) {
-                window.updateDepth(data.selectedDepth);
-              }
-              break;
-            
-            case 'UPDATE_LAYER_VISIBILITY':
-              if (window.updateLayerVisibility) {
-                window.updateLayerVisibility(data);
-              }
-              break;
-            
-            default:
-              console.warn('Unknown message type from Flutter:', type);
-          }
-        } catch (error) {
-          console.error('Error processing Flutter message:', error);
-          window.flutterBridge.sendToFlutter('BRIDGE_ERROR', {
-            message: error.message,
-            stack: error.stack
-          });
-        }
+          console.log('[Flutter -> Bridge]', type);
+          if (type === 'UPDATE_PROPS' && window.updateMapProps) window.updateMapProps(data);
+          else if (type === 'UPDATE_FRAME' && window.updateFrame) window.updateFrame(data.currentFrame);
+          else if (type === 'UPDATE_DEPTH' && window.updateDepth) window.updateDepth(data.selectedDepth);
+          else if (type === 'UPDATE_LAYER_VISIBILITY' && window.updateLayerVisibility) window.updateLayerVisibility(data);
+        } catch (e) { console.error('[Bridge] Receive error:', e); }
       }
     };
-    
-    // Global error handler
-    window.addEventListener('error', function(event) {
-      console.error('Global error:', event.error);
-      window.flutterBridge.sendToFlutter('MAP_ERROR', {
-        message: event.error?.message || 'Unknown error',
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
-      });
-    });
-    
-    // Unhandled promise rejections
-    window.addEventListener('unhandledrejection', function(event) {
-      console.error('Unhandled promise rejection:', event.reason);
-      window.flutterBridge.sendToFlutter('MAP_ERROR', {
-        message: event.reason?.message || 'Promise rejection',
-        type: 'unhandledRejection'
-      });
-    });
-  </script>
-  
-  <!-- 
-    OPTION 1: Load from CDN (for development/testing)
-    Replace with your actual React bundle URLs
-  -->
-  <!-- <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script> -->
-  
-  <!-- 
-    OPTION 2: Load your built React app
-    After running `npm run build` in your React app, reference the generated files
-  -->
-  <!-- If using Create React App, the build will generate files like: -->
-  <!-- <script src="./static/js/main.[hash].js"></script> -->
-  
-  <!-- 
-    OPTION 3: Load from your hosted domain
-    Point to wherever you deploy your React build
-  -->
-  <script src="YOUR_REACT_APP_URL/static/js/main.f1258355.js"></script>
-  
-  <!-- 
-    Alternative: Inline your React bundle here (not recommended for large apps)
-    Only use for small, single-file React components
-  -->
-  
-  <script>
-    // Hide loading indicator once React app is ready
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        const loading = document.getElementById('loading');
-        if (loading) {
-          loading.classList.add('hidden');
-          setTimeout(function() {
-            loading.remove();
-          }, 300);
-        }
-        
-        // Notify Flutter that map is ready
-        window.flutterBridge.sendToFlutter('MAP_READY', {
-          timestamp: new Date().toISOString()
+    setTimeout(function checkBridge() {
+      if (window.FlutterBridge && window.FlutterBridge.postMessage) {
+        console.log('[Bridge] Ready! Flushing', window.flutterBridgeQueue.length, 'messages');
+        window.flutterBridgeReady = true;
+        window.flutterBridgeQueue.forEach(function(msg) {
+          try { window.FlutterBridge.postMessage(msg); }
+          catch (e) { console.error('[Bridge] Queue error:', e); }
         });
-      }, 500);
+        window.flutterBridgeQueue = [];
+      } else { setTimeout(checkBridge, 50); }
+    }, 50);
+    window.addEventListener('error', function(e) { console.error('[Global Error]', e.error); });
+    window.addEventListener('load', function() {
+      console.log('[HTML] Window loaded');
+      window.flutterBridge.sendToFlutter('MAP_READY', { timestamp: new Date().toISOString() });
     });
-    
-    // Periodic health check
-    setInterval(function() {
-      window.flutterBridge.sendToFlutter('MAP_HEARTBEAT', {
-        timestamp: new Date().toISOString(),
-        ready: window.updateMapProps !== undefined
-      });
-    }, 30000); // Every 30 seconds
   </script>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+  <script>console.log('[HTML] Loading React bundle...');</script>
+  <script src="static/js/main.49962564.js"></script>
+  <script>console.log('[HTML] React bundle loaded');</script>
 </body>
 </html>
