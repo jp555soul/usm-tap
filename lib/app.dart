@@ -17,7 +17,7 @@ import 'injection_container.dart' as di;
 import 'presentation/widgets/auth/auth_configuration_error_widget.dart';
 import 'presentation/widgets/layout/header_widget.dart';
 import 'presentation/widgets/panels/control_panel_widget.dart';
-import 'presentation/widgets/native_ocean_map_widget.dart';
+import 'presentation/widgets/map/native_ocean_map_widget.dart';
 import 'presentation/widgets/panels/data_panels_widget.dart';
 import 'presentation/widgets/panels/output_module_widget.dart';
 import 'presentation/widgets/chatbot/chatbot_widget.dart';
