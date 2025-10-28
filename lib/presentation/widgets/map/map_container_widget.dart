@@ -82,11 +82,24 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
   late WebViewController _controller;
   bool _isLoading = true;
   String? _error;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
+    // DEBUG: Track map instance creation
+    debugPrint('🗺️ MAP INIT: ${DateTime.now()} - Instance: ${hashCode}');
     _initializeWebView();
+  }
+
+  @override
+  void dispose() {
+    // DEBUG: Track map instance disposal
+    debugPrint('🗺️ MAP DISPOSE: ${DateTime.now()} - Instance: ${hashCode}');
+    _isDisposed = true;
+    // Note: WebViewController doesn't have an explicit dispose method
+    // but marking _isDisposed prevents any pending operations from executing
+    super.dispose();
   }
 
   Future<void> _initializeWebView() async {
@@ -104,43 +117,53 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
         NavigationDelegate(
           onProgress: (int progress) {
             // Update loading status
-            if (progress == 100) {
+            if (progress == 100 && !_isDisposed) {
               setState(() => _isLoading = false);
             }
           },
           onPageStarted: (String url) {
-            setState(() => _isLoading = true);
+            if (!_isDisposed) {
+              setState(() => _isLoading = true);
+            }
           },
           onPageFinished: (String url) {
-            setState(() => _isLoading = false);
-            _sendInitialData();
+            if (!_isDisposed) {
+              setState(() => _isLoading = false);
+              _sendInitialData();
+            }
           },
           onWebResourceError: (WebResourceError error) {
-            setState(() {
-              _error = 'Failed to load map: ${error.description}';
-              _isLoading = false;
-            });
+            if (!_isDisposed) {
+              setState(() {
+                _error = 'Failed to load map: ${error.description}';
+                _isLoading = false;
+              });
+            }
           },
         ),
       )
       ..addJavaScriptChannel(
         'FlutterBridge',
         onMessageReceived: (JavaScriptMessage message) {
-          _handleMessageFromReact(message.message);
+          if (!_isDisposed) {
+            _handleMessageFromReact(message.message);
+          }
         },
       );
 
-    // Load HTML content from assets and convert to data URI
+    // Load HTML from assets using loadFlutterAsset to preserve relative paths
     try {
-      final htmlContent = await rootBundle.loadString('assets/web/map_bridge.html');
-      final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(htmlContent))}';
-      await _controller.loadRequest(Uri.parse(dataUri));
+      if (!_isDisposed) {
+        await _controller.loadFlutterAsset('assets/web/map_bridge.html');
+      }
     } catch (e) {
-      // debugPrint('Error loading HTML from assets: $e');
+      debugPrint('Error loading map_bridge.html: $e');
       // Fallback to inline HTML if asset loading fails
       final inlineHtml = _getInlineHtml();
       final dataUri = 'data:text/html;base64,${base64Encode(utf8.encode(inlineHtml))}';
-      await _controller.loadRequest(Uri.parse(dataUri));
+      if (!_isDisposed) {
+        await _controller.loadRequest(Uri.parse(dataUri));
+      }
     }
   }
 
@@ -154,18 +177,56 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Map Container</title>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background-color: #1e293b; }
-    #root { width: 100%; height: 100%; }
+    html, body { 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+      background-color: #1e293b; 
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #root { 
+      width: 100%; 
+      height: 100%; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      padding: 40px;
+    }
+    .warning {
+      background: rgba(236, 72, 153, 0.1);
+      border: 2px solid rgb(236, 72, 153);
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+    }
+    h2 { color: rgb(236, 72, 153); margin-bottom: 10px; }
+    code { 
+      background: rgba(0,0,0,0.3); 
+      padding: 2px 6px; 
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div class="warning">
+      <h2>⚠️ Map Bundle Not Configured</h2>
+      <p>The React map bundle is not loaded. You need to either:</p>
+      <ul style="margin: 15px 0; padding-left: 20px;">
+        <li>Create <code>assets/web/map_bridge.html</code> with your React bundle</li>
+        <li>Or update <code>_getInlineHtml()</code> with your bundle URL</li>
+      </ul>
+      <p>WebView is working - this message proves it.</p>
+    </div>
+  </div>
   
   <script>
-    // JavaScript bridge for Flutter communication
     window.flutterBridge = {
       sendToFlutter: function(type, data) {
         if (window.FlutterBridge) {
@@ -174,37 +235,13 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
       },
       
       receiveFromFlutter: function(message) {
-        const { type, data } = JSON.parse(message);
-        
-        // Handle messages from Flutter
-        switch(type) {
-          case 'UPDATE_PROPS':
-            if (window.updateMapProps) window.updateMapProps(data);
-            break;
-          case 'UPDATE_FRAME':
-            if (window.updateFrame) window.updateFrame(data.currentFrame);
-            break;
-          case 'UPDATE_DEPTH':
-            if (window.updateDepth) window.updateDepth(data.selectedDepth);
-            break;
-          case 'UPDATE_LAYER_VISIBILITY':
-            if (window.updateLayerVisibility) window.updateLayerVisibility(data);
-            break;
-          default:
-            console.log('Unknown message type:', type);
-        }
+        console.log('Received from Flutter:', message);
       }
     };
-  </script>
-  
-  <!-- Load your bundled React app here -->
-  <!-- In production, this would be your built React bundle -->
-  <script src="YOUR_REACT_BUNDLE_URL"></script>
-  
-  <script>
-    // Notify Flutter when map is ready
+    
+    // Notify Flutter when ready
     window.addEventListener('load', function() {
-      window.flutterBridge.sendToFlutter('MAP_READY', {});
+      window.flutterBridge.sendToFlutter('MAP_READY', { message: 'WebView loaded but no map bundle' });
     });
   </script>
 </body>
@@ -214,13 +251,30 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
 
   /// Send initial data to React component after page loads
   void _sendInitialData() {
+    if (_isDisposed) return;
     final props = _buildPropsObject();
     _sendMessageToReact('UPDATE_PROPS', props);
   }
 
+  /// Convert any DateTime objects to ISO8601 strings for JSON serialization
+  dynamic _serializeForJson(dynamic value) {
+    if (value is DateTime) {
+      return value.toIso8601String();
+    } else if (value is Map) {
+      final result = <String, dynamic>{};
+      value.forEach((key, val) {
+        result[key.toString()] = _serializeForJson(val);
+      });
+      return result;
+    } else if (value is List) {
+      return value.map((item) => _serializeForJson(item)).toList();
+    }
+    return value;
+  }
+
   /// Build props object from Flutter state
   Map<String, dynamic> _buildPropsObject() {
-    return {
+    return _serializeForJson({
       'stationData': widget.stationData,
       'timeSeriesData': widget.timeSeriesData,
       'rawData': widget.rawData,
@@ -239,11 +293,13 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
       'currentsColorBy': widget.currentsColorBy,
       'heatmapScale': widget.heatmapScale,
       'availableDepths': widget.availableDepths,
-    };
+      'currentsGeoJSON': widget.currentsGeoJSON,
+    }) as Map<String, dynamic>;
   }
 
   /// Send message to React component
   void _sendMessageToReact(String type, dynamic data) {
+    if (_isDisposed) return;
     final message = jsonEncode({'type': type, 'data': data});
     _controller.runJavaScript(
       'window.flutterBridge.receiveFromFlutter(\'${message.replaceAll("'", "\\'")}\')'
@@ -252,6 +308,7 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
 
   /// Handle messages received from React
   void _handleMessageFromReact(String message) {
+    if (_isDisposed) return;
     try {
       final decoded = jsonDecode(message);
       final type = decoded['type'];
@@ -279,7 +336,9 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
           break;
         
         case 'MAP_ERROR':
-          setState(() => _error = data['message']);
+          if (!_isDisposed) {
+            setState(() => _error = data['message']);
+          }
           break;
         
         default:
@@ -293,6 +352,13 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
   @override
   void didUpdateWidget(MapContainerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    if (_isDisposed) return;
+    
+    // DEBUG: Track widget updates
+    if (oldWidget.currentFrame != widget.currentFrame) {
+      debugPrint('🗺️ MAP UPDATE: Frame changed ${oldWidget.currentFrame} -> ${widget.currentFrame}');
+    }
     
     // Send updates to React when props change
     if (oldWidget.currentFrame != widget.currentFrame) {
@@ -320,7 +386,11 @@ class _MapContainerWidgetState extends State<MapContainerWidget> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        WebViewWidget(controller: _controller),
+        // KEY: WebViewWidget with proper key to maintain identity
+        WebViewWidget(
+          key: ValueKey('webview_$hashCode'),
+          controller: _controller,
+        ),
         
         // Loading indicator
         if (_isLoading)

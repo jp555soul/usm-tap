@@ -536,6 +536,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                           child: Container(
                                             key: const Key('map-container'),
                                             child: MapContainerWidget(
+                                              key: const Key('map-widget-instance'),
                                               mapboxToken: AppConstants.mapboxAccessToken,
                                               stationData: oceanState.stationData.map((s) => {
                                                 'id': s.id,
