@@ -140,7 +140,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         width: 40.0,
         height: 40.0,
         point: LatLng(lat, lon),
-        builder: (ctx) => GestureDetector(
+        child: GestureDetector(
           onTap: () {
             setState(() {
               _selectedStation = isSelected ? null : station;
@@ -217,7 +217,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             width: 30,
             height: 30,
             point: LatLng(lat, lon),
-            builder: (ctx) => CustomPaint(
+            child: CustomPaint(
               painter: _VectorArrowPainter(
                 angle: math.atan2(v, u),
                 length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
@@ -264,10 +264,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            center: LatLng(latitude, longitude),
-            zoom: zoom,
+            initialCenter: LatLng(latitude, longitude),
+            initialZoom: zoom,
             minZoom: 3.0,
             maxZoom: 18.0,
+            backgroundColor: const Color(0xFF0F172A),
             onTap: (tapPosition, point) {
               // Deselect station when tapping on map
               if (_selectedStation != null) {
@@ -317,9 +318,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               _MapButton(
                 icon: Icons.add,
                 onPressed: () {
-                  final currentZoom = _mapController.zoom;
+                  final currentZoom = _mapController.camera.zoom;
                   _mapController.move(
-                    _mapController.center,
+                    _mapController.camera.center,
                     currentZoom + 1,
                   );
                 },
@@ -329,9 +330,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               _MapButton(
                 icon: Icons.remove,
                 onPressed: () {
-                  final currentZoom = _mapController.zoom;
+                  final currentZoom = _mapController.camera.zoom;
                   _mapController.move(
-                    _mapController.center,
+                    _mapController.camera.center,
                     currentZoom - 1,
                   );
                 },
