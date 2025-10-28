@@ -564,7 +564,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
-          stationData: const [], timeSeriesData: timeSeriesData, rawData: const [],
+          stationData: const [], timeSeriesData: timeSeriesData, rawData: (rawData ?? []).cast<Map<String, dynamic>>(),
           currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
@@ -652,8 +652,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
             data: oceanData, isLoading: false, hasError: false,
-            timeSeriesData: timeSeriesData, envData: envData,
-            connectionStatus: connectionStatus, dataQuality: dataQuality,
+            timeSeriesData: timeSeriesData, rawData: (rawData ?? []).cast<Map<String, dynamic>>(),
+            envData: envData, connectionStatus: connectionStatus, dataQuality: dataQuality,
           ));
         } else {
           emit(currentState.copyWith(
