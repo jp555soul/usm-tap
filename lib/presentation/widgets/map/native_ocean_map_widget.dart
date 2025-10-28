@@ -81,6 +81,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   late MapController _mapController;
   Map<String, dynamic>? _selectedStation;
   bool _isLoading = false;
+  bool _mapReady = false;
 
   @override
   void initState() {
@@ -91,6 +92,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Set initial view after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeMapView();
+      // Mark map as ready after initialization
+      setState(() {
+        _mapReady = true;
+      });
     });
   }
 
@@ -328,65 +333,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               userAgentPackageName: 'com.usm.tap',
             ),
 
-            // Temperature heatmap layer
-            if (widget.mapLayerVisibility['temperature'] ?? false)
-              CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'temp',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
-                ),
-                size: Size.infinite,
-              ),
-
-            // Salinity heatmap layer
-            if (widget.mapLayerVisibility['salinity'] ?? false)
-              CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'salinity',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
-                ),
-                size: Size.infinite,
-              ),
-
-            // SSH heatmap layer
-            if (widget.mapLayerVisibility['ssh'] ?? false)
-              CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'ssh',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
-                ),
-                size: Size.infinite,
-              ),
-
-            // Pressure heatmap layer
-            if (widget.mapLayerVisibility['pressure'] ?? false)
-              CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'pressure_dbars',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
-                ),
-                size: Size.infinite,
-              ),
-
-            // Particle animation layer for ocean currents
-            if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
-              CustomPaint(
-                painter: ParticlePainter(
-                  currentsData: _extractCurrentsData(),
-                  camera: _mapController.camera,
-                  vectorScale: widget.currentsVectorScale,
-                ),
-                size: Size.infinite,
-              ),
-
             // Ocean currents vectors layer (fallback/alternative visualization)
             if (widget.mapLayerVisibility['oceanCurrents'] ?? false)
               MarkerLayer(
@@ -400,6 +346,75 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               ),
           ],
         ),
+
+        // Temperature heatmap layer (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: HeatmapPainter(
+                rawData: widget.rawData,
+                dataField: 'temp',
+                heatmapScale: widget.heatmapScale,
+                camera: _mapController.camera,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+
+        // Salinity heatmap layer (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: HeatmapPainter(
+                rawData: widget.rawData,
+                dataField: 'salinity',
+                heatmapScale: widget.heatmapScale,
+                camera: _mapController.camera,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+
+        // SSH heatmap layer (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: HeatmapPainter(
+                rawData: widget.rawData,
+                dataField: 'ssh',
+                heatmapScale: widget.heatmapScale,
+                camera: _mapController.camera,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+
+        // Pressure heatmap layer (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: HeatmapPainter(
+                rawData: widget.rawData,
+                dataField: 'pressure_dbars',
+                heatmapScale: widget.heatmapScale,
+                camera: _mapController.camera,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+
+        // Particle animation layer for ocean currents (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['oceanCurrents'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: ParticlePainter(
+                currentsData: _extractCurrentsData(),
+                camera: _mapController.camera,
+                vectorScale: widget.currentsVectorScale,
+              ),
+              size: Size.infinite,
+            ),
+          ),
 
         // Loading indicator
         if (_isLoading)
