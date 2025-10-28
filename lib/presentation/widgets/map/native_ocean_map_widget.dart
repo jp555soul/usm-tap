@@ -770,10 +770,16 @@ class HeatmapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (rawData.isEmpty) return;
 
+    // Spacing between sample points for reduced density
+    const sampleSpacing = 50.0;
+
     // Create paint for heatmap points
     final paint = Paint()
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+
+    // Track drawn points to avoid overlap
+    final drawnPoints = <String>{};
 
     // Draw each data point as a colored circle
     for (final point in rawData) {
@@ -793,14 +799,25 @@ class HeatmapPainter extends CustomPainter {
         continue;
       }
 
+      // Sample points based on spacing to reduce density
+      final gridX = (screenPoint.x / sampleSpacing).floor();
+      final gridY = (screenPoint.y / sampleSpacing).floor();
+      final gridKey = '$gridX,$gridY';
+
+      // Skip if we've already drawn a point in this grid cell
+      if (drawnPoints.contains(gridKey)) {
+        continue;
+      }
+      drawnPoints.add(gridKey);
+
       // Get color based on value and data type
       final color = _getColorForValue(value, dataField);
-      paint.color = color.withOpacity(0.5 * heatmapScale);
+      paint.color = color.withOpacity(0.3 * heatmapScale);
 
-      // Draw heatmap point
+      // Draw heatmap point with smaller radius
       canvas.drawCircle(
         Offset(screenPoint.x, screenPoint.y),
-        40 * heatmapScale,
+        sampleSpacing / 4,
         paint,
       );
     }
