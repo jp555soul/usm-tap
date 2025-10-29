@@ -564,12 +564,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             // Continue with empty data if there's an error
           }
         }
-        
+
+        // Generate currents GeoJSON from raw data
+        final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
           stationData: const [], timeSeriesData: timeSeriesData, rawData: rawData,
-          currentsGeoJSON: const {}, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
+          currentsGeoJSON: currentsGeoJSON, envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
@@ -656,11 +659,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               // Continue with empty data if there's an error
             }
           }
-          
+
+          // Generate currents GeoJSON from raw data
+          final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
             data: oceanData, isLoading: false, hasError: false,
             timeSeriesData: timeSeriesData, rawData: rawData,
+            currentsGeoJSON: currentsGeoJSON,
             envData: envData, connectionStatus: connectionStatus, dataQuality: dataQuality,
           ));
         } else {
