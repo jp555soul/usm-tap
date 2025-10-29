@@ -565,8 +565,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           }
         }
 
-        // Generate currents GeoJSON from raw data
-        final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+        // Generate currents GeoJSON from raw data (only if data has current fields)
+        final currentsGeoJSON = rawData.isEmpty ||
+          (rawData.isNotEmpty &&
+           rawData.first['nspeed'] == null &&
+           rawData.first['direction'] == null &&
+           rawData.first['ucur'] == null &&
+           rawData.first['vcur'] == null)
+          ? const <String, dynamic>{'type': 'FeatureCollection', 'features': []}
+          : _remoteDataSource.generateCurrentsVectorData(rawData);
 
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
@@ -660,8 +667,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             }
           }
 
-          // Generate currents GeoJSON from raw data
-          final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+          // Generate currents GeoJSON from raw data (only if data has current fields)
+          final currentsGeoJSON = rawData.isEmpty ||
+            (rawData.isNotEmpty &&
+             rawData.first['nspeed'] == null &&
+             rawData.first['direction'] == null &&
+             rawData.first['ucur'] == null &&
+             rawData.first['vcur'] == null)
+            ? const <String, dynamic>{'type': 'FeatureCollection', 'features': []}
+            : _remoteDataSource.generateCurrentsVectorData(rawData);
 
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
