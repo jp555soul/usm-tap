@@ -222,6 +222,15 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   /// Build ocean currents vector markers
   List<Marker> _buildCurrentsVectorMarkers() {
     final showCurrents = widget.mapLayerVisibility['oceanCurrents'] ?? false;
+
+    // DEBUG: Check currents data availability
+    debugPrint('🌊 CURRENTS: currentsGeoJSON.isEmpty=${widget.currentsGeoJSON.isEmpty}');
+    debugPrint('🌊 CURRENTS: rawData.length=${widget.rawData.length}');
+    if (widget.rawData.isNotEmpty) {
+      final sample = widget.rawData.first;
+      debugPrint('🌊 CURRENTS: sample has ucur=${sample['ucur']}, vcur=${sample['vcur']}, direction=${sample['direction']}, nspeed=${sample['nspeed']}');
+    }
+
     if (!showCurrents || widget.currentsGeoJSON.isEmpty) {
       return [];
     }
