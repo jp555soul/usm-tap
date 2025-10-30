@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show compute, debugPrint;
+import 'dart:math' as math;
 
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/chat_message.dart';
@@ -13,6 +14,92 @@ import '../../../domain/usecases/ocean_data/get_ocean_data_usecase.dart';
 import '../../../domain/usecases/ocean_data/update_time_range_usecase.dart';
 import '../../../domain/usecases/animation/control_animation_usecase.dart';
 import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
+
+/// Generates currents GeoJSON in a background isolate
+/// This is a top-level function so it can be used with compute()
+Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawData) {
+  if (rawData.isEmpty) {
+    return {'type': 'FeatureCollection', 'features': []};
+  }
+
+  // Filter for valid current data (require both magnitude and direction)
+  final validData = rawData.where((row) {
+    final magnitude = row['nspeed'];
+    final direction = row['direction'];
+    return row['lat'] != null &&
+           row['lon'] != null &&
+           magnitude != null &&
+           direction != null;
+  }).toList();
+
+  if (validData.isEmpty) {
+    return {'type': 'FeatureCollection', 'features': []};
+  }
+
+  // Grid aggregation (0.01 degree resolution)
+  final gridData = <String, Map<String, dynamic>>{};
+  for (final row in validData) {
+    final gridLat = ((row['lat'] as num) / 0.01).round() * 0.01;
+    final gridLon = ((row['lon'] as num) / 0.01).round() * 0.01;
+    final key = '$gridLat,$gridLon';
+
+    if (!gridData.containsKey(key)) {
+      gridData[key] = {
+        'lat': gridLat,
+        'lon': gridLon,
+        'directions': <double>[],
+        'magnitudes': <double>[],
+      };
+    }
+
+    final cell = gridData[key]!;
+    (cell['directions'] as List<double>).add((row['direction'] as num).toDouble());
+    (cell['magnitudes'] as List<double>).add((row['nspeed'] as num).toDouble());
+  }
+
+  // Take latest 1000 points and generate features
+  final vectors = gridData.values.take(1000).toList();
+  final features = vectors.map((cell) {
+    final directions = cell['directions'] as List<double>;
+    final magnitudes = cell['magnitudes'] as List<double>;
+
+    // Calculate averages
+    final avgDirection = directions.reduce((a, b) => a + b) / directions.length;
+    final avgMagnitude = magnitudes.reduce((a, b) => a + b) / magnitudes.length;
+
+    // Calculate vector endpoint
+    final vectorScale = 0.009;
+    final vectorLength = avgMagnitude * vectorScale;
+    final vectorX = math.sin((avgDirection * math.pi) / 180);
+    final vectorY = math.cos((avgDirection * math.pi) / 180);
+    final startLat = cell['lat'] as double;
+    final startLon = cell['lon'] as double;
+    final endLat = startLat + (vectorY * vectorLength);
+    final endLon = startLon + (vectorX * vectorLength);
+
+    return {
+      'type': 'Feature',
+      'properties': {
+        'direction': avgDirection,
+        'speed': avgMagnitude,
+        'magnitude': avgMagnitude,
+      },
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': [[startLon, startLat], [endLon, endLat]]
+      }
+    };
+  }).toList();
+
+  return {
+    'type': 'FeatureCollection',
+    'features': features,
+    'metadata': {
+      'vectorCount': features.length,
+      'message': 'Generated in background isolate'
+    }
+  };
+}
 
 // EVENTS
 abstract class OceanDataEvent extends Equatable {
@@ -565,8 +652,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           }
         }
 
-        // Generate currents GeoJSON from raw data
-        final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+        // Generate currents GeoJSON in background isolate to avoid blocking UI
+        debugPrint('BLOC: Starting currents generation with ${rawData.length} data points');
+        final currentsGeoJSON = rawData.isEmpty
+          ? const {'type': 'FeatureCollection', 'features': []}
+          : await compute(_generateCurrentsInIsolate, rawData);
+        debugPrint('BLOC: Generated ${(currentsGeoJSON['features'] as List).length} current vectors');
 
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
@@ -660,8 +751,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             }
           }
 
-          // Generate currents GeoJSON from raw data
-          final currentsGeoJSON = _remoteDataSource.generateCurrentsVectorData(rawData);
+          // Generate currents GeoJSON in background isolate to avoid blocking UI
+          debugPrint('BLOC: Starting currents generation with ${rawData.length} data points');
+          final currentsGeoJSON = rawData.isEmpty
+            ? const {'type': 'FeatureCollection', 'features': []}
+            : await compute(_generateCurrentsInIsolate, rawData);
+          debugPrint('BLOC: Generated ${(currentsGeoJSON['features'] as List).length} current vectors');
 
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
