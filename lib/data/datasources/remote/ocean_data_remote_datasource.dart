@@ -406,27 +406,24 @@ Future<Map<String, dynamic>> loadAllData({
   }) {
     if (rawData.isEmpty) return [];
 
-    // Filter out rows where ALL current fields are null
     var vectorData = rawData.where((row) {
       final data = row as Map<String, dynamic>;
-      final hasNspeed = data['nspeed'] != null;
-      final hasDirection = data['direction'] != null;
-      final hasUcur = data['ucur'] != null;
-      final hasVcur = data['vcur'] != null;
+      final magnitude = data[magnitudeKey];
+      final direction = data[directionKey];
 
-      // Skip if ALL current fields are null
-      if (!hasNspeed && !hasDirection && !hasUcur && !hasVcur) {
+      // Require BOTH magnitude and direction to be non-null (like React)
+      if (magnitude == null || direction == null) {
         return false;
       }
 
-      // Validate lat/lon are present and valid
-      final magnitude = data[magnitudeKey];
-      final direction = data[directionKey];
-      final magValue = magnitude != null ? double.tryParse(magnitude.toString()) ?? 0.0 : 0.0;
-      final dirValue = direction != null ? double.tryParse(direction.toString()) ?? 0.0 : 0.0;
+      final magValue = double.tryParse(magnitude.toString());
+      final dirValue = double.tryParse(direction.toString());
 
+      // Validate lat/lon and parsed values
       return data['lat'] != null &&
              data['lon'] != null &&
+             magValue != null &&
+             dirValue != null &&
              !magValue.isNaN &&
              !dirValue.isNaN &&
              double.parse(data['lat'].toString()).abs() <= 90 &&
