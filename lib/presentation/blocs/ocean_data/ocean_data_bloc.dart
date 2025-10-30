@@ -67,26 +67,25 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final avgDirection = directions.reduce((a, b) => a + b) / directions.length;
     final avgMagnitude = magnitudes.reduce((a, b) => a + b) / magnitudes.length;
 
-    // Calculate vector endpoint
-    final vectorScale = 0.009;
-    final vectorLength = avgMagnitude * vectorScale;
-    final vectorX = math.sin((avgDirection * math.pi) / 180);
-    final vectorY = math.cos((avgDirection * math.pi) / 180);
-    final startLat = cell['lat'] as double;
-    final startLon = cell['lon'] as double;
-    final endLat = startLat + (vectorY * vectorLength);
-    final endLon = startLon + (vectorX * vectorLength);
+    // Convert direction/speed to u/v components (what the widget expects)
+    final directionRadians = (avgDirection * math.pi) / 180;
+    final u = avgMagnitude * math.sin(directionRadians);
+    final v = avgMagnitude * math.cos(directionRadians);
+
+    final lat = cell['lat'] as double;
+    final lon = cell['lon'] as double;
 
     return {
       'type': 'Feature',
       'properties': {
-        'direction': avgDirection,
+        'u': u,           // u velocity component (east-west)
+        'v': v,           // v velocity component (north-south)
         'speed': avgMagnitude,
-        'magnitude': avgMagnitude,
+        'direction': avgDirection,
       },
       'geometry': {
-        'type': 'LineString',
-        'coordinates': [[startLon, startLat], [endLon, endLat]]
+        'type': 'Point',           // Changed from LineString to Point
+        'coordinates': [lon, lat]  // Changed from [[start], [end]] to [lon, lat]
       }
     };
   }).toList();
