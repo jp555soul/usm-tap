@@ -1,4 +1,4 @@
-name: usm_tap_cubeai
+name: usm_tap
 description: "CubeAI - USM Maritime Technology Solutions"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
