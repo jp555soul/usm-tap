@@ -54,6 +54,12 @@ flutter:
     - assets/icons/
 
 flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/roger_wicker_center_ocean_enterprise.png"
+  web:
+    generate: true
+    image_path: "assets/icons/roger_wicker_center_ocean_enterprise.png"
   windows:
     generate: true
     image_path: "assets/icons/roger_wicker_center_ocean_enterprise.png"
