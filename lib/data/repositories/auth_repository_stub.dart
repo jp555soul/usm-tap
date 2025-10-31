@@ -23,3 +23,7 @@ class PlatformAuthRepository implements AuthRepository {
   @override
   Future<Either<Failure, String>> getAccessToken() async => throw UnimplementedError();
 }
+
+AuthRepository createPlatformAuthRepository(dynamic appAuth) {
+  return PlatformAuthRepository();
+}
