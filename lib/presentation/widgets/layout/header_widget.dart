@@ -9,6 +9,8 @@ import '../../../data/datasources/local/encrypted_storage_local_datasource.dart'
 import '../auth/login_button.dart';
 import '../auth/logout_button.dart';
 import '../auth/profile.dart';
+import '../../../core/utils/platform_detector.dart';
+import '../../../core/utils/download_service.dart';
 
 class HeaderWidget extends StatefulWidget {
   final String dataSource;
@@ -352,6 +354,9 @@ class _HeaderWidgetState extends State<HeaderWidget> {
         // Tutorial Button
         _buildTutorialButton(isSmall),
 
+        // Download Button
+        _buildDownloadButton(isSmall),
+
         // Auth Section
         if (widget.isAuthenticated) ...[
           const Profile(),
@@ -690,6 +695,179 @@ class _HeaderWidgetState extends State<HeaderWidget> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadButton(bool isSmall) {
+    final os = PlatformDetector.detectOS();
+    final osName = PlatformDetector.getOSDisplayName(os);
+
+    // Get appropriate icon based on OS
+    IconData icon;
+    switch (os) {
+      case OperatingSystem.windows:
+        icon = Icons.download_rounded;
+        break;
+      case OperatingSystem.macos:
+        icon = Icons.apple;
+        break;
+      case OperatingSystem.linux:
+        icon = Icons.download_rounded;
+        break;
+      case OperatingSystem.android:
+        icon = Icons.android;
+        break;
+      case OperatingSystem.ios:
+        icon = Icons.apple;
+        break;
+      case OperatingSystem.unknown:
+        icon = Icons.download_rounded;
+        break;
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _handleDownload(),
+      icon: Icon(icon, size: isSmall ? 14 : 16),
+      label: Text(
+        isSmall ? 'Download' : 'Download App',
+        style: TextStyle(
+          fontSize: isSmall ? 10 : 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF22C6DA), // cyan gradient color
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmall ? 8 : 12,
+          vertical: isSmall ? 6 : 8,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        elevation: 2,
+      ),
+    );
+  }
+
+  Future<void> _handleDownload() async {
+    final os = PlatformDetector.detectOS();
+
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Preparing download...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF334155),
+        ),
+      );
+    }
+
+    // Trigger download
+    final result = await DownloadService.downloadInstallerForOS(os);
+
+    // Show result
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    result.message ?? 'Download started successfully',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green[600],
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        // Show error dialog for iOS or unknown OS
+        if (os == OperatingSystem.ios || os == OperatingSystem.unknown) {
+          _showDownloadInfoDialog(result.errorMessage ?? result.message ?? 'Download not available');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      result.errorMessage ?? 'Download failed',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red[600],
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showDownloadInfoDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFF60A5FA)),
+            SizedBox(width: 12),
+            Text(
+              'Download Information',
+              style: TextStyle(color: Color(0xFFE2E8F0)),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: Color(0xFFCBD5E1)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: Color(0xFF60A5FA)),
+            ),
+          ),
+        ],
       ),
     );
   }
