@@ -18,7 +18,7 @@ import 'data/datasources/remote/ocean_data_remote_datasource.dart';
 import 'data/datasources/remote/holoocean_service_remote_datasource.dart';
 
 // Repositories
-import 'data/repositories/auth_repository_impl.dart';
+import 'data/repositories/auth_repository_factory.dart';
 import 'data/repositories/ocean_data_repository_impl.dart';
 import 'data/repositories/chat_repository_impl.dart';
 import 'data/repositories/holoocean_repository_impl.dart';
@@ -151,9 +151,7 @@ Future<void> init() async {
 
   //! Repository
   sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(
-      appAuth: sl(),
-    ),
+    () => AuthRepositoryFactory.create(sl<FlutterAppAuth>()),
   );
 
   sl.registerLazySingleton<OceanDataRepository>(

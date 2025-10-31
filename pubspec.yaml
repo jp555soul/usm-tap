@@ -25,6 +25,7 @@ dependencies:
   encrypt: ^5.0.3
   shared_preferences: ^2.2.2
   crypto: ^3.0.3
+  http: ^1.1.0
   web_socket_channel: ^2.4.0
   webview_flutter: ^4.4.2
   dartz: ^0.10.1
