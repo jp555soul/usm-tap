@@ -29,6 +29,7 @@ class NativeOceanMapWidget extends StatefulWidget {
   final double heatmapScale;
   final List<double> availableDepths;
   final Map<String, dynamic> currentsGeoJSON;
+  final Map<String, dynamic> windVelocityGeoJSON;
 
   const NativeOceanMapWidget({
     Key? key,
@@ -71,6 +72,7 @@ class NativeOceanMapWidget extends StatefulWidget {
     this.heatmapScale = 1,
     this.availableDepths = const [],
     this.currentsGeoJSON = const {},
+    this.windVelocityGeoJSON = const {},
   }) : super(key: key);
 
   @override
@@ -217,6 +219,43 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     }
 
     return currentsData;
+  }
+
+  List<Map<String, dynamic>> _extractWindVelocityData() {
+    final List<Map<String, dynamic>> windData = [];
+
+    try {
+      final features = widget.windVelocityGeoJSON['features'] as List<dynamic>?;
+      if (features == null) return [];
+
+      for (final feature in features) {
+        final geometry = feature['geometry'] as Map<String, dynamic>?;
+        final properties = feature['properties'] as Map<String, dynamic>?;
+
+        if (geometry == null || properties == null) continue;
+
+        final coordinates = geometry['coordinates'] as List<dynamic>?;
+        if (coordinates == null || coordinates.length < 2) continue;
+
+        final lon = (coordinates[0] as num?)?.toDouble();
+        final lat = (coordinates[1] as num?)?.toDouble();
+        final u = (properties['u'] as num?)?.toDouble();
+        final v = (properties['v'] as num?)?.toDouble();
+
+        if (lon == null || lat == null || u == null || v == null) continue;
+
+        windData.add({
+          'lat': lat,
+          'lon': lon,
+          'u': u,
+          'v': v,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error extracting wind velocity data: $e');
+    }
+
+    return windData;
   }
 
   /// Build ocean currents vector markers
@@ -418,6 +457,19 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             child: CustomPaint(
               painter: ParticlePainter(
                 currentsData: _extractCurrentsData(),
+                camera: _mapController.camera,
+                vectorScale: widget.currentsVectorScale,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+
+        // Particle animation layer for wind velocity (overlay)
+        if (_mapReady && (widget.mapLayerVisibility['windVelocity'] ?? false))
+          IgnorePointer(
+            child: CustomPaint(
+              painter: ParticlePainter(
+                currentsData: _extractWindVelocityData(),
                 camera: _mapController.camera,
                 vectorScale: widget.currentsVectorScale,
               ),
