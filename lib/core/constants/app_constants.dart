@@ -29,10 +29,12 @@ class AppConstants {
     defaultValue: 'https://api.isdata.ai',
   );
   
-  static const String auth0CallbackUrl = String.fromEnvironment(
-    'AUTH0_CALLBACK_URL',
-    defaultValue: 'http://localhost:3000/auth/callback',
-  );
+  static String get auth0CallbackUrl {
+    const callbackEnv = String.fromEnvironment('AUTH0_CALLBACK_URL');
+    return callbackEnv.isNotEmpty
+        ? callbackEnv
+        : '${Uri.base.origin}/auth/callback';
+  }
   
   static const String auth0Secret = String.fromEnvironment(
     'AUTH0_SECRET',
