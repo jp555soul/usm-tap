@@ -12,7 +12,3 @@ class AuthRepositoryFactory {
     return createPlatformAuthRepository(appAuth);
   }
 }
-
-AuthRepository createPlatformAuthRepository(dynamic appAuth) {
-  return PlatformAuthRepository();
-}
