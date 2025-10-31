@@ -52,6 +52,7 @@ flutter:
   assets:
     - assets/vids/recording.mp4
     - assets/icons/
+    - assets/installers/
 
 flutter_launcher_icons:
   android: true
