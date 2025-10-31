@@ -405,17 +405,27 @@ Future<Map<String, dynamic>> loadAllData({
     String directionKey = 'direction',
   }) {
     if (rawData.isEmpty) return [];
-    
+
     var vectorData = rawData.where((row) {
       final data = row as Map<String, dynamic>;
       final magnitude = data[magnitudeKey];
       final direction = data[directionKey];
+
+      // Require BOTH magnitude and direction to be non-null (like React)
+      if (magnitude == null || direction == null) {
+        return false;
+      }
+
+      final magValue = double.tryParse(magnitude.toString());
+      final dirValue = double.tryParse(direction.toString());
+
+      // Validate lat/lon and parsed values
       return data['lat'] != null &&
              data['lon'] != null &&
-             magnitude != null &&
-             direction != null &&
-             !double.parse(magnitude.toString()).isNaN &&
-             !double.parse(direction.toString()).isNaN &&
+             magValue != null &&
+             dirValue != null &&
+             !magValue.isNaN &&
+             !dirValue.isNaN &&
              double.parse(data['lat'].toString()).abs() <= 90 &&
              double.parse(data['lon'].toString()).abs() <= 180;
     }).toList();
@@ -452,8 +462,15 @@ Future<Map<String, dynamic>> loadAllData({
           };
         }
         final cell = gridData[key]!;
-        (cell['directions'] as List).add(double.parse(data[directionKey].toString()));
-        (cell['magnitudes'] as List).add(double.parse(data[magnitudeKey].toString()));
+        // Use null coalescing for partial data
+        final dirValue = data[directionKey] != null
+            ? double.tryParse(data[directionKey].toString()) ?? 0.0
+            : 0.0;
+        final magValue = data[magnitudeKey] != null
+            ? double.tryParse(data[magnitudeKey].toString()) ?? 0.0
+            : 0.0;
+        (cell['directions'] as List).add(dirValue);
+        (cell['magnitudes'] as List).add(magValue);
         (cell['times'] as List).add(data['time']);
         (cell['depths'] as List).add(data['depth'] ?? 0);
       }
@@ -495,8 +512,13 @@ Future<Map<String, dynamic>> loadAllData({
     
     return vectorData.asMap().entries.map((entry) {
       final row = entry.value as Map<String, dynamic>;
-      final direction = double.parse(row[directionKey].toString());
-      final magnitude = double.parse(row[magnitudeKey].toString());
+      // Use null coalescing for partial data
+      final direction = row[directionKey] != null
+          ? double.tryParse(row[directionKey].toString()) ?? 0.0
+          : 0.0;
+      final magnitude = row[magnitudeKey] != null
+          ? double.tryParse(row[magnitudeKey].toString()) ?? 0.0
+          : 0.0;
       return {
         'id': 'vector_${entry.key}',
         'latitude': row['lat'],
