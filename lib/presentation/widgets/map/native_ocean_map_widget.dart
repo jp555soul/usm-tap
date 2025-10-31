@@ -222,10 +222,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   }
 
   List<Map<String, dynamic>> _extractWindVelocityData() {
+    debugPrint('🌬️ WIND: Extracting from windVelocityGeoJSON');
+    debugPrint('🌬️ WIND: windVelocityGeoJSON.isEmpty = ${widget.windVelocityGeoJSON.isEmpty}');
+
     final List<Map<String, dynamic>> windData = [];
 
     try {
       final features = widget.windVelocityGeoJSON['features'] as List<dynamic>?;
+      debugPrint('🌬️ WIND: features.length = ${features?.length ?? 0}');
       if (features == null) return [];
 
       for (final feature in features) {

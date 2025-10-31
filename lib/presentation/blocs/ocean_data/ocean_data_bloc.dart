@@ -103,6 +103,10 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 /// Generates wind velocity GeoJSON in a background isolate
 /// Uses 'ndirection' instead of 'direction' for wind data
 Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> rawData) {
+  debugPrint('WIND ISOLATE: Processing ${rawData.length} raw data points');
+  final sampleRow = rawData.isNotEmpty ? rawData.first : null;
+  debugPrint('WIND ISOLATE: Sample row has nspeed=${sampleRow?['nspeed']}, ndirection=${sampleRow?['ndirection']}');
+
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
   }
@@ -116,6 +120,8 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
            magnitude != null &&
            direction != null;
   }).toList();
+
+  debugPrint('WIND ISOLATE: Found ${validData.length} valid wind data points');
 
   if (validData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};

@@ -551,6 +551,8 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                               rawData: oceanState.rawData,
                                               currentsGeoJSON:
                                                   oceanState.currentsGeoJSON,
+                                              windVelocityGeoJSON:
+                                                  oceanState.windVelocityGeoJSON,
                                               currentFrame:
                                                   oceanState.currentFrame,
                                               selectedDepth:
