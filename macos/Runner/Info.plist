@@ -28,5 +28,20 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.usm.usmtap</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.usm.usmtap</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
