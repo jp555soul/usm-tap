@@ -25,7 +25,7 @@ class PlatformDetector {
       case OperatingSystem.windows:
         return 'usm_tap-windows.exe';
       case OperatingSystem.macos:
-        return 'usm_tap_v1.0.2.dmg';
+        return 'usm_tap.dmg';
       case OperatingSystem.linux:
         return 'usm_tap-linux.AppImage';
       case OperatingSystem.android:
@@ -73,7 +73,7 @@ class PlatformDetector {
       case OperatingSystem.windows:
         return 'assets/installers/usm_tap-windows.exe';
       case OperatingSystem.macos:
-        return 'https://github.com/jp555soul/usm-tap/releases/download/v1.0.2/usm_tap_v1.0.2.dmg';
+        return 'https://github.com/jp555soul/usm-tap/releases/download/v1.0.3/usm_tap.dmg';
       case OperatingSystem.linux:
         return 'assets/installers/usm_tap-linux.AppImage';
       case OperatingSystem.android:

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Application-wide constants
 class AppConstants {
   // Private constructor to prevent instantiation
@@ -7,39 +9,72 @@ class AppConstants {
     'DB',
     defaultValue: 'isdata-usmcom.usm_com',
   );
-  
+
   // Auth0 Configuration
   static const String auth0Domain = String.fromEnvironment(
     'AUTH0_DOMAIN',
     defaultValue: 'dev-iehguv204612q2sk.us.auth0.com',
   );
-  
-  static const String auth0ClientId = String.fromEnvironment(
-    'AUTH0_CLIENT_ID',
+
+  // Web-specific Auth0 Client ID
+  static const String _auth0WebClientId = String.fromEnvironment(
+    'AUTH0_WEB_CLIENT_ID',
     defaultValue: 'RSiNbEo6RBx6Mxq0PT9YvbCXJKN7HG17',
   );
-  
+
+  // Desktop/Mobile-specific Auth0 Client ID
+  static const String _auth0DesktopClientId = String.fromEnvironment(
+    'AUTH0_DESKTOP_CLIENT_ID',
+    defaultValue: 'RSiNbEo6RBx6Mxq0PT9YvbCXJKN7HG17',
+  );
+
+  // Legacy single client ID for backward compatibility
+  // If AUTH0_CLIENT_ID is provided, it will be used as a fallback
+  static const String _auth0LegacyClientId = String.fromEnvironment(
+    'AUTH0_CLIENT_ID',
+    defaultValue: '',
+  );
+
+  // Platform-aware Client ID getter
+  static String get auth0ClientId {
+    // If legacy client ID is provided, use it for backward compatibility
+    if (_auth0LegacyClientId.isNotEmpty) {
+      return _auth0LegacyClientId;
+    }
+
+    // Return platform-specific client ID
+    return kIsWeb ? _auth0WebClientId : _auth0DesktopClientId;
+  }
+
   static const String auth0ClientSecret = String.fromEnvironment(
     'AUTH0_CLIENT_SECRET',
     defaultValue: '84cbc5c3605411e6c07567dc4960b8d23fb159995cb73711c8058c45982bdab7',
   );
-  
+
   static const String auth0Audience = String.fromEnvironment(
     'AUTH0_AUDIENCE',
     defaultValue: 'https://api.isdata.ai',
   );
-  
+
+  // Platform-aware Callback URL getter
   static String get auth0CallbackUrl {
+    // Check for explicit callback URL environment variable first
     const callbackEnv = String.fromEnvironment('AUTH0_CALLBACK_URL');
     if (callbackEnv.isNotEmpty) {
       return callbackEnv;
     }
-    
-    // Use custom URL scheme for mobile/desktop platforms
-    // For web, you would use HTTP callback, but for macOS/iOS we need a custom scheme
-    return 'com.usm.usmtap://callback';
+
+    // Platform-specific callback URLs
+    if (kIsWeb) {
+      // For web, use the current domain with /auth/callback path
+      // In production, this should be set via AUTH0_CALLBACK_URL environment variable
+      return '[DOMAIN]/auth/callback';
+    } else {
+      // Use custom URL scheme for mobile/desktop platforms (macOS, iOS, Android)
+      return 'com.usm.usmtap://callback';
+    }
   }
-  
+
   static const String auth0Secret = String.fromEnvironment(
     'AUTH0_SECRET',
     defaultValue: '84cbc5c3605411e6c07567dc4960b8d23fb159995cb73711c8058c45982bdab7',
@@ -159,10 +194,19 @@ class AppConstants {
   // Helper method to get missing auth variables
   static List<String> getMissingAuthVariables() {
     final missing = <String>[];
-    
+
     if (auth0Domain.isEmpty) missing.add('AUTH0_DOMAIN');
-    if (auth0ClientId.isEmpty) missing.add('AUTH0_CLIENT_ID');
-    
+
+    // Check platform-specific client IDs
+    if (_auth0LegacyClientId.isEmpty) {
+      if (kIsWeb && _auth0WebClientId.isEmpty) {
+        missing.add('AUTH0_WEB_CLIENT_ID');
+      }
+      if (!kIsWeb && _auth0DesktopClientId.isEmpty) {
+        missing.add('AUTH0_DESKTOP_CLIENT_ID');
+      }
+    }
+
     return missing;
   }
   
