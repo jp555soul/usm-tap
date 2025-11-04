@@ -97,4 +97,21 @@ class PlatformDetector {
   static bool supportsDirectDownload(OperatingSystem os) {
     return os != OperatingSystem.ios && os != OperatingSystem.unknown;
   }
+
+  /// Gets the download URL for the installer
+  static String getDownloadUrl(OperatingSystem os) {
+    switch (os) {
+      case OperatingSystem.windows:
+        return 'assets/installers/usm_tap-windows.exe';
+      case OperatingSystem.macos:
+        return 'https://github.com/jp555soul/usm-tap/releases/download/v1.0.2/usm_tap_v1.0.2.dmg';
+      case OperatingSystem.linux:
+        return 'assets/installers/usm_tap-linux.AppImage';
+      case OperatingSystem.android:
+        return 'assets/installers/usm_tap.apk';
+      case OperatingSystem.ios:
+      case OperatingSystem.unknown:
+        return '';
+    }
+  }
 }
