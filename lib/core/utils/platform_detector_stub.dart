@@ -1,6 +1,8 @@
 // lib/core/utils/platform_detector_stub.dart
 // Stub implementation for non-web platforms
 
+import 'package:package_info_plus/package_info_plus.dart';
+
 /// Enum representing supported operating systems
 enum OperatingSystem {
   windows,
@@ -68,12 +70,15 @@ class PlatformDetector {
   }
 
   /// Gets the download URL for the installer
-  static String getDownloadUrl(OperatingSystem os) {
+  static Future<String> getDownloadUrl(OperatingSystem os) async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final version = packageInfo.version;
+
     switch (os) {
       case OperatingSystem.windows:
         return 'assets/installers/usm_tap-windows.exe';
       case OperatingSystem.macos:
-        return 'https://github.com/jp555soul/usm-tap/releases/download/v1.0.3/usm_tap.dmg';
+        return 'https://github.com/jp555soul/usm-tap/releases/download/v$version/usm_tap.dmg';
       case OperatingSystem.linux:
         return 'assets/installers/usm_tap-linux.AppImage';
       case OperatingSystem.android:

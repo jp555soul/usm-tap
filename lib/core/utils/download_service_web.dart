@@ -61,7 +61,7 @@ class DownloadService {
 
     try {
       final filename = PlatformDetector.getInstallerFilename(os);
-      final downloadUrl = PlatformDetector.getDownloadUrl(os);
+      final downloadUrl = await PlatformDetector.getDownloadUrl(os);
 
       // Trigger download using HTML anchor element
       _triggerDownload(downloadUrl, filename);
