@@ -25,7 +25,7 @@ class AppConstants {
   // Desktop/Mobile-specific Auth0 Client ID
   static const String _auth0DesktopClientId = String.fromEnvironment(
     'AUTH0_DESKTOP_CLIENT_ID',
-    defaultValue: 'RSiNbEo6RBx6Mxq0PT9YvbCXJKN7HG17',
+    defaultValue: 'CIxn71axl1YKS7cks62ZuydL5gwmc5OM',
   );
 
   // Legacy single client ID for backward compatibility
@@ -46,10 +46,35 @@ class AppConstants {
     return kIsWeb ? _auth0WebClientId : _auth0DesktopClientId;
   }
 
-  static const String auth0ClientSecret = String.fromEnvironment(
-    'AUTH0_CLIENT_SECRET',
-    defaultValue: '84cbc5c3605411e6c07567dc4960b8d23fb159995cb73711c8058c45982bdab7',
+  // Web-specific Auth0 Client Secret
+  static const String _auth0WebClientSecret = String.fromEnvironment(
+    'AUTH0_WEB_CLIENT_SECRET',
+    defaultValue: 'to3N_QAzxakUcXnas0UjYAKTh7DgUNVTylyZZ3in3ep9jjJHR8BDOkwRrp8CD7io',
   );
+
+  // Desktop/Mobile-specific Auth0 Client Secret
+  static const String _auth0DesktopClientSecret = String.fromEnvironment(
+    'AUTH0_DESKTOP_CLIENT_SECRET',
+    defaultValue: 'epTLp9vczWUewbZpzuR5brJKICYqvc7PcfvTTR9dkONyazQ6bz9BgAlbODGjirtA',
+  );
+
+  // Legacy single client secret for backward compatibility
+  // If AUTH0_CLIENT_SECRET is provided, it will be used as a fallback
+  static const String _auth0LegacyClientSecret = String.fromEnvironment(
+    'AUTH0_CLIENT_SECRET',
+    defaultValue: '',
+  );
+
+  // Platform-aware Client Secret getter
+  static String get auth0ClientSecret {
+    // If legacy client secret is provided, use it for backward compatibility
+    if (_auth0LegacyClientSecret.isNotEmpty) {
+      return _auth0LegacyClientSecret;
+    }
+
+    // Return platform-specific client secret
+    return kIsWeb ? _auth0WebClientSecret : _auth0DesktopClientSecret;
+  }
 
   static const String auth0Audience = String.fromEnvironment(
     'AUTH0_AUDIENCE',
@@ -66,19 +91,18 @@ class AppConstants {
 
     // Platform-specific callback URLs
     if (kIsWeb) {
-      // For web, use the current domain with /auth/callback path
+      // For web, use the production web callback URL
       // In production, this should be set via AUTH0_CALLBACK_URL environment variable
-      return '[DOMAIN]/auth/callback';
+      return 'https://usm-com.isdata.ai/auth/callback';
     } else {
       // Use custom URL scheme for mobile/desktop platforms (macOS, iOS, Android)
       return 'com.usm.usmtap://callback';
     }
   }
 
-  static const String auth0Secret = String.fromEnvironment(
-    'AUTH0_SECRET',
-    defaultValue: '84cbc5c3605411e6c07567dc4960b8d23fb159995cb73711c8058c45982bdab7',
-  );
+  // Legacy auth0Secret field - now uses platform-aware client secret
+  // Kept for backward compatibility
+  static String get auth0Secret => auth0ClientSecret;
   
   // API Configuration
   static const String baseUrl = String.fromEnvironment(
@@ -204,6 +228,16 @@ class AppConstants {
       }
       if (!kIsWeb && _auth0DesktopClientId.isEmpty) {
         missing.add('AUTH0_DESKTOP_CLIENT_ID');
+      }
+    }
+
+    // Check platform-specific client secrets
+    if (_auth0LegacyClientSecret.isEmpty) {
+      if (kIsWeb && _auth0WebClientSecret.isEmpty) {
+        missing.add('AUTH0_WEB_CLIENT_SECRET');
+      }
+      if (!kIsWeb && _auth0DesktopClientSecret.isEmpty) {
+        missing.add('AUTH0_DESKTOP_CLIENT_SECRET');
       }
     }
 
