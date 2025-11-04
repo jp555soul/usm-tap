@@ -25,7 +25,7 @@ class AppConstants {
   // Desktop/Mobile-specific Auth0 Client ID
   static const String _auth0DesktopClientId = String.fromEnvironment(
     'AUTH0_DESKTOP_CLIENT_ID',
-    defaultValue: 'RSiNbEo6RBx6Mxq0PT9YvbCXJKN7HG17',
+    defaultValue: 'CIxn71axl1YKS7cks62ZuydL5gwmc5OM',
   );
 
   // Legacy single client ID for backward compatibility
@@ -66,9 +66,9 @@ class AppConstants {
 
     // Platform-specific callback URLs
     if (kIsWeb) {
-      // For web, use the current domain with /auth/callback path
+      // For web, use the production web callback URL
       // In production, this should be set via AUTH0_CALLBACK_URL environment variable
-      return '[DOMAIN]/auth/callback';
+      return 'https://usm-com.isdata.ai/auth/callback';
     } else {
       // Use custom URL scheme for mobile/desktop platforms (macOS, iOS, Android)
       return 'com.usm.usmtap://callback';
