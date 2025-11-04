@@ -61,10 +61,10 @@ class DownloadService {
 
     try {
       final filename = PlatformDetector.getInstallerFilename(os);
-      final assetPath = 'assets/installers/$filename';
+      final downloadUrl = PlatformDetector.getDownloadUrl(os);
 
       // Trigger download using HTML anchor element
-      _triggerDownload(assetPath, filename);
+      _triggerDownload(downloadUrl, filename);
 
       return DownloadResult(
         success: true,
