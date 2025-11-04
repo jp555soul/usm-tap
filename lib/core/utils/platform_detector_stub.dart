@@ -25,7 +25,7 @@ class PlatformDetector {
       case OperatingSystem.windows:
         return 'usm_tap-windows.exe';
       case OperatingSystem.macos:
-        return 'usm_tap-macos.dmg';
+        return 'usm_tap_v1.0.2.dmg';
       case OperatingSystem.linux:
         return 'usm_tap-linux.AppImage';
       case OperatingSystem.android:

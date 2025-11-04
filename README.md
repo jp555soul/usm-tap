@@ -15,6 +15,13 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+
+# web
 ```
 flutter build web --release
+flutter run -d web-server --web-port=3000
+```
+
+# app
+```
 ```

@@ -31,9 +31,13 @@ class AppConstants {
   
   static String get auth0CallbackUrl {
     const callbackEnv = String.fromEnvironment('AUTH0_CALLBACK_URL');
-    return callbackEnv.isNotEmpty
-        ? callbackEnv
-        : '${Uri.base.origin}/auth/callback';
+    if (callbackEnv.isNotEmpty) {
+      return callbackEnv;
+    }
+    
+    // Use custom URL scheme for mobile/desktop platforms
+    // For web, you would use HTTP callback, but for macOS/iOS we need a custom scheme
+    return 'com.usm.usmtap://callback';
   }
   
   static const String auth0Secret = String.fromEnvironment(

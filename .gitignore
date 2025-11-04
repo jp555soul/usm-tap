@@ -47,3 +47,6 @@ build/android/
 
 # Keep web build for render.com
 !build/web/
+
+# Apps
+*.dmg
