@@ -84,7 +84,7 @@ class AppConstants {
   // Password Authentication
   static const String accessPassword = String.fromEnvironment(
     'ACCESS_PASSWORD',
-    defaultValue: '',
+    defaultValue: 'U!nd37w4t3r@',
   );
 
   // Platform-aware Callback URL getter
