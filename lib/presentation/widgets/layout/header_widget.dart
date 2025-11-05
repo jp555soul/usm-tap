@@ -874,7 +874,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
 
   Widget _buildBlueMvmtLogo(bool isSmall) {
   return Image.asset(
-    'assets/icons/powered_by_bluemvmt.png',
+    'icons/powered_by_bluemvmt.png',
     height: isSmall ? 24 : 32,
     errorBuilder: (context, error, stackTrace) {
       // Fallback when image is missing
