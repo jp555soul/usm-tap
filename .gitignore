@@ -45,6 +45,11 @@ build/linux/
 build/ios/
 build/android/
 
+# Exclude Flutter build cache files
+build/*.dill
+build/**/*.dill
+build/**/*.stamp
+
 # Keep web build for render.com
 !build/web/
 
