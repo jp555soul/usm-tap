@@ -38,6 +38,7 @@ import 'domain/usecases/auth/login_usecase.dart';
 import 'domain/usecases/auth/logout_usecase.dart';
 import 'domain/usecases/auth/get_user_profile_usecase.dart';
 import 'domain/usecases/auth/validate_auth_config_usecase.dart';
+import 'domain/usecases/auth/password_login_usecase.dart';
 import 'domain/usecases/ocean_data/get_ocean_data_usecase.dart';
 import 'domain/usecases/ocean_data/update_time_range_usecase.dart';
 import 'domain/usecases/ocean_data/load_all_data_usecase.dart';
@@ -186,12 +187,13 @@ Future<void> init() async {
   );
 
   //! Use cases
-  
+
   // Auth Use Cases
   sl.registerLazySingleton(() => LoginUseCase(sl()));
   sl.registerLazySingleton(() => LogoutUseCase(sl()));
   sl.registerLazySingleton(() => GetUserProfileUseCase(sl()));
   sl.registerLazySingleton(() => ValidateAuthConfigUseCase(sl()));
+  sl.registerLazySingleton(() => PasswordLoginUseCase());
 
   // Ocean Data Use Cases
   sl.registerLazySingleton(() => GetOceanDataUseCase(sl()));
@@ -226,6 +228,7 @@ Future<void> init() async {
       logoutUseCase: sl(),
       getUserProfileUseCase: sl(),
       validateAuthConfigUseCase: sl(),
+      passwordLoginUseCase: sl(),
     ),
   );
 

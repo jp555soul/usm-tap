@@ -81,6 +81,12 @@ class AppConstants {
     defaultValue: 'https://api.isdata.ai',
   );
 
+  // Password Authentication
+  static const String accessPassword = String.fromEnvironment(
+    'ACCESS_PASSWORD',
+    defaultValue: '',
+  );
+
   // Platform-aware Callback URL getter
   static String get auth0CallbackUrl {
     // Check for explicit callback URL environment variable first

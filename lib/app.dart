@@ -23,6 +23,7 @@ import 'presentation/widgets/panels/output_module_widget.dart';
 import 'presentation/widgets/chatbot/chatbot_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
+import 'presentation/screens/auth/login_screen.dart';
 import 'data/models/chat_message.dart' as DataModels;
 import 'domain/entities/env_data_entity.dart';
 import 'domain/entities/station_data_entity.dart';
@@ -185,38 +186,9 @@ class _MainAppWidgetState extends State<MainAppWidget> {
           );
         }
 
-        // Handle unauthenticated state
+        // Handle unauthenticated state - show dual authentication login screen
         if (authState is UnauthenticatedState) {
-          return Container(
-            color: const Color(0xFF0F172A),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Welcome to the Oceanographic Platform',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Please log in to continue.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<AuthBloc>().add(const AuthLoginEvent());
-                    },
-                    child: const Text('Log In'),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return const LoginScreen();
         }
 
         // Handle authenticated state
