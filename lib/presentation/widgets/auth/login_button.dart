@@ -3,30 +3,22 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 // import '../../blocs/auth/auth_bloc.dart';
 
 class LoginButton extends StatelessWidget {
-  const LoginButton({Key? key}) : super(key: key);
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
-  Future<void> _handleLogin(BuildContext context) async {
-    try {
-      // TODO: Implement Auth0 login
-      // context.read<AuthBloc>().add(LoginEvent(
-      //   redirectUri: '${Uri.base.origin}/auth/callback',
-      //   scope: 'openid profile email',
-      //   responseType: 'code',
-      // ));
-    } catch (error) {
-      // debugPrint('Login error: $error');
-    }
-  }
+  const LoginButton({
+    Key? key,
+    this.onPressed,
+    this.isLoading = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace with BlocBuilder<AuthBloc, AuthState>
-    final isLoading = false; // Get from AuthBloc state
 
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: isLoading ? null : () => _handleLogin(context),
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFDB2777), // pink-600
           disabledBackgroundColor: const Color(0xFFF472B6), // pink-400

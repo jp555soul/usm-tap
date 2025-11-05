@@ -9,6 +9,7 @@ import '../../../domain/usecases/auth/login_usecase.dart';
 import '../../../domain/usecases/auth/logout_usecase.dart';
 import '../../../domain/usecases/auth/get_user_profile_usecase.dart';
 import '../../../domain/usecases/auth/validate_auth_config_usecase.dart';
+import '../../../domain/usecases/auth/password_login_usecase.dart';
 import '../../../core/constants/app_constants.dart';
 
 // EVENTS
@@ -41,6 +42,14 @@ class AuthValidateConfigEvent extends AuthEvent {
 
 class AuthCheckStatusEvent extends AuthEvent {
   const AuthCheckStatusEvent();
+}
+
+class AuthPasswordLoginEvent extends AuthEvent {
+  final String password;
+  const AuthPasswordLoginEvent(this.password);
+
+  @override
+  List<Object?> get props => [password];
 }
 
 // STATES
@@ -76,15 +85,17 @@ class AuthenticatedState extends AuthState {
   final UserEntity user;
   final String accessToken;
   final bool hasRefreshToken;
-  
+  final String authMethod; // 'auth0' or 'password'
+
   const AuthenticatedState({
     required this.user,
     required this.accessToken,
     this.hasRefreshToken = false,
+    this.authMethod = 'auth0',
   });
-  
+
   @override
-  List<Object?> get props => [user, accessToken, hasRefreshToken];
+  List<Object?> get props => [user, accessToken, hasRefreshToken, authMethod];
 }
 
 class AuthErrorState extends AuthState {
@@ -102,18 +113,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LogoutUseCase _logoutUseCase;
   final GetUserProfileUseCase _getUserProfileUseCase;
   final ValidateAuthConfigUseCase _validateAuthConfigUseCase;
-  
+  final PasswordLoginUseCase _passwordLoginUseCase;
+
   AuthBloc({
     required LoginUseCase loginUseCase,
     required LogoutUseCase logoutUseCase,
     required GetUserProfileUseCase getUserProfileUseCase,
     required ValidateAuthConfigUseCase validateAuthConfigUseCase,
+    required PasswordLoginUseCase passwordLoginUseCase,
   }) : _loginUseCase = loginUseCase,
        _logoutUseCase = logoutUseCase,
        _getUserProfileUseCase = getUserProfileUseCase,
        _validateAuthConfigUseCase = validateAuthConfigUseCase,
+       _passwordLoginUseCase = passwordLoginUseCase,
        super(const AuthInitialState()) {
-    
+
     // Register event handlers
     on<AuthInitializeEvent>(_onInitialize);
     on<AuthLoginEvent>(_onLogin);
@@ -121,6 +135,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRetryEvent>(_onRetry);
     on<AuthValidateConfigEvent>(_onValidateConfig);
     on<AuthCheckStatusEvent>(_onCheckStatus);
+    on<AuthPasswordLoginEvent>(_onPasswordLogin);
   }
   
   Future<void> _onInitialize(
@@ -249,7 +264,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     try {
       final userResult = await _getUserProfileUseCase();
-      
+
       if (userResult.isRight()) {
         final user = userResult.getOrElse(() => throw Exception('No user'));
         if (state is AuthenticatedState) {
@@ -258,6 +273,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             user: user,
             accessToken: currentState.accessToken,
             hasRefreshToken: currentState.hasRefreshToken,
+            authMethod: currentState.authMethod,
           ));
         }
       }
@@ -266,6 +282,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (kDebugMode) {
         // print('Auth status check failed: $e');
       }
+    }
+  }
+
+  Future<void> _onPasswordLogin(
+    AuthPasswordLoginEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoadingState());
+
+    final result = await _passwordLoginUseCase(event.password);
+
+    if (result.isRight()) {
+      // Create anonymous user for password auth
+      const user = UserEntity(
+        id: 'password-user',
+        email: 'password-authenticated',
+        name: 'Password User',
+      );
+
+      emit(const AuthenticatedState(
+        user: user,
+        accessToken: 'password-auth',
+        authMethod: 'password',
+      ));
+    } else {
+      emit(AuthErrorState(result.fold((l) => l.message, (r) => 'Login failed')));
     }
   }
   
