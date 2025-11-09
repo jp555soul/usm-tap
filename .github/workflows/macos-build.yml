@@ -30,6 +30,12 @@ jobs:
       - name: Enable macOS desktop support
         run: flutter config --enable-macos-desktop
 
+      - name: Disable code signing in Xcode project
+        run: |
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = .*/CODE_SIGN_IDENTITY = "-";/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
+
       - name: Build macOS release
         env:
           CODE_SIGN_IDENTITY: ""
