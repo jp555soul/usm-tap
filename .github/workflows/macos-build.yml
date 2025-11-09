@@ -31,13 +31,11 @@ jobs:
         run: flutter config --enable-macos-desktop
 
       - name: Build macOS release
-        run: |
-          flutter build macos --release \
-            --build-name=1.0.0 \
-            --build-number=1 \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+        env:
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGNING_ALLOWED: "NO"
+        run: flutter build macos --release
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
