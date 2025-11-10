@@ -106,9 +106,9 @@ class PlatformDetector {
 
     switch (os) {
       case OperatingSystem.windows:
-        return 'assets/installers/usm_tap-windows.exe';
+        return 'https://github.com/jp555soul/usm-tap/releases/download/v$version/windows-release.zip';
       case OperatingSystem.macos:
-        return 'https://github.com/jp555soul/usm-tap/releases/download/v$version/usm_tap.dmg';
+        return 'https://github.com/jp555soul/usm-tap/releases/download/v$version/macos-release.zip';
       case OperatingSystem.linux:
         return 'assets/installers/usm_tap-linux.AppImage';
       case OperatingSystem.android:
