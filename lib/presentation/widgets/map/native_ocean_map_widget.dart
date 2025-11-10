@@ -835,13 +835,13 @@ class HeatmapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (rawData.isEmpty) return;
 
-    // Spacing between sample points for reduced density
-    const sampleSpacing = 50.0;
+    // Spacing between sample points - reduced for higher detail density (4x more points)
+    const sampleSpacing = 25.0;
 
-    // Create paint for heatmap points
+    // Create paint for heatmap points with sharper blur for better detail
     final paint = Paint()
       ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
 
     // Track drawn points to avoid overlap
     final drawnPoints = <String>{};
@@ -877,64 +877,107 @@ class HeatmapPainter extends CustomPainter {
 
       // Get color based on value and data type
       final color = _getColorForValue(value, dataField);
-      paint.color = color.withOpacity((0.7 * heatmapScale).clamp(0.0, 1.0));
+      // Enhanced opacity with minimum threshold for better visibility
+      paint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
 
-      // Draw heatmap point with smaller radius
+      // Draw heatmap point with larger radius for better coverage
       canvas.drawCircle(
         Offset(screenPoint.x, screenPoint.y),
-        sampleSpacing / 4,
+        sampleSpacing / 2,
         paint,
       );
     }
   }
 
-  /// Get color based on value and data field type
+  /// Get color based on value and data field type with enhanced multi-stop gradients
   Color _getColorForValue(double value, String field) {
     switch (field) {
       case 'temp':
       case 'temperature':
-        // Temperature: blue (cold) to red (warm)
-        // Range: 0-30°C
+        // Temperature: multi-stop gradient for better distinction
+        // Range: 0-30°C with non-linear scaling for enhanced mid-range contrast
         final normalized = ((value - 0) / 30).clamp(0.0, 1.0);
-        return Color.lerp(
-          Colors.blue.shade700,
-          Colors.red.shade600,
-          normalized,
-        ) ?? Colors.blue;
+        // Apply power function for enhanced mid-range contrast
+        final enhanced = _enhanceContrast(normalized);
+        // Multi-stop gradient: deep blue → cyan → yellow → red
+        return _multiStopGradient(enhanced, [
+          const Color(0xFF0D47A1), // Deep blue (0°C)
+          const Color(0xFF00BCD4), // Cyan (10°C)
+          const Color(0xFFFFEB3B), // Yellow (20°C)
+          const Color(0xFFD32F2F), // Red (30°C)
+        ]);
 
       case 'salinity':
-        // Salinity: green (low) to purple (high)
-        // Range: 30-37 PSU
+        // Salinity: multi-stop gradient with more color stops
+        // Range: 30-37 PSU with enhanced gradation
         final normalized = ((value - 30) / 7).clamp(0.0, 1.0);
-        return Color.lerp(
-          Colors.green.shade400,
-          Colors.purple.shade600,
-          normalized,
-        ) ?? Colors.green;
+        final enhanced = _enhanceContrast(normalized);
+        // Multi-stop gradient: light green → teal → blue → purple
+        return _multiStopGradient(enhanced, [
+          const Color(0xFF66BB6A), // Light green (low salinity)
+          const Color(0xFF26A69A), // Teal
+          const Color(0xFF1976D2), // Blue
+          const Color(0xFF7B1FA2), // Purple (high salinity)
+        ]);
 
       case 'ssh':
-        // Sea Surface Height: blue (low) to yellow (high)
-        // Range: -0.5 to 0.5 meters
+        // Sea Surface Height: enhanced contrast gradient
+        // Range: -0.5 to 0.5 meters with better color distinction
         final normalized = ((value + 0.5) / 1.0).clamp(0.0, 1.0);
-        return Color.lerp(
-          Colors.blue.shade600,
-          Colors.yellow.shade600,
-          normalized,
-        ) ?? Colors.blue;
+        final enhanced = _enhanceContrast(normalized);
+        // Multi-stop gradient: navy blue → cyan → yellow → orange
+        return _multiStopGradient(enhanced, [
+          const Color(0xFF0D47A1), // Navy blue (low)
+          const Color(0xFF00BCD4), // Cyan
+          const Color(0xFFFFEB3B), // Yellow
+          const Color(0xFFFF6F00), // Orange (high)
+        ]);
 
       case 'pressure_dbars':
-        // Pressure: cyan (low) to orange (high)
-        // Range: 0-5000 dbars
+        // Pressure: enhanced multi-stop gradient
+        // Range: 0-5000 dbars with better color stops
         final normalized = (value / 5000).clamp(0.0, 1.0);
-        return Color.lerp(
-          Colors.cyan.shade400,
-          Colors.orange.shade600,
-          normalized,
-        ) ?? Colors.cyan;
+        final enhanced = _enhanceContrast(normalized);
+        // Multi-stop gradient: deep cyan → teal → orange → dark red
+        return _multiStopGradient(enhanced, [
+          const Color(0xFF00838F), // Deep cyan (low pressure)
+          const Color(0xFF26A69A), // Teal
+          const Color(0xFFFF6F00), // Orange
+          const Color(0xFFB71C1C), // Dark red (high pressure)
+        ]);
 
       default:
         return Colors.grey;
     }
+  }
+
+  /// Apply non-linear scaling to enhance mid-range contrast
+  /// Uses a power function to make subtle differences more visible
+  double _enhanceContrast(double normalized) {
+    // Apply power of 0.7 to enhance mid-range values
+    return math.pow(normalized, 0.7).toDouble();
+  }
+
+  /// Multi-stop gradient interpolation for better color distinction
+  /// Interpolates through multiple color stops for richer gradients
+  Color _multiStopGradient(double value, List<Color> colors) {
+    if (colors.length < 2) return colors.first;
+
+    // Determine which color segment we're in
+    final segmentCount = colors.length - 1;
+    final segmentSize = 1.0 / segmentCount;
+    final segmentIndex = (value / segmentSize).floor().clamp(0, segmentCount - 1);
+
+    // Calculate position within the segment (0.0 to 1.0)
+    final segmentStart = segmentIndex * segmentSize;
+    final segmentValue = ((value - segmentStart) / segmentSize).clamp(0.0, 1.0);
+
+    // Interpolate between the two colors in this segment
+    return Color.lerp(
+      colors[segmentIndex],
+      colors[segmentIndex + 1],
+      segmentValue,
+    ) ?? colors[segmentIndex];
   }
 
   @override
