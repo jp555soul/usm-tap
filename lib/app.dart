@@ -499,7 +499,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
 
                                   // Map and Output Section
                                   SizedBox(
-                                    height: MediaQuery.of(context).size.height * 0.4,
+                                    height: MediaQuery.of(context).size.height * 1.2,
                                     child: Row(
                                       children: [
                                         // Map Container
