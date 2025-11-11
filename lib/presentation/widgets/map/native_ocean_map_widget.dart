@@ -859,14 +859,14 @@ class HeatmapPainter extends CustomPainter {
       final screenPoint = camera.latLngToScreenPoint(latLng);
 
       // Skip if point is outside visible area
-      if (screenPoint.x < -100 || screenPoint.x > size.width + 100 ||
-          screenPoint.y < -100 || screenPoint.y > size.height + 100) {
+      if (screenPoint.dx < -100 || screenPoint.dx > size.width + 100 ||
+          screenPoint.dy < -100 || screenPoint.dy > size.height + 100) {
         continue;
       }
 
       // Sample points based on spacing to reduce density
-      final gridX = (screenPoint.x / sampleSpacing).floor();
-      final gridY = (screenPoint.y / sampleSpacing).floor();
+      final gridX = (screenPoint.dx / sampleSpacing).floor();
+      final gridY = (screenPoint.dy / sampleSpacing).floor();
       final gridKey = '$gridX,$gridY';
 
       // Skip if we've already drawn a point in this grid cell
@@ -882,7 +882,7 @@ class HeatmapPainter extends CustomPainter {
 
       // Draw heatmap point with larger radius for better coverage
       canvas.drawCircle(
-        Offset(screenPoint.x, screenPoint.y),
+        Offset(screenPoint.dx, screenPoint.dy),
         sampleSpacing / 2,
         paint,
       );
@@ -1090,7 +1090,7 @@ class ParticlePainter extends CustomPainter {
 
         // Draw particle as small circle
         canvas.drawCircle(
-          Offset(screenPoint.x, screenPoint.y),
+          Offset(screenPoint.dx, screenPoint.dy),
           2,
           paint..style = PaintingStyle.fill,
         );
@@ -1098,11 +1098,11 @@ class ParticlePainter extends CustomPainter {
         // Draw short trail
         if (speed > 0.001) {
           final trailEnd = Offset(
-            screenPoint.x - particle.vx * 5,
-            screenPoint.y - particle.vy * 5,
+            screenPoint.dx - particle.vx * 5,
+            screenPoint.dy - particle.vy * 5,
           );
           canvas.drawLine(
-            Offset(screenPoint.x, screenPoint.y),
+            Offset(screenPoint.dx, screenPoint.dy),
             trailEnd,
             paint..style = PaintingStyle.stroke,
           );
@@ -1203,8 +1203,8 @@ class GridPainter extends CustomPainter {
       final bottomPoint = camera.latLngToScreenPoint(LatLng(bounds.south, lon));
 
       canvas.drawLine(
-        Offset(topPoint.x, topPoint.y),
-        Offset(bottomPoint.x, bottomPoint.y),
+        Offset(topPoint.dx, topPoint.dy),
+        Offset(bottomPoint.dx, bottomPoint.dy),
         paint,
       );
 
@@ -1219,7 +1219,7 @@ class GridPainter extends CustomPainter {
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(topPoint.x - textPainter.width / 2, 5),
+        Offset(topPoint.dx - textPainter.width / 2, 5),
       );
     }
 
@@ -1230,8 +1230,8 @@ class GridPainter extends CustomPainter {
       final rightPoint = camera.latLngToScreenPoint(LatLng(lat, bounds.east));
 
       canvas.drawLine(
-        Offset(leftPoint.x, leftPoint.y),
-        Offset(rightPoint.x, rightPoint.y),
+        Offset(leftPoint.dx, leftPoint.dy),
+        Offset(rightPoint.dx, rightPoint.dy),
         paint,
       );
 
@@ -1246,7 +1246,7 @@ class GridPainter extends CustomPainter {
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(5, leftPoint.y - textPainter.height / 2),
+        Offset(5, leftPoint.dy - textPainter.height / 2),
       );
     }
   }

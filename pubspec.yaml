@@ -18,7 +18,7 @@ dependencies:
   injectable: ^2.3.2
   json_annotation: ^4.8.1
   cached_network_image: ^3.3.0
-  flutter_map: ^7.0.2
+  flutter_map: ^8.2.2
   latlong2: ^0.9.1
   vector_math: ^2.1.4
   video_player: ^2.8.1
