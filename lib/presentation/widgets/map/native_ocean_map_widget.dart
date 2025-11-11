@@ -52,7 +52,7 @@ class NativeOceanMapWidget extends StatefulWidget {
     this.initialViewState = const {
       'longitude': -89.0,
       'latitude': 30.1,
-      'zoom': 8,
+      'zoom': 10,
       'pitch': 0,
       'bearing': 0
     },
@@ -84,6 +84,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   Map<String, dynamic>? _selectedStation;
   bool _isLoading = false;
   bool _mapReady = false;
+  int _rebuildCount = 0;
+  DateTime? _lastUpdateTime;
 
   @override
   void initState() {
@@ -103,20 +105,28 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   @override
   void dispose() {
-    debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode');
-    _mapController.dispose();
-    super.dispose();
+    try {
+      debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode | Rebuilds: $_rebuildCount');
+      _mapController.dispose();
+      _mapReady = false;
+      _selectedStation = null;
+    } catch (e) {
+      debugPrint('⚠️ Error during map disposal: $e');
+    } finally {
+      super.dispose();
+    }
   }
 
   void _initializeMapView() {
     try {
       final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
       final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
-      final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
+      final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
 
       _mapController.move(LatLng(latitude, longitude), zoom);
+      debugPrint('🗺️ Map initialized: lat=$latitude, lon=$longitude, zoom=$zoom');
     } catch (e) {
-      debugPrint('Error initializing map view: $e');
+      debugPrint('⚠️ Error initializing map view: $e');
     }
   }
 
@@ -124,9 +134,82 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void didUpdateWidget(NativeOceanMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // DEBUG: Track widget updates
+    _rebuildCount++;
+    final now = DateTime.now();
+    final timeSinceLastUpdate = _lastUpdateTime != null
+        ? now.difference(_lastUpdateTime!).inMilliseconds
+        : 0;
+    _lastUpdateTime = now;
+
+    // Track all critical prop changes with enhanced logging
+    final List<String> changes = [];
+
     if (oldWidget.currentFrame != widget.currentFrame) {
-      debugPrint('🗺️ NATIVE MAP UPDATE: Frame changed ${oldWidget.currentFrame} -> ${widget.currentFrame}');
+      changes.add('frame(${oldWidget.currentFrame}→${widget.currentFrame})');
+    }
+
+    if (oldWidget.selectedDepth != widget.selectedDepth) {
+      changes.add('depth(${oldWidget.selectedDepth}→${widget.selectedDepth})');
+    }
+
+    if (oldWidget.selectedArea != widget.selectedArea) {
+      changes.add('area(${oldWidget.selectedArea}→${widget.selectedArea})');
+    }
+
+    if (oldWidget.mapLayerVisibility != widget.mapLayerVisibility) {
+      final oldLayers = oldWidget.mapLayerVisibility.entries.where((e) => e.value).map((e) => e.key).toList();
+      final newLayers = widget.mapLayerVisibility.entries.where((e) => e.value).map((e) => e.key).toList();
+      changes.add('layers($oldLayers→$newLayers)');
+    }
+
+    if (oldWidget.rawData.length != widget.rawData.length) {
+      changes.add('rawData(${oldWidget.rawData.length}→${widget.rawData.length} pts)');
+    }
+
+    if (oldWidget.currentsGeoJSON != widget.currentsGeoJSON) {
+      final oldFeatures = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+      final newFeatures = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+      changes.add('currents($oldFeatures→$newFeatures features)');
+    }
+
+    if (oldWidget.windVelocityGeoJSON != widget.windVelocityGeoJSON) {
+      final oldFeatures = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+      final newFeatures = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+      changes.add('wind($oldFeatures→$newFeatures features)');
+    }
+
+    if (oldWidget.heatmapScale != widget.heatmapScale) {
+      changes.add('heatmapScale(${oldWidget.heatmapScale.toStringAsFixed(2)}→${widget.heatmapScale.toStringAsFixed(2)})');
+    }
+
+    if (oldWidget.currentsVectorScale != widget.currentsVectorScale) {
+      changes.add('vectorScale(${oldWidget.currentsVectorScale.toStringAsFixed(4)}→${widget.currentsVectorScale.toStringAsFixed(4)})');
+    }
+
+    // Log changes if any occurred
+    if (changes.isNotEmpty) {
+      debugPrint('🗺️ UPDATE [${now.toIso8601String().split('T')[1].substring(0, 12)}]: ${changes.join(', ')} | Rebuild #$_rebuildCount | Δt: ${timeSinceLastUpdate}ms');
+
+      // Trigger map redraw when critical data changes
+      if (_mapReady) {
+        setState(() {
+          // Force rebuild of custom painters
+        });
+      }
+    }
+
+    // Handle map controller updates when view state changes
+    if (oldWidget.initialViewState != widget.initialViewState && _mapReady) {
+      try {
+        final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
+        final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
+        final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
+
+        _mapController.move(LatLng(latitude, longitude), zoom);
+        debugPrint('🗺️ Map view animated to: lat=$latitude, lon=$longitude, zoom=$zoom');
+      } catch (e) {
+        debugPrint('⚠️ Error updating map view: $e');
+      }
     }
   }
 
@@ -188,10 +271,19 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     final List<Map<String, dynamic>> currentsData = [];
 
     try {
+      if (widget.currentsGeoJSON.isEmpty) {
+        return [];
+      }
+
       final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
-      if (features == null) return [];
+      if (features == null || features.isEmpty) {
+        debugPrint('⚠️ No currents features found in GeoJSON');
+        return [];
+      }
 
       for (final feature in features) {
+        if (feature == null) continue;
+
         final geometry = feature['geometry'] as Map<String, dynamic>?;
         final properties = feature['properties'] as Map<String, dynamic>?;
 
@@ -206,6 +298,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         final v = (properties['v'] as num?)?.toDouble();
 
         if (lon == null || lat == null || u == null || v == null) continue;
+
+        // Validate data ranges
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
         currentsData.add({
           'lat': lat,
@@ -214,25 +309,33 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           'v': v,
         });
       }
-    } catch (e) {
-      debugPrint('Error extracting currents data: $e');
+
+      debugPrint('🌊 Extracted ${currentsData.length} current data points');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error extracting currents data: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
 
     return currentsData;
   }
 
   List<Map<String, dynamic>> _extractWindVelocityData() {
-    debugPrint('🌬️ WIND: Extracting from windVelocityGeoJSON');
-    debugPrint('🌬️ WIND: windVelocityGeoJSON.isEmpty = ${widget.windVelocityGeoJSON.isEmpty}');
-
     final List<Map<String, dynamic>> windData = [];
 
     try {
+      if (widget.windVelocityGeoJSON.isEmpty) {
+        return [];
+      }
+
       final features = widget.windVelocityGeoJSON['features'] as List<dynamic>?;
-      debugPrint('🌬️ WIND: features.length = ${features?.length ?? 0}');
-      if (features == null) return [];
+      if (features == null || features.isEmpty) {
+        debugPrint('⚠️ No wind features found in GeoJSON');
+        return [];
+      }
 
       for (final feature in features) {
+        if (feature == null) continue;
+
         final geometry = feature['geometry'] as Map<String, dynamic>?;
         final properties = feature['properties'] as Map<String, dynamic>?;
 
@@ -248,6 +351,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         if (lon == null || lat == null || u == null || v == null) continue;
 
+        // Validate data ranges
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
         windData.add({
           'lat': lat,
           'lon': lon,
@@ -255,8 +361,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           'v': v,
         });
       }
-    } catch (e) {
-      debugPrint('Error extracting wind velocity data: $e');
+
+      debugPrint('🌬️ Extracted ${windData.length} wind data points');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error extracting wind velocity data: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
 
     return windData;
@@ -265,14 +374,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   /// Build ocean currents vector markers
   List<Marker> _buildCurrentsVectorMarkers() {
     final showCurrents = widget.mapLayerVisibility['oceanCurrents'] ?? false;
-
-    // DEBUG: Check currents data availability
-    debugPrint('🌊 CURRENTS: currentsGeoJSON.isEmpty=${widget.currentsGeoJSON.isEmpty}');
-    debugPrint('🌊 CURRENTS: rawData.length=${widget.rawData.length}');
-    if (widget.rawData.isNotEmpty) {
-      final sample = widget.rawData.first;
-      debugPrint('🌊 CURRENTS: sample has ucur=${sample['ucur']}, vcur=${sample['vcur']}, direction=${sample['direction']}, nspeed=${sample['nspeed']}');
-    }
 
     if (!showCurrents || widget.currentsGeoJSON.isEmpty) {
       return [];
@@ -283,9 +384,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     try {
       // Parse GeoJSON features
       final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
-      if (features == null) return [];
+      if (features == null || features.isEmpty) {
+        debugPrint('⚠️ No current vector features to render');
+        return [];
+      }
 
       for (final feature in features) {
+        if (feature == null) continue;
+
         final geometry = feature['geometry'] as Map<String, dynamic>?;
         final properties = feature['properties'] as Map<String, dynamic>?;
 
@@ -294,8 +400,13 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         final coordinates = geometry['coordinates'] as List<dynamic>?;
         if (coordinates == null || coordinates.length < 2) continue;
 
-        final lon = (coordinates[0] as num?)?.toDouble() ?? 0.0;
-        final lat = (coordinates[1] as num?)?.toDouble() ?? 0.0;
+        final lon = (coordinates[0] as num?)?.toDouble();
+        final lat = (coordinates[1] as num?)?.toDouble();
+
+        if (lon == null || lat == null) continue;
+
+        // Validate coordinates
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
         // Get velocity components
         final u = (properties['u'] as num?)?.toDouble() ?? 0.0;
@@ -322,8 +433,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Error building current vectors: $e');
+
+      debugPrint('🌊 Built ${vectors.length} current vector markers');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error building current vectors: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
 
     return vectors;
@@ -356,7 +470,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
     final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
     final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
-    final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
+    final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
 
     return Stack(
       children: [
@@ -402,82 +516,94 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         // Temperature heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: HeatmapPainter(
-                rawData: widget.rawData,
-                dataField: 'temp',
-                heatmapScale: widget.heatmapScale,
-                camera: _mapController.camera,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'temp',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
         // Salinity heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: HeatmapPainter(
-                rawData: widget.rawData,
-                dataField: 'salinity',
-                heatmapScale: widget.heatmapScale,
-                camera: _mapController.camera,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'salinity',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
         // SSH heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: HeatmapPainter(
-                rawData: widget.rawData,
-                dataField: 'ssh',
-                heatmapScale: widget.heatmapScale,
-                camera: _mapController.camera,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'ssh',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
         // Pressure heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: HeatmapPainter(
-                rawData: widget.rawData,
-                dataField: 'pressure_dbars',
-                heatmapScale: widget.heatmapScale,
-                camera: _mapController.camera,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: HeatmapPainter(
+                  rawData: widget.rawData,
+                  dataField: 'pressure_dbars',
+                  heatmapScale: widget.heatmapScale,
+                  camera: _mapController.camera,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
         // Particle animation layer for ocean currents (overlay)
         if (_mapReady && (widget.mapLayerVisibility['oceanCurrents'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: ParticlePainter(
-                currentsData: _extractCurrentsData(),
-                camera: _mapController.camera,
-                vectorScale: widget.currentsVectorScale,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParticlePainter(
+                  currentsData: _extractCurrentsData(),
+                  camera: _mapController.camera,
+                  vectorScale: widget.currentsVectorScale,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
         // Particle animation layer for wind velocity (overlay)
         if (_mapReady && (widget.mapLayerVisibility['windVelocity'] ?? false))
           IgnorePointer(
-            child: CustomPaint(
-              painter: ParticlePainter(
-                currentsData: _extractWindVelocityData(),
-                camera: _mapController.camera,
-                vectorScale: widget.currentsVectorScale,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParticlePainter(
+                  currentsData: _extractWindVelocityData(),
+                  camera: _mapController.camera,
+                  vectorScale: widget.currentsVectorScale,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
 
@@ -835,57 +961,72 @@ class HeatmapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (rawData.isEmpty) return;
 
-    // Spacing between sample points - reduced for higher detail density (4x more points)
-    const sampleSpacing = 25.0;
+    try {
+      // Spacing between sample points - reduced for higher detail density (4x more points)
+      const sampleSpacing = 25.0;
 
-    // Create paint for heatmap points with sharper blur for better detail
-    final paint = Paint()
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+      // Create paint for heatmap points with sharper blur for better detail
+      final paint = Paint()
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
 
-    // Track drawn points to avoid overlap
-    final drawnPoints = <String>{};
+      // Track drawn points to avoid overlap
+      final drawnPoints = <String>{};
+      int renderedPoints = 0;
 
-    // Draw each data point as a colored circle
-    for (final point in rawData) {
-      final lat = (point['lat'] as num?)?.toDouble();
-      final lon = (point['lon'] as num?)?.toDouble();
-      final value = (point[dataField] as num?)?.toDouble();
+      // Draw each data point as a colored circle
+      for (final point in rawData) {
+        if (point == null) continue;
 
-      if (lat == null || lon == null || value == null) continue;
+        final lat = (point['lat'] as num?)?.toDouble();
+        final lon = (point['lon'] as num?)?.toDouble();
+        final value = (point[dataField] as num?)?.toDouble();
 
-      // Convert lat/lon to screen coordinates
-      final latLng = LatLng(lat, lon);
-      final screenPoint = camera.latLngToScreenOffset(latLng);
+        if (lat == null || lon == null || value == null) continue;
 
-      // Skip if point is outside visible area
-      if (screenPoint.dx < -100 || screenPoint.dx > size.width + 100 ||
-          screenPoint.dy < -100 || screenPoint.dy > size.height + 100) {
-        continue;
+        // Validate coordinates
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
+        // Convert lat/lon to screen coordinates
+        final latLng = LatLng(lat, lon);
+        final screenPoint = camera.latLngToScreenOffset(latLng);
+
+        // Skip if point is outside visible area (with buffer)
+        if (screenPoint.dx < -100 || screenPoint.dx > size.width + 100 ||
+            screenPoint.dy < -100 || screenPoint.dy > size.height + 100) {
+          continue;
+        }
+
+        // Sample points based on spacing to reduce density
+        final gridX = (screenPoint.dx / sampleSpacing).floor();
+        final gridY = (screenPoint.dy / sampleSpacing).floor();
+        final gridKey = '$gridX,$gridY';
+
+        // Skip if we've already drawn a point in this grid cell
+        if (drawnPoints.contains(gridKey)) {
+          continue;
+        }
+        drawnPoints.add(gridKey);
+
+        // Get color based on value and data type
+        final color = _getColorForValue(value, dataField);
+        // Enhanced opacity with minimum threshold for better visibility
+        paint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
+
+        // Draw heatmap point with larger radius for better coverage
+        canvas.drawCircle(
+          Offset(screenPoint.dx, screenPoint.dy),
+          sampleSpacing / 2,
+          paint,
+        );
+
+        renderedPoints++;
       }
 
-      // Sample points based on spacing to reduce density
-      final gridX = (screenPoint.dx / sampleSpacing).floor();
-      final gridY = (screenPoint.dy / sampleSpacing).floor();
-      final gridKey = '$gridX,$gridY';
-
-      // Skip if we've already drawn a point in this grid cell
-      if (drawnPoints.contains(gridKey)) {
-        continue;
-      }
-      drawnPoints.add(gridKey);
-
-      // Get color based on value and data type
-      final color = _getColorForValue(value, dataField);
-      // Enhanced opacity with minimum threshold for better visibility
-      paint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
-
-      // Draw heatmap point with larger radius for better coverage
-      canvas.drawCircle(
-        Offset(screenPoint.dx, screenPoint.dy),
-        sampleSpacing / 2,
-        paint,
-      );
+      debugPrint('🎨 HeatmapPainter ($dataField): Rendered $renderedPoints/${rawData.length} points');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error painting heatmap ($dataField): $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -1020,7 +1161,7 @@ class ParticlePainter extends CustomPainter {
     required this.currentsData,
     required this.camera,
     required this.vectorScale,
-    this.particleCount = 2000,
+    this.particleCount = 1000,
   }) {
     _initializeParticles();
   }
@@ -1041,73 +1182,98 @@ class ParticlePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (currentsData.isEmpty) return;
+    if (currentsData.isEmpty || size.isEmpty) return;
 
-    final paint = Paint()
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    try {
+      final paint = Paint()
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
 
-    // Update and draw each particle
-    for (final particle in particles) {
-      // Convert particle position to lat/lon
-      final bounds = camera.visibleBounds;
-      final lat = bounds.south + particle.y * (bounds.north - bounds.south);
-      final lon = bounds.west + particle.x * (bounds.east - bounds.west);
+      int renderedParticles = 0;
 
-      // Find nearest current data point
-      final velocity = _getNearestVelocity(lat, lon);
+      // Update and draw each particle
+      for (final particle in particles) {
+        try {
+          // Convert particle position to lat/lon
+          final bounds = camera.visibleBounds;
+          final lat = bounds.south + particle.y * (bounds.north - bounds.south);
+          final lon = bounds.west + particle.x * (bounds.east - bounds.west);
 
-      if (velocity != null) {
-        particle.vx = velocity['u']! * vectorScale;
-        particle.vy = velocity['v']! * vectorScale;
+          // Validate calculated coordinates
+          if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
-        // Update particle position
-        particle.x += particle.vx * 0.01;
-        particle.y += particle.vy * 0.01;
-        particle.age += 1;
+          // Find nearest current data point
+          final velocity = _getNearestVelocity(lat, lon);
 
-        // Reset particle if too old or out of bounds
-        if (particle.age > particle.maxAge ||
-            particle.x < 0 || particle.x > 1 ||
-            particle.y < 0 || particle.y > 1) {
-          final random = math.Random();
-          particle.x = random.nextDouble();
-          particle.y = random.nextDouble();
-          particle.age = 0;
-        }
+          if (velocity != null) {
+            particle.vx = velocity['u']! * vectorScale;
+            particle.vy = velocity['v']! * vectorScale;
 
-        // Convert to screen coordinates
-        final latLng = LatLng(lat, lon);
-        final screenPoint = camera.latLngToScreenOffset(latLng);
+            // Update particle position
+            particle.x += particle.vx * 0.01;
+            particle.y += particle.vy * 0.01;
+            particle.age += 1;
 
-        // Draw particle with trail
-        final speed = math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        final opacity = (1 - particle.age / particle.maxAge).clamp(0.2, 0.8);
-        final color = _getParticleColor(speed).withOpacity(opacity);
+            // Reset particle if too old or out of bounds
+            if (particle.age > particle.maxAge ||
+                particle.x < 0 || particle.x > 1 ||
+                particle.y < 0 || particle.y > 1) {
+              final random = math.Random();
+              particle.x = random.nextDouble();
+              particle.y = random.nextDouble();
+              particle.age = 0;
+            }
 
-        paint.color = color;
+            // Convert to screen coordinates
+            final latLng = LatLng(lat, lon);
+            final screenPoint = camera.latLngToScreenOffset(latLng);
 
-        // Draw particle as small circle
-        canvas.drawCircle(
-          Offset(screenPoint.dx, screenPoint.dy),
-          2,
-          paint..style = PaintingStyle.fill,
-        );
+            // Skip if outside screen bounds
+            if (screenPoint.dx < -50 || screenPoint.dx > size.width + 50 ||
+                screenPoint.dy < -50 || screenPoint.dy > size.height + 50) {
+              continue;
+            }
 
-        // Draw short trail
-        if (speed > 0.001) {
-          final trailEnd = Offset(
-            screenPoint.dx - particle.vx * 5,
-            screenPoint.dy - particle.vy * 5,
-          );
-          canvas.drawLine(
-            Offset(screenPoint.dx, screenPoint.dy),
-            trailEnd,
-            paint..style = PaintingStyle.stroke,
-          );
+            // Draw particle with trail
+            final speed = math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+            final opacity = (1 - particle.age / particle.maxAge).clamp(0.2, 0.8);
+            final color = _getParticleColor(speed).withOpacity(opacity);
+
+            paint.color = color;
+
+            // Draw particle as small circle
+            canvas.drawCircle(
+              Offset(screenPoint.dx, screenPoint.dy),
+              2,
+              paint..style = PaintingStyle.fill,
+            );
+
+            // Draw short trail
+            if (speed > 0.001) {
+              final trailEnd = Offset(
+                screenPoint.dx - particle.vx * 5,
+                screenPoint.dy - particle.vy * 5,
+              );
+              canvas.drawLine(
+                Offset(screenPoint.dx, screenPoint.dy),
+                trailEnd,
+                paint..style = PaintingStyle.stroke,
+              );
+            }
+
+            renderedParticles++;
+          }
+        } catch (e) {
+          // Skip this particle and continue with others
+          continue;
         }
       }
+
+      debugPrint('🎨 ParticlePainter: Rendered $renderedParticles/${particles.length} particles');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error painting particles: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -1169,85 +1335,92 @@ class GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = gridColor.withOpacity(gridOpacity)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
+    if (size.isEmpty) return;
 
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
+    try {
+      final paint = Paint()
+        ..color = gridColor.withOpacity(gridOpacity)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke;
 
-    final bounds = camera.visibleBounds;
-    final zoom = camera.zoom;
-
-    // Calculate grid spacing based on zoom level
-    double gridSpacing;
-    if (zoom < 5) {
-      gridSpacing = 10.0; // 10 degrees
-    } else if (zoom < 7) {
-      gridSpacing = 5.0; // 5 degrees
-    } else if (zoom < 9) {
-      gridSpacing = 2.0; // 2 degrees
-    } else if (zoom < 11) {
-      gridSpacing = 1.0; // 1 degree
-    } else {
-      gridSpacing = 0.5; // 0.5 degrees
-    }
-
-    // Draw longitude lines (vertical)
-    final startLon = (bounds.west / gridSpacing).floor() * gridSpacing;
-    for (double lon = startLon; lon <= bounds.east; lon += gridSpacing) {
-      final topPoint = camera.latLngToScreenOffset(LatLng(bounds.north, lon));
-      final bottomPoint = camera.latLngToScreenOffset(LatLng(bounds.south, lon));
-
-      canvas.drawLine(
-        Offset(topPoint.dx, topPoint.dy),
-        Offset(bottomPoint.dx, bottomPoint.dy),
-        paint,
+      final textPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
       );
 
-      // Draw longitude label
-      textPainter.text = TextSpan(
-        text: '${lon.toStringAsFixed(1)}°E',
-        style: TextStyle(
-          color: gridColor.withOpacity(gridOpacity * 2),
-          fontSize: 10,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(topPoint.dx - textPainter.width / 2, 5),
-      );
-    }
+      final bounds = camera.visibleBounds;
+      final zoom = camera.zoom;
 
-    // Draw latitude lines (horizontal)
-    final startLat = (bounds.south / gridSpacing).floor() * gridSpacing;
-    for (double lat = startLat; lat <= bounds.north; lat += gridSpacing) {
-      final leftPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.west));
-      final rightPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.east));
+      // Calculate grid spacing based on zoom level
+      double gridSpacing;
+      if (zoom < 5) {
+        gridSpacing = 10.0; // 10 degrees
+      } else if (zoom < 7) {
+        gridSpacing = 5.0; // 5 degrees
+      } else if (zoom < 9) {
+        gridSpacing = 2.0; // 2 degrees
+      } else if (zoom < 11) {
+        gridSpacing = 1.0; // 1 degree
+      } else {
+        gridSpacing = 0.5; // 0.5 degrees
+      }
 
-      canvas.drawLine(
-        Offset(leftPoint.dx, leftPoint.dy),
-        Offset(rightPoint.dx, rightPoint.dy),
-        paint,
-      );
+      // Draw longitude lines (vertical)
+      final startLon = (bounds.west / gridSpacing).floor() * gridSpacing;
+      for (double lon = startLon; lon <= bounds.east; lon += gridSpacing) {
+        final topPoint = camera.latLngToScreenOffset(LatLng(bounds.north, lon));
+        final bottomPoint = camera.latLngToScreenOffset(LatLng(bounds.south, lon));
 
-      // Draw latitude label
-      textPainter.text = TextSpan(
-        text: '${lat.toStringAsFixed(1)}°N',
-        style: TextStyle(
-          color: gridColor.withOpacity(gridOpacity * 2),
-          fontSize: 10,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(5, leftPoint.dy - textPainter.height / 2),
-      );
+        canvas.drawLine(
+          Offset(topPoint.dx, topPoint.dy),
+          Offset(bottomPoint.dx, bottomPoint.dy),
+          paint,
+        );
+
+        // Draw longitude label
+        textPainter.text = TextSpan(
+          text: '${lon.toStringAsFixed(1)}°E',
+          style: TextStyle(
+            color: gridColor.withOpacity(gridOpacity * 2),
+            fontSize: 10,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(topPoint.dx - textPainter.width / 2, 5),
+        );
+      }
+
+      // Draw latitude lines (horizontal)
+      final startLat = (bounds.south / gridSpacing).floor() * gridSpacing;
+      for (double lat = startLat; lat <= bounds.north; lat += gridSpacing) {
+        final leftPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.west));
+        final rightPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.east));
+
+        canvas.drawLine(
+          Offset(leftPoint.dx, leftPoint.dy),
+          Offset(rightPoint.dx, rightPoint.dy),
+          paint,
+        );
+
+        // Draw latitude label
+        textPainter.text = TextSpan(
+          text: '${lat.toStringAsFixed(1)}°N',
+          style: TextStyle(
+            color: gridColor.withOpacity(gridOpacity * 2),
+            fontSize: 10,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(5, leftPoint.dy - textPainter.height / 2),
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error painting grid: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
