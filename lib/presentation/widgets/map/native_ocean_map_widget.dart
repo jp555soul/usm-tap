@@ -93,6 +93,23 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     _mapController = MapController();
     debugPrint('🗺️ NATIVE MAP INIT: ${DateTime.now()} - Instance: $hashCode');
 
+    // Listen to map events (zoom, pan, rotate) and force redraw
+    _mapController.mapEventStream.listen((event) {
+      if (event is MapEventMove || event is MapEventRotate) {
+        // Log zoom changes for debugging
+        if (event is MapEventMove && event.source == MapEventSource.mapController) {
+          debugPrint('🔍 ZOOM: level ${event.camera.zoom.toStringAsFixed(2)} | forcing redraw');
+        }
+
+        // Force repaint of custom painters on zoom/pan/rotate
+        if (_mapReady && mounted) {
+          setState(() {
+            // This triggers rebuild of all custom painters
+          });
+        }
+      }
+    });
+
     // Set initial view after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeMapView();
@@ -962,13 +979,16 @@ class HeatmapPainter extends CustomPainter {
     if (rawData.isEmpty) return;
 
     try {
-      // Spacing between sample points - reduced for higher detail density (4x more points)
-      const sampleSpacing = 25.0;
+      // Calculate zoom-dependent spacing and radius for proper scaling
+      // Base spacing at zoom 10, scales proportionally with zoom level
+      final zoomFactor = math.pow(2, camera.zoom - 10).toDouble();
+      final sampleSpacing = (25.0 * zoomFactor).clamp(10.0, 100.0);
+      final heatRadius = (sampleSpacing / 2 * heatmapScale).clamp(5.0, 50.0);
 
       // Create paint for heatmap points with sharper blur for better detail
       final paint = Paint()
         ..style = PaintingStyle.fill
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, heatRadius * 0.3);
 
       // Track drawn points to avoid overlap
       final drawnPoints = <String>{};
@@ -1013,17 +1033,17 @@ class HeatmapPainter extends CustomPainter {
         // Enhanced opacity with minimum threshold for better visibility
         paint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
 
-        // Draw heatmap point with larger radius for better coverage
+        // Draw heatmap point with zoom-scaled radius for proper coverage
         canvas.drawCircle(
           Offset(screenPoint.dx, screenPoint.dy),
-          sampleSpacing / 2,
+          heatRadius,
           paint,
         );
 
         renderedPoints++;
       }
 
-      debugPrint('🎨 HeatmapPainter ($dataField): Rendered $renderedPoints/${rawData.length} points');
+      debugPrint('🎨 HeatmapPainter ($dataField): Rendered $renderedPoints/${rawData.length} points | zoom=${camera.zoom.toStringAsFixed(2)} radius=${heatRadius.toStringAsFixed(1)}');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error painting heatmap ($dataField): $e');
       debugPrint('Stack trace: $stackTrace');
@@ -1126,7 +1146,8 @@ class HeatmapPainter extends CustomPainter {
     return oldDelegate.rawData != rawData ||
            oldDelegate.dataField != dataField ||
            oldDelegate.heatmapScale != heatmapScale ||
-           oldDelegate.camera != camera;
+           oldDelegate.camera.center != camera.center ||
+           oldDelegate.camera.zoom != camera.zoom;
   }
 }
 
@@ -1316,7 +1337,8 @@ class ParticlePainter extends CustomPainter {
   @override
   bool shouldRepaint(ParticlePainter oldDelegate) {
     return oldDelegate.currentsData != currentsData ||
-           oldDelegate.camera != camera ||
+           oldDelegate.camera.center != camera.center ||
+           oldDelegate.camera.zoom != camera.zoom ||
            oldDelegate.vectorScale != vectorScale;
   }
 }
