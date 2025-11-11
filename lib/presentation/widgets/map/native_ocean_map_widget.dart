@@ -856,7 +856,7 @@ class HeatmapPainter extends CustomPainter {
 
       // Convert lat/lon to screen coordinates
       final latLng = LatLng(lat, lon);
-      final screenPoint = camera.latLngToScreenPoint(latLng);
+      final screenPoint = camera.latLngToScreenOffset(latLng);
 
       // Skip if point is outside visible area
       if (screenPoint.dx < -100 || screenPoint.dx > size.width + 100 ||
@@ -1079,7 +1079,7 @@ class ParticlePainter extends CustomPainter {
 
         // Convert to screen coordinates
         final latLng = LatLng(lat, lon);
-        final screenPoint = camera.latLngToScreenPoint(latLng);
+        final screenPoint = camera.latLngToScreenOffset(latLng);
 
         // Draw particle with trail
         final speed = math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
@@ -1199,8 +1199,8 @@ class GridPainter extends CustomPainter {
     // Draw longitude lines (vertical)
     final startLon = (bounds.west / gridSpacing).floor() * gridSpacing;
     for (double lon = startLon; lon <= bounds.east; lon += gridSpacing) {
-      final topPoint = camera.latLngToScreenPoint(LatLng(bounds.north, lon));
-      final bottomPoint = camera.latLngToScreenPoint(LatLng(bounds.south, lon));
+      final topPoint = camera.latLngToScreenOffset(LatLng(bounds.north, lon));
+      final bottomPoint = camera.latLngToScreenOffset(LatLng(bounds.south, lon));
 
       canvas.drawLine(
         Offset(topPoint.dx, topPoint.dy),
@@ -1226,8 +1226,8 @@ class GridPainter extends CustomPainter {
     // Draw latitude lines (horizontal)
     final startLat = (bounds.south / gridSpacing).floor() * gridSpacing;
     for (double lat = startLat; lat <= bounds.north; lat += gridSpacing) {
-      final leftPoint = camera.latLngToScreenPoint(LatLng(lat, bounds.west));
-      final rightPoint = camera.latLngToScreenPoint(LatLng(lat, bounds.east));
+      final leftPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.west));
+      final rightPoint = camera.latLngToScreenOffset(LatLng(lat, bounds.east));
 
       canvas.drawLine(
         Offset(leftPoint.dx, leftPoint.dy),
