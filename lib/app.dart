@@ -508,7 +508,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                           child: Container(
                                             key: const Key('map-container'),
                                             child: NativeOceanMapWidget(
-                                              key: const Key('map-widget-instance'),
+                                              key: ValueKey('map-${oceanState.selectedDepth}-${oceanState.currentFrame}-${oceanState.selectedArea}'),
                                               mapboxToken: AppConstants.mapboxAccessToken,
                                               stationData: oceanState.stationData.map((s) => {
                                                 'id': s.id,

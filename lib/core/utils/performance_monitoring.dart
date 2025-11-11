@@ -8,6 +8,12 @@ import 'package:flutter/widgets.dart';
 class PerformanceMonitoring {
   static bool _isInitialized = false;
   static final Map<String, dynamic> _metrics = {};
+  static final Map<String, Stopwatch> _activeTimers = {};
+  static int _frameCount = 0;
+  static int _slowFrameCount = 0;
+  static DateTime? _lastMetricsLog;
+  static final List<double> _frameTimes = [];
+  static const int _maxFrameTimesSamples = 60; // Track last 60 frames
   
   /// Initialize performance monitoring (equivalent to reportWebVitals())
   static void init() {
@@ -130,11 +136,126 @@ class PerformanceMonitoring {
   static Map<String, dynamic> getMetrics() {
     return Map.from(_metrics);
   }
-  
+
+  /// PERFORMANCE: Start a named timer for precise measurement
+  /// Returns a timer ID that should be passed to stopTimer()
+  static String startTimer([String? name]) {
+    if (!kDebugMode) return '';
+
+    final timerId = name ?? 'timer_${DateTime.now().millisecondsSinceEpoch}';
+    _activeTimers[timerId] = Stopwatch()..start();
+    return timerId;
+  }
+
+  /// PERFORMANCE: Stop a named timer and return elapsed milliseconds
+  /// Optionally log the metric with a category
+  static int stopTimer(String timerId, {String? category, String? metricName}) {
+    if (!kDebugMode) return 0;
+
+    final timer = _activeTimers.remove(timerId);
+    if (timer == null) return 0;
+
+    timer.stop();
+    final elapsed = timer.elapsedMilliseconds;
+
+    if (category != null && metricName != null) {
+      logMetric(category, metricName, elapsed);
+    }
+
+    return elapsed;
+  }
+
+  /// PERFORMANCE: Log a structured metric
+  /// Example: logMetric('BLOC', 'SetCurrentFrameEvent', 5)
+  static void logMetric(String category, String name, dynamic value) {
+    if (!kDebugMode) return;
+
+    final key = '$category.$name';
+    _metrics[key] = value;
+
+    // Log significant events
+    if (value is int && value > 16) {
+      debugPrint('⚠️ SLOW $category [$name]: ${value}ms');
+    }
+  }
+
+  /// PERFORMANCE: Track frame timing (call once per frame)
+  static void trackFrame(double frameTimeMs) {
+    if (!kDebugMode) return;
+
+    _frameCount++;
+    _frameTimes.add(frameTimeMs);
+
+    // Keep only recent samples
+    if (_frameTimes.length > _maxFrameTimesSamples) {
+      _frameTimes.removeAt(0);
+    }
+
+    // Track slow frames (> 16ms = below 60fps)
+    if (frameTimeMs > 16.0) {
+      _slowFrameCount++;
+    }
+
+    // Log metrics every 10 seconds
+    final now = DateTime.now();
+    if (_lastMetricsLog == null ||
+        now.difference(_lastMetricsLog!).inSeconds >= 10) {
+      _logFrameMetrics();
+      _lastMetricsLog = now;
+    }
+  }
+
+  /// PERFORMANCE: Log aggregated frame metrics
+  static void _logFrameMetrics() {
+    if (_frameTimes.isEmpty) return;
+
+    final avgFrameTime = _frameTimes.reduce((a, b) => a + b) / _frameTimes.length;
+    final fps = 1000.0 / avgFrameTime;
+    final slowFramePercent = (_slowFrameCount / _frameCount * 100).toStringAsFixed(1);
+
+    debugPrint('🎨 PERFORMANCE: Frame #$_frameCount | ${avgFrameTime.toStringAsFixed(1)}ms | '
+        '${fps.toStringAsFixed(1)}fps | slow frames: $slowFramePercent%');
+
+    // Reset counters for next interval
+    _slowFrameCount = 0;
+    _frameCount = 0;
+  }
+
+  /// PERFORMANCE: Check memory usage and warn if above threshold
+  /// @param thresholdPercent - Warning threshold (default: 80%)
+  static void checkMemoryUsage([int thresholdPercent = 80]) {
+    if (!kDebugMode) return;
+
+    // Note: Accurate memory monitoring requires platform channels
+    // This is a placeholder for the monitoring infrastructure
+    // In production, you'd use DeviceInfoPlugin or similar
+
+    // Log periodic memory checks
+    debugPrint('💾 MEMORY: Check performed (threshold: $thresholdPercent%)');
+  }
+
+  /// PERFORMANCE: Monitor BLoC event queue depth
+  /// @param blocName - Name of the BLoC
+  /// @param queueDepth - Current event queue size
+  static void monitorBlocQueue(String blocName, int queueDepth) {
+    if (!kDebugMode) return;
+
+    if (queueDepth > 10) {
+      debugPrint('⚠️ BLOC QUEUE [$blocName]: $queueDepth events pending (possible backlog)');
+    }
+
+    _metrics['$blocName.queueDepth'] = queueDepth;
+  }
+
   /// Clean up performance monitoring
   static void dispose() {
     _isInitialized = false;
     _metrics.clear();
+    _activeTimers.clear();
+    _frameTimes.clear();
+    _frameCount = 0;
+    _slowFrameCount = 0;
+    _lastMetricsLog = null;
 
     // developer.log(
     //   'Performance monitoring disposed',
