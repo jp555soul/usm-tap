@@ -288,7 +288,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     final List<Map<String, dynamic>> currentsData = [];
 
     try {
+      debugPrint('🌊 CURRENTS EXTRACTION: oceanCurrents layer visible=${widget.mapLayerVisibility['oceanCurrents']}');
+
       if (widget.currentsGeoJSON.isEmpty) {
+        debugPrint('🌊 Ocean currents GeoJSON is empty');
         return [];
       }
 
@@ -297,6 +300,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         debugPrint('⚠️ No currents features found in GeoJSON');
         return [];
       }
+
+      debugPrint('🌊 OCEAN CURRENTS: Extracting ${features.length} current features for particles');
 
       for (final feature in features) {
         if (feature == null) continue;
@@ -340,7 +345,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     final List<Map<String, dynamic>> windData = [];
 
     try {
+      debugPrint('🌬️ WIND VELOCITY EXTRACTION: windVelocity layer visible=${widget.mapLayerVisibility['windVelocity']}');
+
       if (widget.windVelocityGeoJSON.isEmpty) {
+        debugPrint('🌬️ Wind velocity GeoJSON is empty');
         return [];
       }
 
@@ -349,6 +357,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         debugPrint('⚠️ No wind features found in GeoJSON');
         return [];
       }
+
+      debugPrint('🌬️ WIND VELOCITY: Extracting ${features.length} wind features');
 
       for (final feature in features) {
         if (feature == null) continue;
@@ -397,6 +407,12 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     }
 
     final List<Marker> vectors = [];
+    // Debug tracking
+    double minSpeed = double.infinity;
+    double maxSpeed = 0.0;
+    double totalSpeed = 0.0;
+    int speedCount = 0;
+    Map<String, int> colorDistribution = {'cyan': 0, 'blue': 0, 'red': 0, 'gradient': 0};
 
     try {
       // Parse GeoJSON features
@@ -404,6 +420,19 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       if (features == null || features.isEmpty) {
         debugPrint('⚠️ No current vector features to render');
         return [];
+      }
+
+      debugPrint('🎨 VECTOR DEBUG: currentsColorBy="${widget.currentsColorBy}"');
+      debugPrint('📦 GEOJSON DEBUG: features.length=${features.length}');
+
+      // Log first feature properties to understand data structure
+      if (features.isNotEmpty && features[0] != null) {
+        final firstFeature = features[0];
+        final firstProps = firstFeature['properties'] as Map<String, dynamic>?;
+        if (firstProps != null) {
+          debugPrint('🔍 FIRST FEATURE PROPERTIES: ${firstProps.keys.join(', ')}');
+          debugPrint('🔍 SAMPLE VALUES: ${firstProps.toString()}');
+        }
       }
 
       for (final feature in features) {
@@ -432,8 +461,31 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         if (speed == 0) continue;
 
+        // Track speed statistics
+        minSpeed = math.min(minSpeed, speed);
+        maxSpeed = math.max(maxSpeed, speed);
+        totalSpeed += speed;
+        speedCount++;
+
         // Calculate color based on speed
         final vectorColor = _getVectorColor(speed, properties);
+
+        // Track color distribution
+        if (vectorColor == Colors.cyan.shade400) {
+          colorDistribution['cyan'] = (colorDistribution['cyan'] ?? 0) + 1;
+        } else if (vectorColor == Colors.blue || vectorColor == Colors.blue.shade300) {
+          colorDistribution['blue'] = (colorDistribution['blue'] ?? 0) + 1;
+        } else if (vectorColor.red > 200) {
+          colorDistribution['red'] = (colorDistribution['red'] ?? 0) + 1;
+        } else {
+          colorDistribution['gradient'] = (colorDistribution['gradient'] ?? 0) + 1;
+        }
+
+        // Log first 3 vectors for debugging
+        if (vectors.length < 3) {
+          final normalizedSpeed = (speed * 10).clamp(0.0, 1.0);
+          debugPrint('🎨 VECTOR #${vectors.length + 1}: speed=${speed.toStringAsFixed(4)} | normalized=${normalizedSpeed.toStringAsFixed(4)} | color=rgb(${vectorColor.red},${vectorColor.green},${vectorColor.blue})');
+        }
 
         vectors.add(
           Marker(
@@ -451,7 +503,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         );
       }
 
+      final avgSpeed = speedCount > 0 ? totalSpeed / speedCount : 0.0;
       debugPrint('🌊 Built ${vectors.length} current vector markers');
+      debugPrint('📊 SPEED STATS: min=${minSpeed.toStringAsFixed(4)} | max=${maxSpeed.toStringAsFixed(4)} | avg=${avgSpeed.toStringAsFixed(4)}');
+      debugPrint('🎨 COLOR DISTRIBUTION: cyan=${colorDistribution['cyan']} | blue=${colorDistribution['blue']} | gradient=${colorDistribution['gradient']} | red=${colorDistribution['red']}');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error building current vectors: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -462,17 +517,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   /// Get color for vector based on speed
   Color _getVectorColor(double speed, Map<String, dynamic> properties) {
-    if (widget.currentsColorBy == 'speed') {
+    // Both 'speed' and 'velocity' should use speed-based coloring
+    if (widget.currentsColorBy == 'speed' || widget.currentsColorBy == 'velocity') {
       // Color by speed: blue (slow) to red (fast)
       final normalizedSpeed = (speed * 10).clamp(0.0, 1.0);
-      return Color.lerp(
+      final color = Color.lerp(
         Colors.blue.shade300,
         Colors.red.shade600,
         normalizedSpeed,
       ) ?? Colors.blue;
+
+      return color;
     }
 
-    // Default color
+    // Default color for other modes (shouldn't happen)
+    debugPrint('⚠️ UNEXPECTED currentsColorBy: "${widget.currentsColorBy}" - using default cyan');
     return Colors.cyan.shade400;
   }
 
