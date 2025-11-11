@@ -505,10 +505,11 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         // Map Container
                                         Expanded(
                                           flex: isOutputCollapsed ? 5 : 1,
-                                          child: Container(
-                                            key: const Key('map-container'),
-                                            child: NativeOceanMapWidget(
-                                              key: ValueKey('map-${oceanState.selectedDepth}-${oceanState.currentFrame}-${oceanState.selectedArea}'),
+                                          child: ClipRect(
+                                            child: Container(
+                                              key: const Key('map-container'),
+                                              child: NativeOceanMapWidget(
+                                                key: ValueKey('map-${oceanState.selectedDepth}-${oceanState.currentFrame}-${oceanState.selectedArea}'),
                                               mapboxToken: AppConstants.mapboxAccessToken,
                                               stationData: oceanState.stationData.map((s) => {
                                                 'id': s.id,
@@ -603,6 +604,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                       SetEnvDataEvent(envEntity),
                                                     );
                                               },
+                                            ),
                                             ),
                                           ),
                                         ),
