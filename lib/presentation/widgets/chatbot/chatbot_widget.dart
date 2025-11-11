@@ -236,6 +236,21 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       },
       child: Stack(
         children: [
+          // Backdrop/Scrim when chat is open
+          if (_chatOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _chatOpen = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                ),
+              ),
+            ),
+
           // Chat Toggle Button
           Positioned(
             bottom: 16,
@@ -246,6 +261,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                   _chatOpen = !_chatOpen;
                 });
               },
+              elevation: 12,
               backgroundColor: Colors.blue.shade500,
               child: BlocBuilder<ChatBloc, ChatState>(
                 builder: (context, state) {
@@ -279,17 +295,28 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
               bottom: 80,
               right: 16,
               child: Material(
-                elevation: 8,
+                elevation: 16,
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.grey.shade800.withOpacity(0.9),
+                color: const Color(0xFF1F2937),
+                shadowColor: Colors.black.withOpacity(0.5),
                 child: Container(
                   width: 320,
                   constraints: const BoxConstraints(maxHeight: 500),
                   decoration: BoxDecoration(
+                    color: const Color(0xFF1F2937),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.blue.shade500.withOpacity(0.3),
+                      color: Colors.blue.shade500.withOpacity(0.5),
+                      width: 2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
