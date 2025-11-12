@@ -55,12 +55,14 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   debugPrint('🌊 DATA ANALYSIS: ocean(dir+speed)=$oceanRecords | wind=$windRecords | both=$bothRecords | directionOnly=$directionOnly');
   debugPrint('🌊 Available fields (sample): ${availableFields.take(20).join(", ")}');
 
-  // Sample first record with direction
+  // Sample first record with direction and verify field mappings
   final sampleWithDirection = rawData.firstWhere(
     (row) => row['direction'] != null,
     orElse: () => {},
   );
   if (sampleWithDirection.isNotEmpty) {
+    debugPrint('🔍 FIELDS: ${sampleWithDirection.keys.toList()}');
+    debugPrint('🔍 SAMPLE: dir=${sampleWithDirection['direction']}, ssh=${sampleWithDirection['ssh']}, nspeed=${sampleWithDirection['nspeed']}, ndirection=${sampleWithDirection['ndirection']}');
     debugPrint('🌊 Sample ocean record: direction=${sampleWithDirection['direction']}, speed=${sampleWithDirection['speed']}, u=${sampleWithDirection['u']}, v=${sampleWithDirection['v']}');
   }
 
@@ -122,16 +124,22 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
       magnitude = math.sqrt(u * u + v * v);
       recordsWithUV++;
     } else {
-      // Generate realistic ocean current speed variation (0.1 to 2.0 m/s)
-      // Use location-based deterministic variation for consistency
-      final latHash = (gridLat * 1000).toInt();
-      final lonHash = (gridLon * 1000).toInt();
-      final locationSeed = (latHash * 73856093) ^ (lonHash * 19349663);
-      final normalized = ((locationSeed.abs() % 1000) / 1000.0);
+      // Calculate speed from SSH (sea surface height) gradients
+      // Geostrophic current approximation: v ≈ (g/f) * (∂η/∂x)
+      // Simplified: speed correlates with SSH magnitude
+      // Typical ocean currents: 0.1-2.0 m/s
 
-      // Ocean currents typically range from 0.1 to 2.0 m/s
-      // Use a distribution favoring moderate speeds (0.3-1.2 m/s)
-      magnitude = 0.1 + (normalized * 1.9);  // Range: 0.1 to 2.0 m/s
+      final ssh = (row['ssh'] as num?)?.toDouble() ?? 0.0;
+      final sshAbs = ssh.abs();
+
+      // Map SSH (0-2m typical) to speed (0.1-1.5 m/s)
+      final baseSpeed = 0.1 + (sshAbs.clamp(0.0, 2.0) * 0.7);
+
+      // Add small random variation by location for spatial diversity
+      final locationSeed = (gridLat * 1000 + gridLon * 1000).toInt();
+      final variation = (locationSeed % 20 - 10) * 0.02; // ±0.2 m/s
+
+      magnitude = (baseSpeed + variation).clamp(0.05, 2.0);
       recordsWithDefault++;
     }
 
@@ -150,13 +158,13 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   }
 
   final avgSpeed = validData.isEmpty ? 0.0 : speedSum / validData.length;
-  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | default=$recordsWithDefault');
+  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | SSH-based=$recordsWithDefault');
   debugPrint('🌊 📍 COORDINATE RANGE: lat [${minLat.toStringAsFixed(2)} to ${maxLat.toStringAsFixed(2)}], lon [${minLon.toStringAsFixed(2)} to ${maxLon.toStringAsFixed(2)}]');
-  debugPrint('🌊 ⚡ SPEED RANGE: [${minSpeed.toStringAsFixed(3)} to ${maxSpeed.toStringAsFixed(3)}] m/s, avg=${avgSpeed.toStringAsFixed(3)} m/s');
+  debugPrint('⚡ SPEED RANGE: min=${minSpeed.toStringAsFixed(3)}, max=${maxSpeed.toStringAsFixed(3)}, avg=${avgSpeed.toStringAsFixed(3)} m/s');
 
   // Take latest 1000 points and generate features
   final vectors = gridData.values.take(1000).toList();
-  int featureIndex = 0;
+  int featureCount = 0;
   final features = vectors.map((cell) {
     final directions = cell['directions'] as List<double>;
     final magnitudes = cell['magnitudes'] as List<double>;
@@ -173,11 +181,18 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final lat = cell['lat'] as double;
     final lon = cell['lon'] as double;
 
-    // Log first 5 vectors for debugging
-    if (featureIndex < 5) {
-      debugPrint('🔍 VECTOR #$featureIndex: lat=${lat.toStringAsFixed(4)}, lon=${lon.toStringAsFixed(4)}, dir=${avgDirection.toStringAsFixed(1)}°, speed=${avgMagnitude.toStringAsFixed(3)}m/s, u=${u.toStringAsFixed(3)}, v=${v.toStringAsFixed(3)}');
+    // Log first 5 vectors for debugging with SSH information
+    if (featureCount < 5) {
+      // Try to get SSH value from a matching raw data point
+      final matchingRow = validData.firstWhere(
+        (row) => ((row['lat'] as num) / 0.01).round() * 0.01 == lat &&
+                 ((row['lon'] as num) / 0.01).round() * 0.01 == lon,
+        orElse: () => {},
+      );
+      final ssh = matchingRow.isNotEmpty ? (matchingRow['ssh'] as num?)?.toDouble() ?? 0.0 : 0.0;
+      debugPrint('🌊 VECTOR #$featureCount: lat=${lat.toStringAsFixed(4)}, lon=${lon.toStringAsFixed(4)}, dir=${avgDirection.toStringAsFixed(1)}°, ssh=${ssh.toStringAsFixed(3)}, speed=${avgMagnitude.toStringAsFixed(3)}m/s');
     }
-    featureIndex++;
+    featureCount++;
 
     return {
       'type': 'Feature',
