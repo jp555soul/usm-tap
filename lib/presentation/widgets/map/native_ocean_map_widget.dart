@@ -986,7 +986,7 @@ class _StationInfoCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.98),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.black.withOpacity(0.4),
@@ -994,9 +994,9 @@ class _StationInfoCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -1011,7 +1011,7 @@ class _StationInfoCard extends StatelessWidget {
                 child: Text(
                   station['name'] ?? 'Unknown Station',
                   style: const TextStyle(
-                    color: Colors.black,
+                    color: Color(0xFF1E293B),
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -1020,7 +1020,7 @@ class _StationInfoCard extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                color: Colors.black.withOpacity(0.8),
+                color: const Color(0xFF64748B),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 20,
@@ -1032,8 +1032,8 @@ class _StationInfoCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               station['type'],
-              style: TextStyle(
-                color: Colors.black.withOpacity(0.7),
+              style: const TextStyle(
+                color: Color(0xFF64748B),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -1045,9 +1045,9 @@ class _StationInfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.1),
+                  const Color(0xFF64748B).withOpacity(0.1),
+                  const Color(0xFF64748B).withOpacity(0.2),
+                  const Color(0xFF64748B).withOpacity(0.1),
                 ],
               ),
             ),
@@ -1069,9 +1069,9 @@ class _StationInfoCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.1),
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.1),
+                    const Color(0xFF64748B).withOpacity(0.1),
+                    const Color(0xFF64748B).withOpacity(0.2),
+                    const Color(0xFF64748B).withOpacity(0.1),
                   ],
                 ),
               ),
@@ -1111,8 +1111,8 @@ class _InfoRow extends StatelessWidget {
           width: 80,
           child: Text(
             '$label:',
-            style: TextStyle(
-              color: Colors.black.withOpacity(0.65),
+            style: const TextStyle(
+              color: Color(0xFF64748B),
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -1123,7 +1123,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             value,
             style: const TextStyle(
-              color: Colors.black,
+              color: Color(0xFF1E293B),
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -1158,7 +1158,7 @@ class _VectorInfoCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.98),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.black.withOpacity(0.4),
@@ -1166,9 +1166,9 @@ class _VectorInfoCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -1183,7 +1183,7 @@ class _VectorInfoCard extends StatelessWidget {
                 child: Text(
                   'Ocean Current',
                   style: TextStyle(
-                    color: Colors.black,
+                    color: Color(0xFF1E293B),
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -1192,7 +1192,7 @@ class _VectorInfoCard extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                color: Colors.black.withOpacity(0.8),
+                color: const Color(0xFF64748B),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 20,
@@ -1206,9 +1206,9 @@ class _VectorInfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.1),
+                  const Color(0xFF64748B).withOpacity(0.1),
+                  const Color(0xFF64748B).withOpacity(0.2),
+                  const Color(0xFF64748B).withOpacity(0.1),
                 ],
               ),
             ),
@@ -1254,9 +1254,9 @@ class _VectorInfoCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.1),
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.1),
+                    const Color(0xFF64748B).withOpacity(0.1),
+                    const Color(0xFF64748B).withOpacity(0.2),
+                    const Color(0xFF64748B).withOpacity(0.1),
                   ],
                 ),
               ),
