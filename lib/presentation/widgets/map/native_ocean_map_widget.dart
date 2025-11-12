@@ -316,8 +316,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         final coordinates = geometry['coordinates'] as List<dynamic>?;
         if (coordinates == null || coordinates.length < 2) continue;
 
-        final lon = (coordinates[0] as num?)?.toDouble();
-        final lat = (coordinates[1] as num?)?.toDouble();
+        final lat = (coordinates[0] as num?)?.toDouble();
+        final lon = (coordinates[1] as num?)?.toDouble();
         final u = (properties['u'] as num?)?.toDouble();
         final v = (properties['v'] as num?)?.toDouble();
 
