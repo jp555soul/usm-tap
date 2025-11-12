@@ -983,20 +983,20 @@ class _StationInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF1E293B).withOpacity(0.96),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFEC4899).withOpacity(0.5),
-          width: 1,
+          color: const Color(0xFFEC4899).withOpacity(0.4),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1012,45 +1012,80 @@ class _StationInfoCard extends StatelessWidget {
                   station['name'] ?? 'Unknown Station',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                color: Colors.white.withOpacity(0.7),
+                icon: const Icon(Icons.close, size: 18),
+                color: Colors.white.withOpacity(0.8),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
+                splashRadius: 20,
                 onPressed: onClose,
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          if (station['type'] != null)
-            _InfoRow(
-              label: 'Type',
-              value: station['type'],
+          if (station['type'] != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              station['type'],
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+          ],
+          const SizedBox(height: 16),
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.1),
+                  Colors.white.withOpacity(0.3),
+                  Colors.white.withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _InfoRow(
             label: 'Latitude',
             value: (station['latitude'] as num?)?.toStringAsFixed(4) ?? 'N/A',
           ),
+          const SizedBox(height: 10),
           _InfoRow(
             label: 'Longitude',
             value: (station['longitude'] as num?)?.toStringAsFixed(4) ?? 'N/A',
           ),
-          if (station['description'] != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                station['description'],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: 12,
+          if (station['description'] != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.1),
+                    Colors.white.withOpacity(0.3),
+                    Colors.white.withOpacity(0.1),
+                  ],
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Text(
+              station['description'],
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1069,26 +1104,32 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            '$label:',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 12,
+              color: Colors.white.withOpacity(0.65),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Text(
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1114,20 +1155,20 @@ class _VectorInfoCard extends StatelessWidget {
     final time = vector['time']?.toString();
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF1E293B).withOpacity(0.96),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF06B6D4).withOpacity(0.5), // Cyan border for currents
-          width: 1,
+          color: const Color(0xFF06B6D4).withOpacity(0.4), // Cyan border for currents
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1140,55 +1181,92 @@ class _VectorInfoCard extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Ocean Current Vector',
+                  'Ocean Current',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                color: Colors.white.withOpacity(0.7),
+                icon: const Icon(Icons.close, size: 18),
+                color: Colors.white.withOpacity(0.8),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
+                splashRadius: 20,
                 onPressed: onClose,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.1),
+                  Colors.white.withOpacity(0.3),
+                  Colors.white.withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _InfoRow(
             label: 'Latitude',
             value: lat != null ? lat.toStringAsFixed(4) : 'N/A',
           ),
+          const SizedBox(height: 10),
           _InfoRow(
             label: 'Longitude',
             value: lon != null ? lon.toStringAsFixed(4) : 'N/A',
           ),
+          const SizedBox(height: 10),
           _InfoRow(
             label: 'Speed',
             value: speed != null ? '${speed.toStringAsFixed(3)} m/s' : 'N/A',
           ),
+          const SizedBox(height: 10),
           _InfoRow(
             label: 'Direction',
             value: direction != null ? '${direction.toStringAsFixed(1)}°' : 'N/A',
           ),
-          if (ssh != null)
+          if (ssh != null) ...[
+            const SizedBox(height: 10),
             _InfoRow(
               label: 'SSH',
               value: '${ssh.toStringAsFixed(3)} m',
             ),
-          if (depth != null)
+          ],
+          if (depth != null) ...[
+            const SizedBox(height: 10),
             _InfoRow(
               label: 'Depth',
               value: '${depth.toStringAsFixed(1)} m',
             ),
-          if (time != null)
+          ],
+          if (time != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.1),
+                    Colors.white.withOpacity(0.3),
+                    Colors.white.withOpacity(0.1),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             _InfoRow(
               label: 'Time',
               value: time,
             ),
+          ],
         ],
       ),
     );
