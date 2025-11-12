@@ -31,15 +31,15 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   int bothRecords = 0;
   int directionOnly = 0;
 
-  // Field presence tracking
-  int recordsWithDirection = 0;
-  int recordsWithSpeed = 0;
-  int recordsWithSSH = 0;
-  int recordsWithU = 0;
-  int recordsWithV = 0;
-  int recordsWithNSpeed = 0;
-  int recordsWithNDirection = 0;
-  int recordsWithDirectionAndSSH = 0;
+  // Field presence tracking (across all raw data)
+  int totalRecordsWithDirection = 0;
+  int totalRecordsWithSpeed = 0;
+  int totalRecordsWithSSH = 0;
+  int totalRecordsWithU = 0;
+  int totalRecordsWithV = 0;
+  int totalRecordsWithNSpeed = 0;
+  int totalRecordsWithNDirection = 0;
+  int totalRecordsWithDirectionAndSSH = 0;
 
   Set<String> availableFields = {};
   List<Map<String, dynamic>> validSamples = [];
@@ -58,14 +58,14 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final hasWind = row['ndirection'] != null && row['nspeed'] != null;
 
     // Track field presence
-    if (hasDirection) recordsWithDirection++;
-    if (hasSpeed) recordsWithSpeed++;
-    if (hasSSH) recordsWithSSH++;
-    if (hasU) recordsWithU++;
-    if (hasV) recordsWithV++;
-    if (row['nspeed'] != null) recordsWithNSpeed++;
-    if (row['ndirection'] != null) recordsWithNDirection++;
-    if (hasDirection && hasSSH) recordsWithDirectionAndSSH++;
+    if (hasDirection) totalRecordsWithDirection++;
+    if (hasSpeed) totalRecordsWithSpeed++;
+    if (hasSSH) totalRecordsWithSSH++;
+    if (hasU) totalRecordsWithU++;
+    if (hasV) totalRecordsWithV++;
+    if (row['nspeed'] != null) totalRecordsWithNSpeed++;
+    if (row['ndirection'] != null) totalRecordsWithNDirection++;
+    if (hasDirection && hasSSH) totalRecordsWithDirectionAndSSH++;
 
     final hasOcean = hasDirection && hasSpeed;
     final hasOceanDirection = hasDirection && !hasWind;
@@ -86,11 +86,11 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   debugPrint('🌊 Available fields (sample): ${availableFields.take(20).join(", ")}');
 
   // Log field presence rates
-  debugPrint('📊 FIELD PRESENCE: direction: $recordsWithDirection/$totalRecords (${(recordsWithDirection/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: ssh: $recordsWithSSH/$totalRecords (${(recordsWithSSH/totalRecords*100).toStringAsFixed(1)}%), speed: $recordsWithSpeed/$totalRecords (${(recordsWithSpeed/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: u: $recordsWithU/$totalRecords (${(recordsWithU/totalRecords*100).toStringAsFixed(1)}%), v: $recordsWithV/$totalRecords (${(recordsWithV/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: nspeed: $recordsWithNSpeed/$totalRecords (${(recordsWithNSpeed/totalRecords*100).toStringAsFixed(1)}%), ndirection: $recordsWithNDirection/$totalRecords (${(recordsWithNDirection/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 COMPLETE DATA: direction+ssh: $recordsWithDirectionAndSSH/$totalRecords (${(recordsWithDirectionAndSSH/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: direction: $totalRecordsWithDirection/$totalRecords (${(totalRecordsWithDirection/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: ssh: $totalRecordsWithSSH/$totalRecords (${(totalRecordsWithSSH/totalRecords*100).toStringAsFixed(1)}%), speed: $totalRecordsWithSpeed/$totalRecords (${(totalRecordsWithSpeed/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: u: $totalRecordsWithU/$totalRecords (${(totalRecordsWithU/totalRecords*100).toStringAsFixed(1)}%), v: $totalRecordsWithV/$totalRecords (${(totalRecordsWithV/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: nspeed: $totalRecordsWithNSpeed/$totalRecords (${(totalRecordsWithNSpeed/totalRecords*100).toStringAsFixed(1)}%), ndirection: $totalRecordsWithNDirection/$totalRecords (${(totalRecordsWithNDirection/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 COMPLETE DATA: direction+ssh: $totalRecordsWithDirectionAndSSH/$totalRecords (${(totalRecordsWithDirectionAndSSH/totalRecords*100).toStringAsFixed(1)}%)');
 
   // Log representative valid samples (not just first record)
   debugPrint('🔍 VALID SAMPLES (${validSamples.length} records with direction+ssh):');
