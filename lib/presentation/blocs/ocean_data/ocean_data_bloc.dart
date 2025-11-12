@@ -25,6 +25,13 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     return {'type': 'FeatureCollection', 'features': []};
   }
 
+  // 🔍 RAW DATA FIRST 3 RECORDS
+  debugPrint('🔍 RAW DATA FIRST 3 RECORDS:');
+  for (int i = 0; i < math.min(3, rawData.length); i++) {
+    final row = rawData[i];
+    debugPrint('  Record $i: lat=${row['lat']}, lon=${row['lon']}, direction=${row['direction']}, ssh=${row['ssh']}');
+  }
+
   // Count data types and field presence for comprehensive validation
   int oceanRecords = 0;
   int windRecords = 0;
@@ -231,6 +238,12 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
     final lat = cell['lat'] as double;
     final lon = cell['lon'] as double;
+    final coordinates = [lon, lat];
+
+    // Log first 5 features with API to GeoJSON coordinate mapping
+    if (featureCount < 5) {
+      debugPrint('🌊 FEATURE #$featureCount: API(lat=$lat, lon=$lon) → GeoJSON coords=$coordinates');
+    }
 
     // Log first 5 vectors for debugging with SSH information
     if (featureCount < 5) {
@@ -255,7 +268,7 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
       },
       'geometry': {
         'type': 'Point',           // Changed from LineString to Point
-        'coordinates': [lon, lat]  // Changed from [[start], [end]] to [lon, lat]
+        'coordinates': coordinates // Use exact coordinates from API (no transformation/interpolation)
       }
     };
   }).toList();

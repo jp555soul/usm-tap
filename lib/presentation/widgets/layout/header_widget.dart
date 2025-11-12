@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../injection_container.dart' as di;
 import '../panels/holoocean_panel_widget.dart';
 import '../../../data/datasources/local/encrypted_storage_local_datasource.dart';
@@ -282,6 +283,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
               ),
               Wrap(
                 spacing: 8,
+                runSpacing: 4,
                 children: [
                   Text(
                     'USM Maritime Technology Solutions',
@@ -314,6 +316,39 @@ class _HeaderWidgetState extends State<HeaderWidget> {
                       const SizedBox(width: 4),
                       _getConnectionStatusIndicator(),
                     ],
+                  ),
+                  Container(
+                    width: 4,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF64748B),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final version = snapshot.data!.version;
+                        final buildNumber = snapshot.data!.buildNumber;
+                        return Text(
+                          'v$version${buildNumber.isNotEmpty ? ' ($buildNumber)' : ''}',
+                          style: TextStyle(
+                            fontSize: isSmall ? 9 : 10,
+                            color: const Color(0xFF64748B),
+                            fontFamily: 'monospace',
+                          ),
+                        );
+                      }
+                      return Text(
+                        'v...',
+                        style: TextStyle(
+                          fontSize: isSmall ? 9 : 10,
+                          color: const Color(0xFF64748B),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
