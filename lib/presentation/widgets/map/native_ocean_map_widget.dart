@@ -82,6 +82,7 @@ class NativeOceanMapWidget extends StatefulWidget {
 class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   late MapController _mapController;
   Map<String, dynamic>? _selectedStation;
+  Map<String, dynamic>? _selectedVector;
   bool _isLoading = false;
   bool _mapReady = false;
   int _rebuildCount = 0;
@@ -127,6 +128,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       _mapController.dispose();
       _mapReady = false;
       _selectedStation = null;
+      _selectedVector = null;
     } catch (e) {
       debugPrint('⚠️ Error during map disposal: $e');
     } finally {
@@ -487,16 +489,39 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           debugPrint('🎨 VECTOR #${vectors.length + 1}: speed=${speed.toStringAsFixed(4)} | normalized=${normalizedSpeed.toStringAsFixed(4)} | color=rgb(${vectorColor.red},${vectorColor.green},${vectorColor.blue})');
         }
 
+        // Store vector data for tooltip
+        final vectorData = {
+          'lat': lat,
+          'lon': lon,
+          'u': u,
+          'v': v,
+          'speed': speed,
+          'direction': (properties['direction'] as num?)?.toDouble() ?? 0.0,
+          // Try to get additional fields if available
+          'ssh': (properties['ssh'] as num?)?.toDouble(),
+          'depth': (properties['depth'] as num?)?.toDouble(),
+          'time': properties['time']?.toString(),
+        };
+
         vectors.add(
           Marker(
             width: 30,
             height: 30,
             point: LatLng(lat, lon),
-            child: CustomPaint(
-              painter: _VectorArrowPainter(
-                angle: math.atan2(v, u),
-                length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
-                color: vectorColor,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedVector = vectorData;
+                  _selectedStation = null; // Deselect station when selecting vector
+                });
+                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${vectorData['direction']}°');
+              },
+              child: CustomPaint(
+                painter: _VectorArrowPainter(
+                  angle: math.atan2(v, u),
+                  length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
+                  color: vectorColor,
+                ),
               ),
             ),
           ),
@@ -559,10 +584,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             maxZoom: 18.0,
             backgroundColor: const Color(0xFF0F172A),
             onTap: (tapPosition, point) {
-              // Deselect station when tapping on map
-              if (_selectedStation != null) {
+              // Deselect station and vector when tapping on map
+              if (_selectedStation != null || _selectedVector != null) {
                 setState(() {
                   _selectedStation = null;
+                  _selectedVector = null;
                 });
                 widget.onStationSelect?.call(null);
               }
@@ -744,6 +770,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   _selectedStation = null;
                 });
                 widget.onStationSelect?.call(null);
+              },
+            ),
+          ),
+
+        // Vector info overlay
+        if (_selectedVector != null)
+          Positioned(
+            bottom: 10,
+            left: 10,
+            child: _VectorInfoCard(
+              vector: _selectedVector!,
+              onClose: () {
+                setState(() {
+                  _selectedVector = null;
+                });
               },
             ),
           ),
@@ -1013,6 +1054,108 @@ class _InfoRow extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Vector information card widget
+class _VectorInfoCard extends StatelessWidget {
+  final Map<String, dynamic> vector;
+  final VoidCallback onClose;
+
+  const _VectorInfoCard({
+    required this.vector,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lat = (vector['lat'] as num?)?.toDouble();
+    final lon = (vector['lon'] as num?)?.toDouble();
+    final speed = (vector['speed'] as num?)?.toDouble();
+    final direction = (vector['direction'] as num?)?.toDouble();
+    final ssh = (vector['ssh'] as num?)?.toDouble();
+    final depth = (vector['depth'] as num?)?.toDouble();
+    final time = vector['time']?.toString();
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 300),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B).withOpacity(0.95),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF06B6D4).withOpacity(0.5), // Cyan border for currents
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Ocean Current Vector',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                color: Colors.white.withOpacity(0.7),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _InfoRow(
+            label: 'Latitude',
+            value: lat != null ? lat.toStringAsFixed(4) : 'N/A',
+          ),
+          _InfoRow(
+            label: 'Longitude',
+            value: lon != null ? lon.toStringAsFixed(4) : 'N/A',
+          ),
+          _InfoRow(
+            label: 'Speed',
+            value: speed != null ? '${speed.toStringAsFixed(3)} m/s' : 'N/A',
+          ),
+          _InfoRow(
+            label: 'Direction',
+            value: direction != null ? '${direction.toStringAsFixed(1)}°' : 'N/A',
+          ),
+          if (ssh != null)
+            _InfoRow(
+              label: 'SSH',
+              value: '${ssh.toStringAsFixed(3)} m',
+            ),
+          if (depth != null)
+            _InfoRow(
+              label: 'Depth',
+              value: '${depth.toStringAsFixed(1)} m',
+            ),
+          if (time != null)
+            _InfoRow(
+              label: 'Time',
+              value: time,
+            ),
         ],
       ),
     );
