@@ -986,10 +986,10 @@ class _StationInfoCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withOpacity(0.96),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFEC4899).withOpacity(0.4),
+          color: Colors.black.withOpacity(0.4),
           width: 1.5,
         ),
         boxShadow: [
@@ -1011,7 +1011,7 @@ class _StationInfoCard extends StatelessWidget {
                 child: Text(
                   station['name'] ?? 'Unknown Station',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -1020,7 +1020,7 @@ class _StationInfoCard extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.black.withOpacity(0.8),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 20,
@@ -1033,7 +1033,7 @@ class _StationInfoCard extends StatelessWidget {
             Text(
               station['type'],
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.black.withOpacity(0.7),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -1045,9 +1045,9 @@ class _StationInfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.3),
-                  Colors.white.withOpacity(0.1),
+                  Colors.black.withOpacity(0.1),
+                  Colors.black.withOpacity(0.3),
+                  Colors.black.withOpacity(0.1),
                 ],
               ),
             ),
@@ -1069,9 +1069,9 @@ class _StationInfoCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.white.withOpacity(0.1),
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.1),
+                    Colors.black.withOpacity(0.1),
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.1),
                   ],
                 ),
               ),
@@ -1080,7 +1080,7 @@ class _StationInfoCard extends StatelessWidget {
             Text(
               station['description'],
               style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.black.withOpacity(0.85),
                 fontSize: 13,
                 height: 1.4,
               ),
@@ -1112,7 +1112,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             '$label:',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.65),
+              color: Colors.black.withOpacity(0.65),
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -1123,7 +1123,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -1158,10 +1158,10 @@ class _VectorInfoCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withOpacity(0.96),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF06B6D4).withOpacity(0.4), // Cyan border for currents
+          color: Colors.black.withOpacity(0.4),
           width: 1.5,
         ),
         boxShadow: [
@@ -1183,7 +1183,7 @@ class _VectorInfoCard extends StatelessWidget {
                 child: Text(
                   'Ocean Current',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
@@ -1192,7 +1192,7 @@ class _VectorInfoCard extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.black.withOpacity(0.8),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 20,
@@ -1206,9 +1206,9 @@ class _VectorInfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.3),
-                  Colors.white.withOpacity(0.1),
+                  Colors.black.withOpacity(0.1),
+                  Colors.black.withOpacity(0.3),
+                  Colors.black.withOpacity(0.1),
                 ],
               ),
             ),
@@ -1254,9 +1254,9 @@ class _VectorInfoCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.white.withOpacity(0.1),
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.1),
+                    Colors.black.withOpacity(0.1),
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.1),
                   ],
                 ),
               ),
