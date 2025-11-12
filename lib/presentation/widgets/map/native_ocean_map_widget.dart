@@ -511,6 +511,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             child: GestureDetector(
               onTap: () {
                 // Show SnackBar with vector details
+                final direction = (vectorData['direction'] as num?)?.toDouble() ?? 0.0;
+                final ssh = (vectorData['ssh'] as num?)?.toDouble();
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Column(
@@ -518,10 +521,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Lat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}'),
-                        Text('Direction: ${vectorData['direction'].toStringAsFixed(1)}°'),
+                        Text('Direction: ${direction.toStringAsFixed(1)}°'),
                         Text('Speed: ${speed.toStringAsFixed(3)} m/s'),
-                        if (vectorData['ssh'] != null)
-                          Text('SSH: ${vectorData['ssh'].toStringAsFixed(3)} m'),
+                        if (ssh != null)
+                          Text('SSH: ${ssh.toStringAsFixed(3)} m'),
                       ],
                     ),
                     duration: const Duration(seconds: 3),
@@ -529,7 +532,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
-                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${vectorData['direction']}°');
+                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${direction.toStringAsFixed(1)}°');
               },
               child: CustomPaint(
                 painter: _VectorArrowPainter(
