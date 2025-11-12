@@ -326,6 +326,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         // Validate data ranges
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
+        // Debug first 3 coordinate parses
+        if (currentsData.length < 3) {
+          debugPrint('🌊 CURRENT #${currentsData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
+        }
+
         currentsData.add({
           'lat': lat,
           'lon': lon,
@@ -382,6 +387,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Validate data ranges
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
+        // Debug first 3 coordinate parses
+        if (windData.length < 3) {
+          debugPrint('🌬️ WIND #${windData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
+        }
 
         windData.add({
           'lat': lat,
@@ -462,6 +472,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         final speed = math.sqrt(u * u + v * v);
 
         if (speed == 0) continue;
+
+        // Debug coordinate parsing for first 3 vectors
+        if (vectors.length < 3) {
+          debugPrint('🎯 MARKER #${vectors.length + 1}: GeoJSON coords=[$lon,$lat] → LatLng($lat,$lon) | u=$u, v=$v, speed=${speed.toStringAsFixed(4)}');
+        }
 
         // Track speed statistics
         minSpeed = math.min(minSpeed, speed);
