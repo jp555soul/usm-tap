@@ -25,29 +25,55 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     return {'type': 'FeatureCollection', 'features': []};
   }
 
-  // Count data types for debugging
+  // Count data types for debugging and inspect available fields
   int oceanRecords = 0;
   int windRecords = 0;
   int bothRecords = 0;
+  int directionOnly = 0;
+  Set<String> availableFields = {};
 
   for (final row in rawData) {
-    final hasOcean = row['direction'] != null && row['speed'] != null;
+    // Collect all field names from first few records
+    if (availableFields.length < 50) {
+      availableFields.addAll(row.keys);
+    }
+
+    final hasDirection = row['direction'] != null;
+    final hasSpeed = row['speed'] != null;
+    final hasU = row['u'] != null;
+    final hasV = row['v'] != null;
     final hasWind = row['ndirection'] != null && row['nspeed'] != null;
+
+    final hasOcean = hasDirection && hasSpeed;
+    final hasOceanDirection = hasDirection && !hasWind;
+
     if (hasOcean) oceanRecords++;
     if (hasWind) windRecords++;
     if (hasOcean && hasWind) bothRecords++;
+    if (hasOceanDirection) directionOnly++;
   }
-  debugPrint('🌊 DATA ANALYSIS: ocean=$oceanRecords | wind=$windRecords | both=$bothRecords');
+  debugPrint('🌊 DATA ANALYSIS: ocean(dir+speed)=$oceanRecords | wind=$windRecords | both=$bothRecords | directionOnly=$directionOnly');
+  debugPrint('🌊 Available fields (sample): ${availableFields.take(20).join(", ")}');
 
-  // Filter for valid OCEAN current data (require both speed and direction)
-  // IMPORTANT: Use 'speed' (ocean), NOT 'nspeed' (wind)
+  // Sample first record with direction
+  final sampleWithDirection = rawData.firstWhere(
+    (row) => row['direction'] != null,
+    orElse: () => {},
+  );
+  if (sampleWithDirection.isNotEmpty) {
+    debugPrint('🌊 Sample ocean record: direction=${sampleWithDirection['direction']}, speed=${sampleWithDirection['speed']}, u=${sampleWithDirection['u']}, v=${sampleWithDirection['v']}');
+  }
+
+  // Filter for valid OCEAN current data (require direction field)
+  // IMPORTANT: Ocean currents have 'direction' field (NOT 'ndirection' which is wind)
   final validData = rawData.where((row) {
-    final magnitude = row['speed'];      // OCEAN current speed
-    final direction = row['direction'];  // OCEAN current direction
+    final direction = row['direction'];
+    // Ocean current records have 'direction' but NOT 'ndirection'
     return row['lat'] != null &&
            row['lon'] != null &&
-           magnitude != null &&
-           direction != null;
+           direction != null &&
+           direction is num &&
+           row['ndirection'] == null;  // Exclude wind records that have both
   }).toList();
 
   debugPrint('🌊 CURRENTS: Filtered ${validData.length} ocean vectors (excluded ${rawData.length - validData.length} records)');
@@ -58,6 +84,10 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
   // Grid aggregation (0.01 degree resolution)
   final gridData = <String, Map<String, dynamic>>{};
+  int recordsWithSpeed = 0;
+  int recordsWithUV = 0;
+  int recordsWithDefault = 0;
+
   for (final row in validData) {
     final gridLat = ((row['lat'] as num) / 0.01).round() * 0.01;
     final gridLon = ((row['lon'] as num) / 0.01).round() * 0.01;
@@ -72,10 +102,31 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
       };
     }
 
+    // Calculate magnitude from available data
+    double magnitude;
+    if (row['speed'] != null && row['speed'] is num) {
+      // Use explicit speed if available
+      magnitude = (row['speed'] as num).toDouble();
+      recordsWithSpeed++;
+    } else if (row['u'] != null && row['v'] != null &&
+               row['u'] is num && row['v'] is num) {
+      // Calculate magnitude from u/v components
+      final u = (row['u'] as num).toDouble();
+      final v = (row['v'] as num).toDouble();
+      magnitude = math.sqrt(u * u + v * v);
+      recordsWithUV++;
+    } else {
+      // Use a default magnitude for visualization
+      magnitude = 0.5;  // Default ocean current speed in m/s
+      recordsWithDefault++;
+    }
+
     final cell = gridData[key]!;
     (cell['directions'] as List<double>).add((row['direction'] as num).toDouble());
-    (cell['magnitudes'] as List<double>).add((row['speed'] as num).toDouble());  // Changed from 'nspeed' to 'speed'
+    (cell['magnitudes'] as List<double>).add(magnitude);
   }
+
+  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | default=$recordsWithDefault');
 
   // Take latest 1000 points and generate features
   final vectors = gridData.values.take(1000).toList();
