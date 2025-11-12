@@ -510,11 +510,29 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             point: LatLng(lat, lon),
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedVector = vectorData;
-                  _selectedStation = null; // Deselect station when selecting vector
-                });
-                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${vectorData['direction']}°');
+                // Show SnackBar with vector details
+                final direction = (vectorData['direction'] as num?)?.toDouble() ?? 0.0;
+                final ssh = (vectorData['ssh'] as num?)?.toDouble();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Lat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}'),
+                        Text('Direction: ${direction.toStringAsFixed(1)}°'),
+                        Text('Speed: ${speed.toStringAsFixed(3)} m/s'),
+                        if (ssh != null)
+                          Text('SSH: ${ssh.toStringAsFixed(3)} m'),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 3),
+                    backgroundColor: const Color(0xFF1E293B),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${direction.toStringAsFixed(1)}°');
               },
               child: CustomPaint(
                 painter: _VectorArrowPainter(
