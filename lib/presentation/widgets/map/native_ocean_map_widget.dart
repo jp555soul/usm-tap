@@ -829,10 +829,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B).withOpacity(0.9),
+              color: Colors.white.withOpacity(0.98),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: const Color(0xFFEC4899).withOpacity(0.3),
+                color: Colors.black.withOpacity(0.15),
                 width: 1,
               ),
             ),
@@ -844,7 +844,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   Text(
                     widget.currentDate,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1E293B),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -852,24 +852,24 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                 if (widget.currentTime.isNotEmpty)
                   Text(
                     widget.currentTime,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
                       fontSize: 11,
                     ),
                   ),
                 if (widget.selectedDepth > 0)
                   Text(
                     'Depth: ${widget.selectedDepth.toStringAsFixed(1)}m',
-                    style: TextStyle(
-                      color: Colors.cyan.shade300,
+                    style: const TextStyle(
+                      color: Color(0xFF0891B2),
                       fontSize: 11,
                     ),
                   ),
                 if (widget.currentFrame > 0)
                   Text(
                     'Frame: ${widget.currentFrame}/${widget.totalFrames}',
-                    style: TextStyle(
-                      color: Colors.pink.shade300,
+                    style: const TextStyle(
+                      color: Color(0xFFDB2777),
                       fontSize: 11,
                     ),
                   ),
