@@ -122,6 +122,7 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   int recordsWithSpeed = 0;
   int recordsWithUV = 0;
   int recordsWithDefault = 0;
+  int validRecordsLogged = 0;
 
   // Track coordinate and speed ranges for debugging
   double minLat = double.infinity, maxLat = double.negativeInfinity;
@@ -130,8 +131,24 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   double speedSum = 0.0;
 
   for (final row in validData) {
+    // Log first 10 raw data records for coordinate validation
+    if (validRecordsLogged < 10) {
+      final rawLat = (row['lat'] as num?)?.toDouble();
+      final rawLon = (row['lon'] as num?)?.toDouble();
+      final rawDirection = (row['direction'] as num?)?.toDouble();
+      final rawSSH = (row['ssh'] as num?)?.toDouble();
+      debugPrint('🔍 RAW DATA #$validRecordsLogged: lat=$rawLat, lon=$rawLon, direction=$rawDirection, ssh=$rawSSH');
+      validRecordsLogged++;
+    }
+
     final gridLat = ((row['lat'] as num) / 0.01).round() * 0.01;
     final gridLon = ((row['lon'] as num) / 0.01).round() * 0.01;
+
+    // Verify GeoJSON coordinates will use actual lat/lon (gridded to 0.01 degree resolution)
+    if (validRecordsLogged <= 10) {
+      debugPrint('🔍 GEOJSON COORDS (gridded): [lon=$gridLon, lat=$gridLat]');
+    }
+
     final key = '$gridLat,$gridLon';
 
     if (!gridData.containsKey(key)) {
@@ -192,7 +209,8 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
   final avgSpeed = validData.isEmpty ? 0.0 : speedSum / validData.length;
   debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | SSH-based=$recordsWithDefault');
-  debugPrint('🌊 📍 COORDINATE RANGE: lat [${minLat.toStringAsFixed(2)} to ${maxLat.toStringAsFixed(2)}], lon [${minLon.toStringAsFixed(2)} to ${maxLon.toStringAsFixed(2)}]');
+  debugPrint('📍 VECTOR BOUNDS: lat [$minLat, $maxLat], lon [$minLon, $maxLon]');
+  debugPrint('📊 EXPECTED: lat [28-31], lon [-91 to -86] (Gulf of Mexico)');
   debugPrint('⚡ SPEED RANGE: min=${minSpeed.toStringAsFixed(3)}, max=${maxSpeed.toStringAsFixed(3)}, avg=${avgSpeed.toStringAsFixed(3)} m/s');
 
   // Take latest 1000 points and generate features
