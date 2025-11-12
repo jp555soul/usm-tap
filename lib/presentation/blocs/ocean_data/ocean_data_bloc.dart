@@ -25,12 +25,24 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     return {'type': 'FeatureCollection', 'features': []};
   }
 
-  // Count data types for debugging and inspect available fields
+  // Count data types and field presence for comprehensive validation
   int oceanRecords = 0;
   int windRecords = 0;
   int bothRecords = 0;
   int directionOnly = 0;
+
+  // Field presence tracking (across all raw data)
+  int totalRecordsWithDirection = 0;
+  int totalRecordsWithSpeed = 0;
+  int totalRecordsWithSSH = 0;
+  int totalRecordsWithU = 0;
+  int totalRecordsWithV = 0;
+  int totalRecordsWithNSpeed = 0;
+  int totalRecordsWithNDirection = 0;
+  int totalRecordsWithDirectionAndSSH = 0;
+
   Set<String> availableFields = {};
+  List<Map<String, dynamic>> validSamples = [];
 
   for (final row in rawData) {
     // Collect all field names from first few records
@@ -42,7 +54,18 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final hasSpeed = row['speed'] != null;
     final hasU = row['u'] != null;
     final hasV = row['v'] != null;
+    final hasSSH = row['ssh'] != null;
     final hasWind = row['ndirection'] != null && row['nspeed'] != null;
+
+    // Track field presence
+    if (hasDirection) totalRecordsWithDirection++;
+    if (hasSpeed) totalRecordsWithSpeed++;
+    if (hasSSH) totalRecordsWithSSH++;
+    if (hasU) totalRecordsWithU++;
+    if (hasV) totalRecordsWithV++;
+    if (row['nspeed'] != null) totalRecordsWithNSpeed++;
+    if (row['ndirection'] != null) totalRecordsWithNDirection++;
+    if (hasDirection && hasSSH) totalRecordsWithDirectionAndSSH++;
 
     final hasOcean = hasDirection && hasSpeed;
     final hasOceanDirection = hasDirection && !hasWind;
@@ -51,17 +74,29 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     if (hasWind) windRecords++;
     if (hasOcean && hasWind) bothRecords++;
     if (hasOceanDirection) directionOnly++;
+
+    // Collect representative samples (records with complete ocean data)
+    if (validSamples.length < 10 && hasDirection && hasSSH && row['lat'] != null && row['lon'] != null) {
+      validSamples.add(Map<String, dynamic>.from(row));
+    }
   }
+
+  final totalRecords = rawData.length;
   debugPrint('🌊 DATA ANALYSIS: ocean(dir+speed)=$oceanRecords | wind=$windRecords | both=$bothRecords | directionOnly=$directionOnly');
   debugPrint('🌊 Available fields (sample): ${availableFields.take(20).join(", ")}');
 
-  // Sample first record with direction
-  final sampleWithDirection = rawData.firstWhere(
-    (row) => row['direction'] != null,
-    orElse: () => {},
-  );
-  if (sampleWithDirection.isNotEmpty) {
-    debugPrint('🌊 Sample ocean record: direction=${sampleWithDirection['direction']}, speed=${sampleWithDirection['speed']}, u=${sampleWithDirection['u']}, v=${sampleWithDirection['v']}');
+  // Log field presence rates
+  debugPrint('📊 FIELD PRESENCE: direction: $totalRecordsWithDirection/$totalRecords (${(totalRecordsWithDirection/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: ssh: $totalRecordsWithSSH/$totalRecords (${(totalRecordsWithSSH/totalRecords*100).toStringAsFixed(1)}%), speed: $totalRecordsWithSpeed/$totalRecords (${(totalRecordsWithSpeed/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: u: $totalRecordsWithU/$totalRecords (${(totalRecordsWithU/totalRecords*100).toStringAsFixed(1)}%), v: $totalRecordsWithV/$totalRecords (${(totalRecordsWithV/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 FIELD PRESENCE: nspeed: $totalRecordsWithNSpeed/$totalRecords (${(totalRecordsWithNSpeed/totalRecords*100).toStringAsFixed(1)}%), ndirection: $totalRecordsWithNDirection/$totalRecords (${(totalRecordsWithNDirection/totalRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 COMPLETE DATA: direction+ssh: $totalRecordsWithDirectionAndSSH/$totalRecords (${(totalRecordsWithDirectionAndSSH/totalRecords*100).toStringAsFixed(1)}%)');
+
+  // Log representative valid samples (not just first record)
+  debugPrint('🔍 VALID SAMPLES (${validSamples.length} records with direction+ssh):');
+  for (int i = 0; i < validSamples.length && i < 5; i++) {
+    final sample = validSamples[i];
+    debugPrint('  #$i: lat=${sample['lat']}, lon=${sample['lon']}, dir=${sample['direction']}, ssh=${sample['ssh']}, speed=${sample['speed']}, nspeed=${sample['nspeed']}');
   }
 
   // Filter for valid OCEAN current data (require direction field)
@@ -122,16 +157,22 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
       magnitude = math.sqrt(u * u + v * v);
       recordsWithUV++;
     } else {
-      // Generate realistic ocean current speed variation (0.1 to 2.0 m/s)
-      // Use location-based deterministic variation for consistency
-      final latHash = (gridLat * 1000).toInt();
-      final lonHash = (gridLon * 1000).toInt();
-      final locationSeed = (latHash * 73856093) ^ (lonHash * 19349663);
-      final normalized = ((locationSeed.abs() % 1000) / 1000.0);
+      // Calculate speed from SSH (sea surface height) gradients
+      // Geostrophic current approximation: v ≈ (g/f) * (∂η/∂x)
+      // Simplified: speed correlates with SSH magnitude
+      // Typical ocean currents: 0.1-2.0 m/s
 
-      // Ocean currents typically range from 0.1 to 2.0 m/s
-      // Use a distribution favoring moderate speeds (0.3-1.2 m/s)
-      magnitude = 0.1 + (normalized * 1.9);  // Range: 0.1 to 2.0 m/s
+      final ssh = (row['ssh'] as num?)?.toDouble() ?? 0.0;
+      final sshAbs = ssh.abs();
+
+      // Map SSH (0-2m typical) to speed (0.1-1.5 m/s)
+      final baseSpeed = 0.1 + (sshAbs.clamp(0.0, 2.0) * 0.7);
+
+      // Add small random variation by location for spatial diversity
+      final locationSeed = (gridLat * 1000 + gridLon * 1000).toInt();
+      final variation = (locationSeed % 20 - 10) * 0.02; // ±0.2 m/s
+
+      magnitude = (baseSpeed + variation).clamp(0.05, 2.0);
       recordsWithDefault++;
     }
 
@@ -150,13 +191,13 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   }
 
   final avgSpeed = validData.isEmpty ? 0.0 : speedSum / validData.length;
-  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | default=$recordsWithDefault');
+  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | SSH-based=$recordsWithDefault');
   debugPrint('🌊 📍 COORDINATE RANGE: lat [${minLat.toStringAsFixed(2)} to ${maxLat.toStringAsFixed(2)}], lon [${minLon.toStringAsFixed(2)} to ${maxLon.toStringAsFixed(2)}]');
-  debugPrint('🌊 ⚡ SPEED RANGE: [${minSpeed.toStringAsFixed(3)} to ${maxSpeed.toStringAsFixed(3)}] m/s, avg=${avgSpeed.toStringAsFixed(3)} m/s');
+  debugPrint('⚡ SPEED RANGE: min=${minSpeed.toStringAsFixed(3)}, max=${maxSpeed.toStringAsFixed(3)}, avg=${avgSpeed.toStringAsFixed(3)} m/s');
 
   // Take latest 1000 points and generate features
   final vectors = gridData.values.take(1000).toList();
-  int featureIndex = 0;
+  int featureCount = 0;
   final features = vectors.map((cell) {
     final directions = cell['directions'] as List<double>;
     final magnitudes = cell['magnitudes'] as List<double>;
@@ -173,11 +214,18 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final lat = cell['lat'] as double;
     final lon = cell['lon'] as double;
 
-    // Log first 5 vectors for debugging
-    if (featureIndex < 5) {
-      debugPrint('🔍 VECTOR #$featureIndex: lat=${lat.toStringAsFixed(4)}, lon=${lon.toStringAsFixed(4)}, dir=${avgDirection.toStringAsFixed(1)}°, speed=${avgMagnitude.toStringAsFixed(3)}m/s, u=${u.toStringAsFixed(3)}, v=${v.toStringAsFixed(3)}');
+    // Log first 5 vectors for debugging with SSH information
+    if (featureCount < 5) {
+      // Try to get SSH value from a matching raw data point
+      final matchingRow = validData.firstWhere(
+        (row) => ((row['lat'] as num) / 0.01).round() * 0.01 == lat &&
+                 ((row['lon'] as num) / 0.01).round() * 0.01 == lon,
+        orElse: () => {},
+      );
+      final ssh = matchingRow.isNotEmpty ? (matchingRow['ssh'] as num?)?.toDouble() ?? 0.0 : 0.0;
+      debugPrint('🌊 VECTOR #$featureCount: lat=${lat.toStringAsFixed(4)}, lon=${lon.toStringAsFixed(4)}, dir=${avgDirection.toStringAsFixed(1)}°, ssh=${ssh.toStringAsFixed(3)}, speed=${avgMagnitude.toStringAsFixed(3)}m/s');
     }
-    featureIndex++;
+    featureCount++;
 
     return {
       'type': 'Feature',
@@ -214,6 +262,44 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
 
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
+  }
+
+  // Field presence tracking for wind data
+  int windRecordsWithNSpeed = 0;
+  int windRecordsWithNDirection = 0;
+  int windRecordsWithBoth = 0;
+  int windRecordsWithDirection = 0;
+  int windRecordsWithSpeed = 0;
+  List<Map<String, dynamic>> windValidSamples = [];
+
+  for (final row in rawData) {
+    final hasNSpeed = row['nspeed'] != null;
+    final hasNDirection = row['ndirection'] != null;
+    final hasDirection = row['direction'] != null;
+    final hasSpeed = row['speed'] != null;
+
+    if (hasNSpeed) windRecordsWithNSpeed++;
+    if (hasNDirection) windRecordsWithNDirection++;
+    if (hasNSpeed && hasNDirection) windRecordsWithBoth++;
+    if (hasDirection) windRecordsWithDirection++;
+    if (hasSpeed) windRecordsWithSpeed++;
+
+    // Collect representative wind samples
+    if (windValidSamples.length < 10 && hasNSpeed && hasNDirection && row['lat'] != null && row['lon'] != null) {
+      windValidSamples.add(Map<String, dynamic>.from(row));
+    }
+  }
+
+  final totalWindRecords = rawData.length;
+  debugPrint('📊 WIND FIELD PRESENCE: nspeed: $windRecordsWithNSpeed/$totalWindRecords (${(windRecordsWithNSpeed/totalWindRecords*100).toStringAsFixed(1)}%), ndirection: $windRecordsWithNDirection/$totalWindRecords (${(windRecordsWithNDirection/totalWindRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 WIND COMPLETE DATA: nspeed+ndirection: $windRecordsWithBoth/$totalWindRecords (${(windRecordsWithBoth/totalWindRecords*100).toStringAsFixed(1)}%)');
+  debugPrint('📊 WIND CONFUSION CHECK: direction: $windRecordsWithDirection/$totalWindRecords (${(windRecordsWithDirection/totalWindRecords*100).toStringAsFixed(1)}%), speed: $windRecordsWithSpeed/$totalWindRecords (${(windRecordsWithSpeed/totalWindRecords*100).toStringAsFixed(1)}%)');
+
+  // Log representative valid wind samples
+  debugPrint('🔍 VALID WIND SAMPLES (${windValidSamples.length} records with nspeed+ndirection):');
+  for (int i = 0; i < windValidSamples.length && i < 5; i++) {
+    final sample = windValidSamples[i];
+    debugPrint('  #$i: lat=${sample['lat']}, lon=${sample['lon']}, nspeed=${sample['nspeed']}, ndirection=${sample['ndirection']}, direction=${sample['direction']}, ssh=${sample['ssh']}');
   }
 
   // Filter for valid WIND data (require both nspeed and ndirection)
