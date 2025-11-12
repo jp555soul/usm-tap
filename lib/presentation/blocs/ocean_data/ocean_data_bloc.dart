@@ -17,20 +17,40 @@ import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
 
 /// Generates currents GeoJSON in a background isolate
 /// This is a top-level function so it can be used with compute()
+/// OCEAN CURRENTS: Uses 'direction' and 'speed' fields (NOT 'ndirection'/'nspeed')
 Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawData) {
+  debugPrint('🌊 CURRENTS ISOLATE: Processing ${rawData.length} raw data points');
+
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
   }
 
-  // Filter for valid current data (require both magnitude and direction)
+  // Count data types for debugging
+  int oceanRecords = 0;
+  int windRecords = 0;
+  int bothRecords = 0;
+
+  for (final row in rawData) {
+    final hasOcean = row['direction'] != null && row['speed'] != null;
+    final hasWind = row['ndirection'] != null && row['nspeed'] != null;
+    if (hasOcean) oceanRecords++;
+    if (hasWind) windRecords++;
+    if (hasOcean && hasWind) bothRecords++;
+  }
+  debugPrint('🌊 DATA ANALYSIS: ocean=$oceanRecords | wind=$windRecords | both=$bothRecords');
+
+  // Filter for valid OCEAN current data (require both speed and direction)
+  // IMPORTANT: Use 'speed' (ocean), NOT 'nspeed' (wind)
   final validData = rawData.where((row) {
-    final magnitude = row['nspeed'];
-    final direction = row['direction'];
+    final magnitude = row['speed'];      // OCEAN current speed
+    final direction = row['direction'];  // OCEAN current direction
     return row['lat'] != null &&
            row['lon'] != null &&
            magnitude != null &&
            direction != null;
   }).toList();
+
+  debugPrint('🌊 CURRENTS: Filtered ${validData.length} ocean vectors (excluded ${rawData.length - validData.length} records)');
 
   if (validData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
@@ -54,7 +74,7 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
     final cell = gridData[key]!;
     (cell['directions'] as List<double>).add((row['direction'] as num).toDouble());
-    (cell['magnitudes'] as List<double>).add((row['nspeed'] as num).toDouble());
+    (cell['magnitudes'] as List<double>).add((row['speed'] as num).toDouble());  // Changed from 'nspeed' to 'speed'
   }
 
   // Take latest 1000 points and generate features
@@ -90,38 +110,40 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     };
   }).toList();
 
+  debugPrint('🌊 CURRENTS ISOLATE: Generated ${features.length} ocean current features');
+
   return {
     'type': 'FeatureCollection',
     'features': features,
     'metadata': {
       'vectorCount': features.length,
-      'message': 'Generated in background isolate'
+      'dataType': 'ocean_currents',
+      'message': 'Ocean currents (direction + speed fields)'
     }
   };
 }
 
 /// Generates wind velocity GeoJSON in a background isolate
-/// Uses 'ndirection' instead of 'direction' for wind data
+/// WIND: Uses 'ndirection' and 'nspeed' fields (NOT 'direction'/'speed')
 Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> rawData) {
-  debugPrint('WIND ISOLATE: Processing ${rawData.length} raw data points');
-  final sampleRow = rawData.isNotEmpty ? rawData.first : null;
-  debugPrint('WIND ISOLATE: Sample row has nspeed=${sampleRow?['nspeed']}, ndirection=${sampleRow?['ndirection']}');
+  debugPrint('🌬️ WIND ISOLATE: Processing ${rawData.length} raw data points');
 
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
   }
 
-  // Filter for valid wind data (require both nspeed and ndirection)
+  // Filter for valid WIND data (require both nspeed and ndirection)
+  // IMPORTANT: Use 'nspeed' and 'ndirection' (wind), NOT 'speed'/'direction' (ocean)
   final validData = rawData.where((row) {
-    final magnitude = row['nspeed'];
-    final direction = row['ndirection'];  // WIND uses ndirection
+    final magnitude = row['nspeed'];      // WIND speed
+    final direction = row['ndirection'];  // WIND direction
     return row['lat'] != null &&
            row['lon'] != null &&
            magnitude != null &&
            direction != null;
   }).toList();
 
-  debugPrint('WIND ISOLATE: Found ${validData.length} valid wind data points');
+  debugPrint('🌬️ WIND: Filtered ${validData.length} wind vectors (excluded ${rawData.length - validData.length} records)');
 
   if (validData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
@@ -181,12 +203,15 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
     };
   }).toList();
 
+  debugPrint('🌬️ WIND ISOLATE: Generated ${features.length} wind velocity features');
+
   return {
     'type': 'FeatureCollection',
     'features': features,
     'metadata': {
       'vectorCount': features.length,
-      'message': 'Wind velocity generated in background isolate'
+      'dataType': 'wind_velocity',
+      'message': 'Wind velocity (ndirection + nspeed fields)'
     }
   };
 }
