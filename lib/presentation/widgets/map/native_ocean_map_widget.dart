@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'dart:async';
 import 'dart:math' as math;
 
 /// Native Flutter widget that displays ocean data on a map using flutter_map
@@ -84,11 +83,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   late MapController _mapController;
   Map<String, dynamic>? _selectedStation;
   Map<String, dynamic>? _selectedVector;
-  Timer? _hoverDebounce;
   bool _isLoading = false;
   bool _mapReady = false;
   int _rebuildCount = 0;
   DateTime? _lastUpdateTime;
+
+  // Marker caching to prevent rebuild when only tooltip changes
+  List<Marker>? _cachedCurrentsMarkers;
+  Map<String, dynamic>? _lastCurrentsGeoJSON;
 
   @override
   void initState() {
@@ -127,11 +129,12 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void dispose() {
     try {
       debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode | Rebuilds: $_rebuildCount');
-      _hoverDebounce?.cancel();
       _mapController.dispose();
       _mapReady = false;
       _selectedStation = null;
       _selectedVector = null;
+      _cachedCurrentsMarkers = null;
+      _lastCurrentsGeoJSON = null;
     } catch (e) {
       debugPrint('⚠️ Error during map disposal: $e');
     } finally {
@@ -421,6 +424,13 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       return [];
     }
 
+    // Return cache if GeoJSON unchanged
+    if (_cachedCurrentsMarkers != null &&
+        _lastCurrentsGeoJSON == widget.currentsGeoJSON) {
+      debugPrint('🎯 CACHE HIT: Reusing cached markers (${_cachedCurrentsMarkers!.length} markers)');
+      return _cachedCurrentsMarkers!;
+    }
+
     final List<Marker> vectors = [];
     // Debug tracking
     double minSpeed = double.infinity;
@@ -528,31 +538,26 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             point: LatLng(lat, lon),
             child: MouseRegion(
               onEnter: (_) {
-                debugPrint('🖱️ HOVER ENTER: Vector at lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}');
-                _hoverDebounce?.cancel();
-                _hoverDebounce = Timer(const Duration(milliseconds: 150), () {
-                  if (mounted) {
-                    debugPrint('🖱️ Setting _selectedVector: ${{'lat': lat, 'lon': lon, 'speed': speed, 'direction': math.atan2(v, u) * 180 / math.pi, 'ssh': vectorData['ssh']}.toString()}');
-                    setState(() {
-                      _selectedVector = {
-                        'lat': lat,
-                        'lon': lon,
-                        'speed': speed,
-                        'direction': math.atan2(v, u) * 180 / math.pi,
-                        'ssh': vectorData['ssh'],
-                      };
-                    });
-                    debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
-                  }
-                });
+                if (mounted) {
+                  debugPrint('🖱️ HOVER ENTER: Vector at lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}');
+                  setState(() {
+                    _selectedVector = {
+                      'lat': lat,
+                      'lon': lon,
+                      'speed': speed,
+                      'direction': math.atan2(v, u) * 180 / math.pi,
+                      'ssh': vectorData['ssh'],
+                    };
+                  });
+                }
               },
               onExit: (_) {
-                _hoverDebounce?.cancel();
-                debugPrint('🖱️ HOVER EXIT: Clearing _selectedVector');
-                setState(() {
-                  _selectedVector = null;
-                });
-                debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
+                if (mounted) {
+                  debugPrint('🖱️ HOVER EXIT: Clearing _selectedVector');
+                  setState(() {
+                    _selectedVector = null;
+                  });
+                }
               },
               child: GestureDetector(
                 onTap: () {
@@ -588,6 +593,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       debugPrint('⚠️ Error building current vectors: $e');
       debugPrint('Stack trace: $stackTrace');
     }
+
+    // Cache results
+    _cachedCurrentsMarkers = vectors;
+    _lastCurrentsGeoJSON = widget.currentsGeoJSON;
+    debugPrint('💾 CACHE UPDATE: Cached ${vectors.length} markers');
 
     return vectors;
   }
