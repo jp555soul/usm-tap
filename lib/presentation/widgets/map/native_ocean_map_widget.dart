@@ -334,7 +334,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Debug first 3 coordinate parses
         if (currentsData.length < 3) {
-          debugPrint('🌊 CURRENT #${currentsData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
+          //debugPrint('🌊 CURRENT #${currentsData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
         }
 
         currentsData.add({
@@ -396,7 +396,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Debug first 3 coordinate parses
         if (windData.length < 3) {
-          debugPrint('🌬️ WIND #${windData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
+          //debugPrint('🌬️ WIND #${windData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
         }
 
         windData.add({
@@ -488,7 +488,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Debug coordinate parsing for first 3 vectors
         if (vectors.length < 3) {
-          debugPrint('🎯 MARKER #${vectors.length + 1}: GeoJSON coords=[$lon,$lat] → LatLng($lat,$lon) | u=$u, v=$v, speed=${speed.toStringAsFixed(4)}');
+          //debugPrint('🎯 MARKER #${vectors.length + 1}: GeoJSON coords=[$lon,$lat] → LatLng($lat,$lon) | u=$u, v=$v, speed=${speed.toStringAsFixed(4)}');
         }
 
         // Track speed statistics

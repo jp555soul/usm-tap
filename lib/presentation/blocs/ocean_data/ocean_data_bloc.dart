@@ -153,7 +153,7 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
     // Verify GeoJSON coordinates will use actual lat/lon (gridded to 0.01 degree resolution)
     if (validRecordsLogged <= 10) {
-      debugPrint('🔍 GEOJSON COORDS (gridded): [lon=$gridLon, lat=$gridLat]');
+      //debugPrint('🔍 GEOJSON COORDS (gridded): [lon=$gridLon, lat=$gridLat]');
     }
 
     final key = '$gridLat,$gridLon';
@@ -242,7 +242,7 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
     // Log first 5 features with API to GeoJSON coordinate mapping
     if (featureCount < 5) {
-      debugPrint('🌊 FEATURE #$featureCount: API(lat=$lat, lon=$lon) → GeoJSON coords=$coordinates');
+      //debugPrint('🌊 FEATURE #$featureCount: API(lat=$lat, lon=$lon) → GeoJSON coords=$coordinates');
     }
 
     // Log first 5 vectors for debugging with SSH information
