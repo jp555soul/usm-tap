@@ -971,6 +971,7 @@ class _MapButton extends StatelessWidget {
 }
 
 /// Station information card widget
+// Updated: 2025-11-12 - White background tooltips
 class _StationInfoCard extends StatelessWidget {
   final Map<String, dynamic> station;
   final VoidCallback onClose;
@@ -989,7 +990,7 @@ class _StationInfoCard extends StatelessWidget {
         color: Colors.white.withOpacity(0.98),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withOpacity(0.1),
           width: 1.5,
         ),
         boxShadow: [
@@ -1135,6 +1136,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 /// Vector information card widget
+// Updated: 2025-11-12 - White background tooltips
 class _VectorInfoCard extends StatelessWidget {
   final Map<String, dynamic> vector;
   final VoidCallback onClose;
@@ -1161,7 +1163,7 @@ class _VectorInfoCard extends StatelessWidget {
         color: Colors.white.withOpacity(0.98),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withOpacity(0.1),
           width: 1.5,
         ),
         boxShadow: [
