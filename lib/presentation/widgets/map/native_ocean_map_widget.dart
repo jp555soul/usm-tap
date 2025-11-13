@@ -83,6 +83,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   late MapController _mapController;
   Map<String, dynamic>? _selectedStation;
   Map<String, dynamic>? _selectedVector;
+  Map<String, dynamic>? _hoveredDataPoint;
   bool _isLoading = false;
   bool _mapReady = false;
   int _rebuildCount = 0;
@@ -622,6 +623,58 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     return Colors.cyan.shade400;
   }
 
+  /// Find nearest data point for heatmap hover tooltip
+  Map<String, dynamic>? _findNearestDataPoint(double lat, double lon, String layer) {
+    if (widget.rawData.isEmpty) return null;
+
+    const maxDistance = 0.1; // degrees - threshold for hover detection
+    double minDist = double.infinity;
+    Map<String, dynamic>? nearest;
+
+    // Map layer names to data field names
+    final fieldMap = {
+      'temperature': 'temp',
+      'salinity': 'salinity',
+      'ssh': 'ssh',
+      'pressure': 'pressure_dbars',
+    };
+
+    final dataField = fieldMap[layer];
+    if (dataField == null) return null;
+
+    for (final point in widget.rawData) {
+      if (point == null) continue;
+
+      final pointLat = (point['lat'] as num?)?.toDouble();
+      final pointLon = (point['lon'] as num?)?.toDouble();
+      final value = (point[dataField] as num?)?.toDouble();
+
+      if (pointLat == null || pointLon == null || value == null) continue;
+
+      // Validate coordinates
+      if (pointLat < -90 || pointLat > 90 || pointLon < -180 || pointLon > 180) continue;
+
+      // Calculate distance
+      final dist = math.sqrt(
+        math.pow(lat - pointLat, 2) + math.pow(lon - pointLon, 2),
+      );
+
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = {
+          'lat': pointLat,
+          'lon': pointLon,
+          'value': value,
+          'layer': layer,
+          'field': dataField,
+        };
+      }
+    }
+
+    // Only return if within threshold
+    return minDist < maxDistance ? nearest : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('🗺️ MAP BUILD: rawData.length=${widget.rawData.length}');
@@ -680,64 +733,168 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Temperature heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'temp',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
+          MouseRegion(
+            onHover: (event) {
+              final screenX = event.position.dx;
+              final screenY = event.position.dy;
+
+              // Convert screen position to lat/lon
+              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+
+              // Find nearest data point
+              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
+
+              if (mounted && dataPoint != null) {
+                setState(() {
+                  _hoveredDataPoint = dataPoint;
+                  _selectedVector = null; // Clear vector selection when hovering heatmap
+                });
+              }
+            },
+            onExit: (_) {
+              if (mounted) {
+                setState(() {
+                  _hoveredDataPoint = null;
+                });
+              }
+            },
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: HeatmapPainter(
+                    rawData: widget.rawData,
+                    dataField: 'temp',
+                    heatmapScale: widget.heatmapScale,
+                    camera: _mapController.camera,
+                  ),
+                  size: Size.infinite,
                 ),
-                size: Size.infinite,
               ),
             ),
           ),
 
         // Salinity heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'salinity',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
+          MouseRegion(
+            onHover: (event) {
+              final screenX = event.position.dx;
+              final screenY = event.position.dy;
+
+              // Convert screen position to lat/lon
+              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+
+              // Find nearest data point
+              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
+
+              if (mounted && dataPoint != null) {
+                setState(() {
+                  _hoveredDataPoint = dataPoint;
+                  _selectedVector = null; // Clear vector selection when hovering heatmap
+                });
+              }
+            },
+            onExit: (_) {
+              if (mounted) {
+                setState(() {
+                  _hoveredDataPoint = null;
+                });
+              }
+            },
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: HeatmapPainter(
+                    rawData: widget.rawData,
+                    dataField: 'salinity',
+                    heatmapScale: widget.heatmapScale,
+                    camera: _mapController.camera,
+                  ),
+                  size: Size.infinite,
                 ),
-                size: Size.infinite,
               ),
             ),
           ),
 
         // SSH heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'ssh',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
+          MouseRegion(
+            onHover: (event) {
+              final screenX = event.position.dx;
+              final screenY = event.position.dy;
+
+              // Convert screen position to lat/lon
+              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+
+              // Find nearest data point
+              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
+
+              if (mounted && dataPoint != null) {
+                setState(() {
+                  _hoveredDataPoint = dataPoint;
+                  _selectedVector = null; // Clear vector selection when hovering heatmap
+                });
+              }
+            },
+            onExit: (_) {
+              if (mounted) {
+                setState(() {
+                  _hoveredDataPoint = null;
+                });
+              }
+            },
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: HeatmapPainter(
+                    rawData: widget.rawData,
+                    dataField: 'ssh',
+                    heatmapScale: widget.heatmapScale,
+                    camera: _mapController.camera,
+                  ),
+                  size: Size.infinite,
                 ),
-                size: Size.infinite,
               ),
             ),
           ),
 
         // Pressure heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: HeatmapPainter(
-                  rawData: widget.rawData,
-                  dataField: 'pressure_dbars',
-                  heatmapScale: widget.heatmapScale,
-                  camera: _mapController.camera,
+          MouseRegion(
+            onHover: (event) {
+              final screenX = event.position.dx;
+              final screenY = event.position.dy;
+
+              // Convert screen position to lat/lon
+              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+
+              // Find nearest data point
+              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
+
+              if (mounted && dataPoint != null) {
+                setState(() {
+                  _hoveredDataPoint = dataPoint;
+                  _selectedVector = null; // Clear vector selection when hovering heatmap
+                });
+              }
+            },
+            onExit: (_) {
+              if (mounted) {
+                setState(() {
+                  _hoveredDataPoint = null;
+                });
+              }
+            },
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: HeatmapPainter(
+                    rawData: widget.rawData,
+                    dataField: 'pressure_dbars',
+                    heatmapScale: widget.heatmapScale,
+                    camera: _mapController.camera,
+                  ),
+                  size: Size.infinite,
                 ),
-                size: Size.infinite,
               ),
             ),
           ),
@@ -837,8 +994,27 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             ),
           ),
 
+        // Heatmap data point info overlay (takes precedence over vector)
+        if (_hoveredDataPoint != null)
+          Positioned(
+            bottom: 80,
+            left: 20,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              child: _HeatmapInfoCard(
+                dataPoint: _hoveredDataPoint!,
+                onClose: () {
+                  setState(() {
+                    _hoveredDataPoint = null;
+                  });
+                },
+              ),
+            ),
+          ),
+
         // Vector info overlay
-        if (_selectedVector != null) ...[
+        if (_selectedVector != null && _hoveredDataPoint == null) ...[
           () {
             debugPrint('🎯 OVERLAY CHECK: _selectedVector=${_selectedVector != null ? "SHOWING" : "HIDDEN"}');
             debugPrint('📍 Rendering tooltip at bottom:80, left:20');
@@ -1308,6 +1484,127 @@ class _VectorInfoCard extends StatelessWidget {
               value: time,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Heatmap data point information card widget
+class _HeatmapInfoCard extends StatelessWidget {
+  final Map<String, dynamic> dataPoint;
+  final VoidCallback onClose;
+
+  const _HeatmapInfoCard({
+    required this.dataPoint,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lat = (dataPoint['lat'] as num?)?.toDouble();
+    final lon = (dataPoint['lon'] as num?)?.toDouble();
+    final value = (dataPoint['value'] as num?)?.toDouble();
+    final layer = dataPoint['layer'] as String?;
+    final field = dataPoint['field'] as String?;
+
+    // Get layer display name and unit
+    String layerName = 'Unknown';
+    String unit = '';
+
+    switch (layer) {
+      case 'temperature':
+        layerName = 'Temperature';
+        unit = '°C';
+        break;
+      case 'salinity':
+        layerName = 'Salinity';
+        unit = 'PSU';
+        break;
+      case 'ssh':
+        layerName = 'Sea Surface Height';
+        unit = 'm';
+        break;
+      case 'pressure':
+        layerName = 'Pressure';
+        unit = 'dbar';
+        break;
+    }
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.98),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.black.withOpacity(0.1),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  layerName,
+                  style: const TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: const Color(0xFF64748B),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                splashRadius: 20,
+                onPressed: onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF64748B).withOpacity(0.1),
+                  const Color(0xFF64748B).withOpacity(0.2),
+                  const Color(0xFF64748B).withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _InfoRow(
+            label: 'Latitude',
+            value: lat != null ? lat.toStringAsFixed(4) : 'N/A',
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: 'Longitude',
+            value: lon != null ? lon.toStringAsFixed(4) : 'N/A',
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: 'Value',
+            value: value != null ? '${value.toStringAsFixed(2)} $unit' : 'N/A',
+          ),
         ],
       ),
     );
