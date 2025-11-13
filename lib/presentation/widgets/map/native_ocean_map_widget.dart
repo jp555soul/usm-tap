@@ -841,16 +841,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_selectedVector != null) ...[
           () {
             debugPrint('🎯 OVERLAY CHECK: _selectedVector=${_selectedVector != null ? "SHOWING" : "HIDDEN"}');
+            debugPrint('📍 Rendering tooltip at bottom:80, left:20');
             return Positioned(
-              bottom: 10,
-              left: 10,
-              child: _VectorInfoCard(
-                vector: _selectedVector!,
-                onClose: () {
-                  setState(() {
-                    _selectedVector = null;
-                  });
-                },
+              bottom: 80,
+              left: 20,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                child: _VectorInfoCard(
+                  vector: _selectedVector!,
+                  onClose: () {
+                    setState(() {
+                      _selectedVector = null;
+                    });
+                  },
+                ),
               ),
             );
           }(),
