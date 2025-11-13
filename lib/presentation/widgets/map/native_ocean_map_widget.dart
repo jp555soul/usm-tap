@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
 import 'dart:math' as math;
 
 /// Native Flutter widget that displays ocean data on a map using flutter_map
@@ -83,6 +84,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   late MapController _mapController;
   Map<String, dynamic>? _selectedStation;
   Map<String, dynamic>? _selectedVector;
+  Timer? _hoverDebounce;
   bool _isLoading = false;
   bool _mapReady = false;
   int _rebuildCount = 0;
@@ -125,6 +127,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void dispose() {
     try {
       debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode | Rebuilds: $_rebuildCount');
+      _hoverDebounce?.cancel();
       _mapController.dispose();
       _mapReady = false;
       _selectedStation = null;
@@ -526,19 +529,25 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             child: MouseRegion(
               onEnter: (_) {
                 debugPrint('🖱️ HOVER ENTER: Vector at lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}');
-                debugPrint('🖱️ Setting _selectedVector: ${{'lat': lat, 'lon': lon, 'speed': speed, 'direction': math.atan2(v, u) * 180 / math.pi, 'ssh': vectorData['ssh']}.toString()}');
-                setState(() {
-                  _selectedVector = {
-                    'lat': lat,
-                    'lon': lon,
-                    'speed': speed,
-                    'direction': math.atan2(v, u) * 180 / math.pi,
-                    'ssh': vectorData['ssh'],
-                  };
+                _hoverDebounce?.cancel();
+                _hoverDebounce = Timer(const Duration(milliseconds: 150), () {
+                  if (mounted) {
+                    debugPrint('🖱️ Setting _selectedVector: ${{'lat': lat, 'lon': lon, 'speed': speed, 'direction': math.atan2(v, u) * 180 / math.pi, 'ssh': vectorData['ssh']}.toString()}');
+                    setState(() {
+                      _selectedVector = {
+                        'lat': lat,
+                        'lon': lon,
+                        'speed': speed,
+                        'direction': math.atan2(v, u) * 180 / math.pi,
+                        'ssh': vectorData['ssh'],
+                      };
+                    });
+                    debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
+                  }
                 });
-                debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
               },
               onExit: (_) {
+                _hoverDebounce?.cancel();
                 debugPrint('🖱️ HOVER EXIT: Clearing _selectedVector');
                 setState(() {
                   _selectedVector = null;
