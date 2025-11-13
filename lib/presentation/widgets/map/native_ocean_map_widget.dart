@@ -543,7 +543,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                       ],
                     ),
                     duration: const Duration(seconds: 3),
-                    backgroundColor: const Color(0xFF1E293B),
+                    backgroundColor: Colors.white,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -714,18 +714,18 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Particle animation layer for ocean currents (overlay)
         if (_mapReady && (widget.mapLayerVisibility['oceanCurrents'] ?? false))
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: ParticlePainter(
-                  currentsData: _extractCurrentsData(),
-                  camera: _mapController.camera,
-                  vectorScale: widget.currentsVectorScale,
-                ),
-                size: Size.infinite,
-              ),
-            ),
-          ),
+          // IgnorePointer(
+          //   child: RepaintBoundary(
+          //     child: CustomPaint(
+          //       painter: ParticlePainter(
+          //         currentsData: _extractCurrentsData(),
+          //         camera: _mapController.camera,
+          //         vectorScale: widget.currentsVectorScale,
+          //       ),
+          //       size: Size.infinite,
+          //     ),
+          //   ),
+          // ),
 
         // Particle animation layer for wind velocity (overlay)
         if (_mapReady && (widget.mapLayerVisibility['windVelocity'] ?? false))
