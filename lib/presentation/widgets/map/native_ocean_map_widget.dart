@@ -523,31 +523,22 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             width: 30,
             height: 30,
             point: LatLng(lat, lon),
-            child: GestureDetector(
-              onTap: () {
-                // Show SnackBar with vector details
-                final direction = (vectorData['direction'] as num?)?.toDouble() ?? 0.0;
-                final ssh = (vectorData['ssh'] as num?)?.toDouble();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Lat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}'),
-                        Text('Direction: ${direction.toStringAsFixed(1)}°'),
-                        Text('Speed: ${speed.toStringAsFixed(3)} m/s'),
-                        if (ssh != null)
-                          Text('SSH: ${ssh.toStringAsFixed(3)} m'),
-                      ],
-                    ),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: Colors.white,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                debugPrint('🎯 Vector selected: lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}m/s, dir=${direction.toStringAsFixed(1)}°');
+            child: MouseRegion(
+              onEnter: (_) {
+                setState(() {
+                  _selectedVector = {
+                    'lat': lat,
+                    'lon': lon,
+                    'speed': speed,
+                    'direction': math.atan2(v, u) * 180 / math.pi,
+                    'ssh': vectorData['ssh'],
+                  };
+                });
+              },
+              onExit: (_) {
+                setState(() {
+                  _selectedVector = null;
+                });
               },
               child: CustomPaint(
                 painter: _VectorArrowPainter(
