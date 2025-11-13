@@ -1615,6 +1615,7 @@ class ParticlePainter extends CustomPainter {
 
   /// Get velocity at nearest data point
   Map<String, double>? _getNearestVelocity(double lat, double lon) {
+    const maxDistance = 0.25; // degrees - threshold to prevent land particles
     double minDist = double.infinity;
     Map<String, double>? nearest;
 
@@ -1636,7 +1637,8 @@ class ParticlePainter extends CustomPainter {
       }
     }
 
-    return nearest;
+    // Only return velocity if within ocean area
+    return minDist < maxDistance ? nearest : null;
   }
 
   /// Get particle color based on speed
