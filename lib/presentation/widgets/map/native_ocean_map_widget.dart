@@ -525,6 +525,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             point: LatLng(lat, lon),
             child: MouseRegion(
               onEnter: (_) {
+                debugPrint('🖱️ HOVER ENTER: Vector at lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}');
+                debugPrint('🖱️ Setting _selectedVector: ${{'lat': lat, 'lon': lon, 'speed': speed, 'direction': math.atan2(v, u) * 180 / math.pi, 'ssh': vectorData['ssh']}.toString()}');
                 setState(() {
                   _selectedVector = {
                     'lat': lat,
@@ -534,17 +536,34 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                     'ssh': vectorData['ssh'],
                   };
                 });
+                debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
               },
               onExit: (_) {
+                debugPrint('🖱️ HOVER EXIT: Clearing _selectedVector');
                 setState(() {
                   _selectedVector = null;
                 });
+                debugPrint('🖱️ After setState: _selectedVector = ${_selectedVector.toString()}');
               },
-              child: CustomPaint(
-                painter: _VectorArrowPainter(
-                  angle: math.atan2(v, u),
-                  length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
-                  color: vectorColor,
+              child: GestureDetector(
+                onTap: () {
+                  debugPrint('👆 TAP: Vector clicked at lat=$lat, lon=$lon');
+                  setState(() {
+                    _selectedVector = {
+                      'lat': lat,
+                      'lon': lon,
+                      'speed': speed,
+                      'direction': math.atan2(v, u) * 180 / math.pi,
+                      'ssh': vectorData['ssh'],
+                    };
+                  });
+                },
+                child: CustomPaint(
+                  painter: _VectorArrowPainter(
+                    angle: math.atan2(v, u),
+                    length: (speed * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
+                    color: vectorColor,
+                  ),
                 ),
               ),
             ),
@@ -589,6 +608,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     debugPrint('🗺️ MAP BUILD: rawData.length=${widget.rawData.length}');
     debugPrint('🗺️ MAP BUILD: temperature=${widget.mapLayerVisibility['temperature']}');
     debugPrint('🗺️ MAP BUILD: stationData=${widget.stationData.length}, currentsGeoJSON=${widget.currentsGeoJSON.isNotEmpty}');
+    debugPrint('🏗️ BUILD: _selectedVector is ${_selectedVector != null ? "SET" : "NULL"}');
 
     // Build map tile URL with Mapbox token
     final mapboxStyleUrl = 'https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${widget.mapboxToken}';
@@ -799,19 +819,23 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
 
         // Vector info overlay
-        if (_selectedVector != null)
-          Positioned(
-            bottom: 10,
-            left: 10,
-            child: _VectorInfoCard(
-              vector: _selectedVector!,
-              onClose: () {
-                setState(() {
-                  _selectedVector = null;
-                });
-              },
-            ),
-          ),
+        if (_selectedVector != null) ...[
+          () {
+            debugPrint('🎯 OVERLAY CHECK: _selectedVector=${_selectedVector != null ? "SHOWING" : "HIDDEN"}');
+            return Positioned(
+              bottom: 10,
+              left: 10,
+              child: _VectorInfoCard(
+                vector: _selectedVector!,
+                onClose: () {
+                  setState(() {
+                    _selectedVector = null;
+                  });
+                },
+              ),
+            );
+          }(),
+        ],
 
         // Map info overlay (date/time, depth, etc.)
         Positioned(
