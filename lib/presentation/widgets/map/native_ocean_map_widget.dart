@@ -675,6 +675,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     return minDist < maxDistance ? nearest : null;
   }
 
+  /// Convert screen coordinates to lat/lng using camera bounds
+  LatLng _screenToLatLng(double screenX, double screenY, Size size) {
+    final bounds = _mapController.camera.visibleBounds;
+
+    // Calculate relative position (0 to 1)
+    final relativeX = screenX / size.width;
+    final relativeY = screenY / size.height;
+
+    // Convert to lat/lng
+    final lon = bounds.west + (bounds.east - bounds.west) * relativeX;
+    final lat = bounds.north - (bounds.north - bounds.south) * relativeY;
+
+    return LatLng(lat, lon);
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('🗺️ MAP BUILD: rawData.length=${widget.rawData.length}');
@@ -733,170 +748,190 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         // Temperature heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
-          MouseRegion(
-            onHover: (event) {
-              final screenX = event.position.dx;
-              final screenY = event.position.dy;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return MouseRegion(
+                onHover: (event) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  final screenX = event.localPosition.dx;
+                  final screenY = event.localPosition.dy;
 
-              // Convert screen position to lat/lon
-              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+                  // Convert screen position to lat/lon
+                  final latLng = _screenToLatLng(screenX, screenY, size);
 
-              // Find nearest data point
-              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
+                  // Find nearest data point
+                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
 
-              if (mounted && dataPoint != null) {
-                setState(() {
-                  _hoveredDataPoint = dataPoint;
-                  _selectedVector = null; // Clear vector selection when hovering heatmap
-                });
-              }
-            },
-            onExit: (_) {
-              if (mounted) {
-                setState(() {
-                  _hoveredDataPoint = null;
-                });
-              }
-            },
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: HeatmapPainter(
-                    rawData: widget.rawData,
-                    dataField: 'temp',
-                    heatmapScale: widget.heatmapScale,
-                    camera: _mapController.camera,
+                  if (mounted && dataPoint != null) {
+                    setState(() {
+                      _hoveredDataPoint = dataPoint;
+                      _selectedVector = null; // Clear vector selection when hovering heatmap
+                    });
+                  }
+                },
+                onExit: (_) {
+                  if (mounted) {
+                    setState(() {
+                      _hoveredDataPoint = null;
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: HeatmapPainter(
+                        rawData: widget.rawData,
+                        dataField: 'temp',
+                        heatmapScale: widget.heatmapScale,
+                        camera: _mapController.camera,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
         // Salinity heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
-          MouseRegion(
-            onHover: (event) {
-              final screenX = event.position.dx;
-              final screenY = event.position.dy;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return MouseRegion(
+                onHover: (event) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  final screenX = event.localPosition.dx;
+                  final screenY = event.localPosition.dy;
 
-              // Convert screen position to lat/lon
-              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+                  // Convert screen position to lat/lon
+                  final latLng = _screenToLatLng(screenX, screenY, size);
 
-              // Find nearest data point
-              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
+                  // Find nearest data point
+                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
 
-              if (mounted && dataPoint != null) {
-                setState(() {
-                  _hoveredDataPoint = dataPoint;
-                  _selectedVector = null; // Clear vector selection when hovering heatmap
-                });
-              }
-            },
-            onExit: (_) {
-              if (mounted) {
-                setState(() {
-                  _hoveredDataPoint = null;
-                });
-              }
-            },
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: HeatmapPainter(
-                    rawData: widget.rawData,
-                    dataField: 'salinity',
-                    heatmapScale: widget.heatmapScale,
-                    camera: _mapController.camera,
+                  if (mounted && dataPoint != null) {
+                    setState(() {
+                      _hoveredDataPoint = dataPoint;
+                      _selectedVector = null; // Clear vector selection when hovering heatmap
+                    });
+                  }
+                },
+                onExit: (_) {
+                  if (mounted) {
+                    setState(() {
+                      _hoveredDataPoint = null;
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: HeatmapPainter(
+                        rawData: widget.rawData,
+                        dataField: 'salinity',
+                        heatmapScale: widget.heatmapScale,
+                        camera: _mapController.camera,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
         // SSH heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
-          MouseRegion(
-            onHover: (event) {
-              final screenX = event.position.dx;
-              final screenY = event.position.dy;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return MouseRegion(
+                onHover: (event) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  final screenX = event.localPosition.dx;
+                  final screenY = event.localPosition.dy;
 
-              // Convert screen position to lat/lon
-              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+                  // Convert screen position to lat/lon
+                  final latLng = _screenToLatLng(screenX, screenY, size);
 
-              // Find nearest data point
-              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
+                  // Find nearest data point
+                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
 
-              if (mounted && dataPoint != null) {
-                setState(() {
-                  _hoveredDataPoint = dataPoint;
-                  _selectedVector = null; // Clear vector selection when hovering heatmap
-                });
-              }
-            },
-            onExit: (_) {
-              if (mounted) {
-                setState(() {
-                  _hoveredDataPoint = null;
-                });
-              }
-            },
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: HeatmapPainter(
-                    rawData: widget.rawData,
-                    dataField: 'ssh',
-                    heatmapScale: widget.heatmapScale,
-                    camera: _mapController.camera,
+                  if (mounted && dataPoint != null) {
+                    setState(() {
+                      _hoveredDataPoint = dataPoint;
+                      _selectedVector = null; // Clear vector selection when hovering heatmap
+                    });
+                  }
+                },
+                onExit: (_) {
+                  if (mounted) {
+                    setState(() {
+                      _hoveredDataPoint = null;
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: HeatmapPainter(
+                        rawData: widget.rawData,
+                        dataField: 'ssh',
+                        heatmapScale: widget.heatmapScale,
+                        camera: _mapController.camera,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
         // Pressure heatmap layer (overlay)
         if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
-          MouseRegion(
-            onHover: (event) {
-              final screenX = event.position.dx;
-              final screenY = event.position.dy;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return MouseRegion(
+                onHover: (event) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  final screenX = event.localPosition.dx;
+                  final screenY = event.localPosition.dy;
 
-              // Convert screen position to lat/lon
-              final latLng = _mapController.camera.offsetToLatLng(Offset(screenX, screenY));
+                  // Convert screen position to lat/lon
+                  final latLng = _screenToLatLng(screenX, screenY, size);
 
-              // Find nearest data point
-              final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
+                  // Find nearest data point
+                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
 
-              if (mounted && dataPoint != null) {
-                setState(() {
-                  _hoveredDataPoint = dataPoint;
-                  _selectedVector = null; // Clear vector selection when hovering heatmap
-                });
-              }
-            },
-            onExit: (_) {
-              if (mounted) {
-                setState(() {
-                  _hoveredDataPoint = null;
-                });
-              }
-            },
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: HeatmapPainter(
-                    rawData: widget.rawData,
-                    dataField: 'pressure_dbars',
-                    heatmapScale: widget.heatmapScale,
-                    camera: _mapController.camera,
+                  if (mounted && dataPoint != null) {
+                    setState(() {
+                      _hoveredDataPoint = dataPoint;
+                      _selectedVector = null; // Clear vector selection when hovering heatmap
+                    });
+                  }
+                },
+                onExit: (_) {
+                  if (mounted) {
+                    setState(() {
+                      _hoveredDataPoint = null;
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: HeatmapPainter(
+                        rawData: widget.rawData,
+                        dataField: 'pressure_dbars',
+                        heatmapScale: widget.heatmapScale,
+                        camera: _mapController.camera,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
         // Particle animation layer for ocean currents (overlay)
