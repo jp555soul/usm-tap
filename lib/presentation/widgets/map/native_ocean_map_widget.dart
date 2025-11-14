@@ -86,8 +86,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   Map<String, dynamic>? _hoveredDataPoint;
   bool _isLoading = false;
   bool _mapReady = false;
-  int _rebuildCount = 0;
-  DateTime? _lastUpdateTime;
+
+  // Camera position tracking to prevent reset on widget updates
+  LatLng? _currentCenter;
+  double? _currentZoom;
+  bool _initialViewApplied = false;
 
   // Marker caching to prevent rebuild when only tooltip changes
   List<Marker>? _cachedCurrentsMarkers;
@@ -97,14 +100,18 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void initState() {
     super.initState();
     _mapController = MapController();
-    debugPrint('🗺️ NATIVE MAP INIT: ${DateTime.now()} - Instance: $hashCode');
+    debugPrint('📍 MAP POSITION TRACKING: Initialized - Instance: $hashCode');
 
     // Listen to map events (zoom, pan, rotate) and force redraw
     _mapController.mapEventStream.listen((event) {
       if (event is MapEventMove || event is MapEventRotate) {
-        // Log zoom changes for debugging
-        if (event is MapEventMove && event.source == MapEventSource.mapController) {
-          debugPrint('🔍 ZOOM: level ${event.camera.zoom.toStringAsFixed(2)} | forcing redraw');
+        // Track camera position changes
+        if (event is MapEventMove) {
+          final center = event.camera.center;
+          final zoom = event.camera.zoom;
+          _currentCenter = center;
+          _currentZoom = zoom;
+          debugPrint('📍 MAP POSITION: Updated to lat=${center.latitude.toStringAsFixed(4)}, lon=${center.longitude.toStringAsFixed(4)}, zoom=${zoom.toStringAsFixed(2)}');
         }
 
         // Force repaint of custom painters on zoom/pan/rotate
@@ -129,7 +136,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   @override
   void dispose() {
     try {
-      debugPrint('🗺️ NATIVE MAP DISPOSE: ${DateTime.now()} - Instance: $hashCode | Rebuilds: $_rebuildCount');
+      debugPrint('📍 MAP POSITION TRACKING: Disposed - Instance: $hashCode');
       _mapController.dispose();
       _mapReady = false;
       _selectedStation = null;
@@ -150,7 +157,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
 
       _mapController.move(LatLng(latitude, longitude), zoom);
-      debugPrint('🗺️ Map initialized: lat=$latitude, lon=$longitude, zoom=$zoom');
+      _currentCenter = LatLng(latitude, longitude);
+      _currentZoom = zoom;
+      _initialViewApplied = true;
+      debugPrint('📍 MAP POSITION: Initialized to lat=$latitude, lon=$longitude, zoom=$zoom');
     } catch (e) {
       debugPrint('⚠️ Error initializing map view: $e');
     }
@@ -160,79 +170,19 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void didUpdateWidget(NativeOceanMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    _rebuildCount++;
-    final now = DateTime.now();
-    final timeSinceLastUpdate = _lastUpdateTime != null
-        ? now.difference(_lastUpdateTime!).inMilliseconds
-        : 0;
-    _lastUpdateTime = now;
-
-    // Track all critical prop changes with enhanced logging
-    final List<String> changes = [];
-
-    if (oldWidget.currentFrame != widget.currentFrame) {
-      changes.add('frame(${oldWidget.currentFrame}→${widget.currentFrame})');
-    }
-
-    if (oldWidget.selectedDepth != widget.selectedDepth) {
-      changes.add('depth(${oldWidget.selectedDepth}→${widget.selectedDepth})');
-    }
-
-    if (oldWidget.selectedArea != widget.selectedArea) {
-      changes.add('area(${oldWidget.selectedArea}→${widget.selectedArea})');
-    }
-
-    if (oldWidget.mapLayerVisibility != widget.mapLayerVisibility) {
-      final oldLayers = oldWidget.mapLayerVisibility.entries.where((e) => e.value).map((e) => e.key).toList();
-      final newLayers = widget.mapLayerVisibility.entries.where((e) => e.value).map((e) => e.key).toList();
-      changes.add('layers($oldLayers→$newLayers)');
-    }
-
-    if (oldWidget.rawData.length != widget.rawData.length) {
-      changes.add('rawData(${oldWidget.rawData.length}→${widget.rawData.length} pts)');
-    }
-
-    if (oldWidget.currentsGeoJSON != widget.currentsGeoJSON) {
-      final oldFeatures = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
-      final newFeatures = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
-      changes.add('currents($oldFeatures→$newFeatures features)');
-    }
-
-    if (oldWidget.windVelocityGeoJSON != widget.windVelocityGeoJSON) {
-      final oldFeatures = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-      final newFeatures = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-      changes.add('wind($oldFeatures→$newFeatures features)');
-    }
-
-    if (oldWidget.heatmapScale != widget.heatmapScale) {
-      changes.add('heatmapScale(${oldWidget.heatmapScale.toStringAsFixed(2)}→${widget.heatmapScale.toStringAsFixed(2)})');
-    }
-
-    if (oldWidget.currentsVectorScale != widget.currentsVectorScale) {
-      changes.add('vectorScale(${oldWidget.currentsVectorScale.toStringAsFixed(4)}→${widget.currentsVectorScale.toStringAsFixed(4)})');
-    }
-
-    // Log changes if any occurred
-    if (changes.isNotEmpty) {
-      debugPrint('🗺️ UPDATE [${now.toIso8601String().split('T')[1].substring(0, 12)}]: ${changes.join(', ')} | Rebuild #$_rebuildCount | Δt: ${timeSinceLastUpdate}ms');
-
-      // Trigger map redraw when critical data changes
-      if (_mapReady) {
-        setState(() {
-          // Force rebuild of custom painters
-        });
-      }
-    }
-
-    // Handle map controller updates when view state changes
-    if (oldWidget.initialViewState != widget.initialViewState && _mapReady) {
+    // Only apply initialViewState on the very first initialization
+    // After that, preserve the user's current camera position
+    if (!_initialViewApplied && oldWidget.initialViewState != widget.initialViewState && _mapReady) {
       try {
         final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
         final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
         final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
 
         _mapController.move(LatLng(latitude, longitude), zoom);
-        debugPrint('🗺️ Map view animated to: lat=$latitude, lon=$longitude, zoom=$zoom');
+        _currentCenter = LatLng(latitude, longitude);
+        _currentZoom = zoom;
+        _initialViewApplied = true;
+        debugPrint('📍 MAP POSITION: Initialized to lat=$latitude, lon=$longitude, zoom=$zoom');
       } catch (e) {
         debugPrint('⚠️ Error updating map view: $e');
       }
@@ -297,20 +247,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     final List<Map<String, dynamic>> currentsData = [];
 
     try {
-      debugPrint('🌊 CURRENTS EXTRACTION: oceanCurrents layer visible=${widget.mapLayerVisibility['oceanCurrents']}');
-
       if (widget.currentsGeoJSON.isEmpty) {
-        debugPrint('🌊 Ocean currents GeoJSON is empty');
         return [];
       }
 
       final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
       if (features == null || features.isEmpty) {
-        debugPrint('⚠️ No currents features found in GeoJSON');
         return [];
       }
-
-      debugPrint('🌊 OCEAN CURRENTS: Extracting ${features.length} current features for particles');
 
       for (final feature in features) {
         if (feature == null) continue;
@@ -333,11 +277,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         // Validate data ranges
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
-        // Debug first 3 coordinate parses
-        if (currentsData.length < 3) {
-          //debugPrint('🌊 CURRENT #${currentsData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
-        }
-
         currentsData.add({
           'lat': lat,
           'lon': lon,
@@ -345,8 +284,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           'v': v,
         });
       }
-
-      debugPrint('🌊 Extracted ${currentsData.length} current data points');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error extracting currents data: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -359,20 +296,14 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     final List<Map<String, dynamic>> windData = [];
 
     try {
-      debugPrint('🌬️ WIND VELOCITY EXTRACTION: windVelocity layer visible=${widget.mapLayerVisibility['windVelocity']}');
-
       if (widget.windVelocityGeoJSON.isEmpty) {
-        debugPrint('🌬️ Wind velocity GeoJSON is empty');
         return [];
       }
 
       final features = widget.windVelocityGeoJSON['features'] as List<dynamic>?;
       if (features == null || features.isEmpty) {
-        debugPrint('⚠️ No wind features found in GeoJSON');
         return [];
       }
-
-      debugPrint('🌬️ WIND VELOCITY: Extracting ${features.length} wind features');
 
       for (final feature in features) {
         if (feature == null) continue;
@@ -395,11 +326,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         // Validate data ranges
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
-        // Debug first 3 coordinate parses
-        if (windData.length < 3) {
-          //debugPrint('🌬️ WIND #${windData.length + 1}: GeoJSON coords=[$lon,$lat] | lat=$lat, lon=$lon, u=$u, v=$v');
-        }
-
         windData.add({
           'lat': lat,
           'lon': lon,
@@ -407,8 +333,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           'v': v,
         });
       }
-
-      debugPrint('🌬️ Extracted ${windData.length} wind data points');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error extracting wind velocity data: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -428,37 +352,16 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Return cache if GeoJSON unchanged
     if (_cachedCurrentsMarkers != null &&
         _lastCurrentsGeoJSON == widget.currentsGeoJSON) {
-      debugPrint('🎯 CACHE HIT: Reusing cached markers (${_cachedCurrentsMarkers!.length} markers)');
       return _cachedCurrentsMarkers!;
     }
 
     final List<Marker> vectors = [];
-    // Debug tracking
-    double minSpeed = double.infinity;
-    double maxSpeed = 0.0;
-    double totalSpeed = 0.0;
-    int speedCount = 0;
-    Map<String, int> colorDistribution = {'cyan': 0, 'blue': 0, 'red': 0, 'gradient': 0};
 
     try {
       // Parse GeoJSON features
       final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
       if (features == null || features.isEmpty) {
-        debugPrint('⚠️ No current vector features to render');
         return [];
-      }
-
-      debugPrint('🎨 VECTOR DEBUG: currentsColorBy="${widget.currentsColorBy}"');
-      debugPrint('📦 GEOJSON DEBUG: features.length=${features.length}');
-
-      // Log first feature properties to understand data structure
-      if (features.isNotEmpty && features[0] != null) {
-        final firstFeature = features[0];
-        final firstProps = firstFeature['properties'] as Map<String, dynamic>?;
-        if (firstProps != null) {
-          debugPrint('🔍 FIRST FEATURE PROPERTIES: ${firstProps.keys.join(', ')}');
-          debugPrint('🔍 SAMPLE VALUES: ${firstProps.toString()}');
-        }
       }
 
       for (final feature in features) {
@@ -487,36 +390,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
         if (speed == 0) continue;
 
-        // Debug coordinate parsing for first 3 vectors
-        if (vectors.length < 3) {
-          //debugPrint('🎯 MARKER #${vectors.length + 1}: GeoJSON coords=[$lon,$lat] → LatLng($lat,$lon) | u=$u, v=$v, speed=${speed.toStringAsFixed(4)}');
-        }
-
-        // Track speed statistics
-        minSpeed = math.min(minSpeed, speed);
-        maxSpeed = math.max(maxSpeed, speed);
-        totalSpeed += speed;
-        speedCount++;
-
         // Calculate color based on speed
         final vectorColor = _getVectorColor(speed, properties);
-
-        // Track color distribution
-        if (vectorColor == Colors.cyan.shade400) {
-          colorDistribution['cyan'] = (colorDistribution['cyan'] ?? 0) + 1;
-        } else if (vectorColor == Colors.blue || vectorColor == Colors.blue.shade300) {
-          colorDistribution['blue'] = (colorDistribution['blue'] ?? 0) + 1;
-        } else if (vectorColor.red > 200) {
-          colorDistribution['red'] = (colorDistribution['red'] ?? 0) + 1;
-        } else {
-          colorDistribution['gradient'] = (colorDistribution['gradient'] ?? 0) + 1;
-        }
-
-        // Log first 3 vectors for debugging
-        if (vectors.length < 3) {
-          final normalizedSpeed = (speed * 10).clamp(0.0, 1.0);
-          debugPrint('🎨 VECTOR #${vectors.length + 1}: speed=${speed.toStringAsFixed(4)} | normalized=${normalizedSpeed.toStringAsFixed(4)} | color=rgb(${vectorColor.red},${vectorColor.green},${vectorColor.blue})');
-        }
 
         // Store vector data for tooltip
         final vectorData = {
@@ -540,7 +415,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             child: MouseRegion(
               onEnter: (_) {
                 if (mounted) {
-                  debugPrint('🖱️ HOVER ENTER: Vector at lat=$lat, lon=$lon, speed=${speed.toStringAsFixed(3)}');
                   setState(() {
                     _selectedVector = {
                       'lat': lat,
@@ -554,7 +428,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               },
               onExit: (_) {
                 if (mounted) {
-                  debugPrint('🖱️ HOVER EXIT: Clearing _selectedVector');
                   setState(() {
                     _selectedVector = null;
                   });
@@ -562,7 +435,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
               },
               child: GestureDetector(
                 onTap: () {
-                  debugPrint('👆 TAP: Vector clicked at lat=$lat, lon=$lon');
                   setState(() {
                     _selectedVector = {
                       'lat': lat,
@@ -585,11 +457,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
         );
       }
-
-      final avgSpeed = speedCount > 0 ? totalSpeed / speedCount : 0.0;
-      debugPrint('🌊 Built ${vectors.length} current vector markers');
-      debugPrint('📊 SPEED STATS: min=${minSpeed.toStringAsFixed(4)} | max=${maxSpeed.toStringAsFixed(4)} | avg=${avgSpeed.toStringAsFixed(4)}');
-      debugPrint('🎨 COLOR DISTRIBUTION: cyan=${colorDistribution['cyan']} | blue=${colorDistribution['blue']} | gradient=${colorDistribution['gradient']} | red=${colorDistribution['red']}');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error building current vectors: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -598,7 +465,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Cache results
     _cachedCurrentsMarkers = vectors;
     _lastCurrentsGeoJSON = widget.currentsGeoJSON;
-    debugPrint('💾 CACHE UPDATE: Cached ${vectors.length} markers');
 
     return vectors;
   }
@@ -618,8 +484,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       return color;
     }
 
-    // Default color for other modes (shouldn't happen)
-    debugPrint('⚠️ UNEXPECTED currentsColorBy: "${widget.currentsColorBy}" - using default cyan');
+    // Default color for other modes
     return Colors.cyan.shade400;
   }
 
@@ -697,11 +562,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🗺️ MAP BUILD: rawData.length=${widget.rawData.length}');
-    debugPrint('🗺️ MAP BUILD: temperature=${widget.mapLayerVisibility['temperature']}');
-    debugPrint('🗺️ MAP BUILD: stationData=${widget.stationData.length}, currentsGeoJSON=${widget.currentsGeoJSON.isNotEmpty}');
-    debugPrint('🏗️ BUILD: _selectedVector is ${_selectedVector != null ? "SET" : "NULL"}');
-
     // Build map tile URL with Mapbox token
     final mapboxStyleUrl = 'https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${widget.mapboxToken}';
 
@@ -990,28 +850,23 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
 
         // Vector info overlay
-        if (_selectedVector != null && _hoveredDataPoint == null) ...[
-          () {
-            debugPrint('🎯 OVERLAY CHECK: _selectedVector=${_selectedVector != null ? "SHOWING" : "HIDDEN"}');
-            debugPrint('📍 Rendering tooltip at bottom:80, left:20');
-            return Positioned(
-              bottom: 80,
-              left: 20,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
-                child: _VectorInfoCard(
-                  vector: _selectedVector!,
-                  onClose: () {
-                    setState(() {
-                      _selectedVector = null;
-                    });
-                  },
-                ),
+        if (_selectedVector != null && _hoveredDataPoint == null)
+          Positioned(
+            bottom: 80,
+            left: 20,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              child: _VectorInfoCard(
+                vector: _selectedVector!,
+                onClose: () {
+                  setState(() {
+                    _selectedVector = null;
+                  });
+                },
               ),
-            );
-          }(),
-        ],
+            ),
+          ),
 
         // Map info overlay (date/time, depth, etc.)
         Positioned(
@@ -1742,8 +1597,6 @@ class HeatmapPainter extends CustomPainter {
 
         renderedPoints++;
       }
-
-      debugPrint('🎨 HeatmapPainter ($dataField): Rendered $renderedPoints/${rawData.length} points | zoom=${camera.zoom.toStringAsFixed(2)} radius=${heatRadius.toStringAsFixed(1)}');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error painting heatmap ($dataField): $e');
       debugPrint('Stack trace: $stackTrace');
@@ -1990,8 +1843,6 @@ class ParticlePainter extends CustomPainter {
           continue;
         }
       }
-
-      debugPrint('🎨 ParticlePainter: Rendered $renderedParticles/${particles.length} particles');
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error painting particles: $e');
       debugPrint('Stack trace: $stackTrace');
