@@ -624,32 +624,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   }
 
   /// Find nearest data point for heatmap hover tooltip
-  Map<String, dynamic>? _findNearestDataPoint(double lat, double lon, String layer) {
+  /// Returns the entire data point with all available fields
+  Map<String, dynamic>? _findNearestDataPoint(double lat, double lon) {
     if (widget.rawData.isEmpty) return null;
 
     const maxDistance = 0.1; // degrees - threshold for hover detection
     double minDist = double.infinity;
     Map<String, dynamic>? nearest;
 
-    // Map layer names to data field names
-    final fieldMap = {
-      'temperature': 'temp',
-      'salinity': 'salinity',
-      'ssh': 'ssh',
-      'pressure': 'pressure_dbars',
-    };
-
-    final dataField = fieldMap[layer];
-    if (dataField == null) return null;
-
     for (final point in widget.rawData) {
       if (point == null) continue;
 
       final pointLat = (point['lat'] as num?)?.toDouble();
       final pointLon = (point['lon'] as num?)?.toDouble();
-      final value = (point[dataField] as num?)?.toDouble();
 
-      if (pointLat == null || pointLon == null || value == null) continue;
+      if (pointLat == null || pointLon == null) continue;
 
       // Validate coordinates
       if (pointLat < -90 || pointLat > 90 || pointLon < -180 || pointLon > 180) continue;
@@ -661,13 +650,8 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
       if (dist < minDist) {
         minDist = dist;
-        nearest = {
-          'lat': pointLat,
-          'lon': pointLon,
-          'value': value,
-          'layer': layer,
-          'field': dataField,
-        };
+        // Store the entire data point with all fields
+        nearest = Map<String, dynamic>.from(point);
       }
     }
 
@@ -675,7 +659,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     return minDist < maxDistance ? nearest : null;
   }
 
-  /// Unified hover handler that collects data from all active layers
+  /// Unified hover handler that finds the nearest data point with all fields
   void _handleMapHover(PointerEvent event, Size size) {
     final screenX = event.localPosition.dx;
     final screenY = event.localPosition.dy;
@@ -683,30 +667,17 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Convert screen position to lat/lon
     final latLng = _screenToLatLng(screenX, screenY, size);
 
-    Map<String, dynamic> dataPoint = {
-      'lat': latLng.latitude,
-      'lon': latLng.longitude,
-    };
+    // Find the nearest overall data point once with all its fields
+    final nearestPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude);
 
-    // Check each active layer and add its data
-    if (widget.mapLayerVisibility['temperature'] == true) {
-      final tempData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
-      if (tempData != null) dataPoint['temp'] = tempData['value'];
+    if (nearestPoint != null) {
+      // Store the complete data point with all fields
+      // lat/lon are already included from the nearest point
+      setState(() => _hoveredDataPoint = nearestPoint);
+    } else {
+      // No nearby data point found
+      setState(() => _hoveredDataPoint = null);
     }
-    if (widget.mapLayerVisibility['salinity'] == true) {
-      final salData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
-      if (salData != null) dataPoint['salinity'] = salData['value'];
-    }
-    if (widget.mapLayerVisibility['ssh'] == true) {
-      final sshData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
-      if (sshData != null) dataPoint['ssh'] = sshData['value'];
-    }
-    if (widget.mapLayerVisibility['pressure'] == true) {
-      final pressData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
-      if (pressData != null) dataPoint['pressure_dbars'] = pressData['value'];
-    }
-
-    setState(() => _hoveredDataPoint = dataPoint);
   }
 
   /// Convert screen coordinates to lat/lng using camera bounds
@@ -1505,44 +1476,96 @@ class _HeatmapInfoCard extends StatelessWidget {
     required this.onClose,
   });
 
+  /// Format field name for display (capitalize, handle snake_case)
+  String _formatFieldName(String fieldName) {
+    // Handle special cases
+    if (fieldName == 'ssh') return 'SSH';
+    if (fieldName == 'sst') return 'SST';
+
+    // Convert snake_case to words with spaces
+    final words = fieldName.split('_');
+
+    // Capitalize first letter of each word
+    return words.map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+  /// Get unit for known field names
+  String _getUnit(String fieldName) {
+    final units = {
+      'temp': '°C',
+      'temperature': '°C',
+      'salinity': 'PSU',
+      'ssh': 'm',
+      'pressure_dbars': 'dbar',
+      'pressure': 'dbar',
+      'depth': 'm',
+      'depth_m': 'm',
+      'speed': 'm/s',
+      'velocity': 'm/s',
+      'u': 'm/s',
+      'v': 'm/s',
+      'wind_speed': 'm/s',
+    };
+
+    return units[fieldName.toLowerCase()] ?? '';
+  }
+
+  /// Get precision (decimal places) for known field names
+  int _getPrecision(String fieldName) {
+    final precision = {
+      'temp': 2,
+      'temperature': 2,
+      'salinity': 2,
+      'ssh': 3,
+      'pressure_dbars': 2,
+      'pressure': 2,
+      'depth': 1,
+      'depth_m': 1,
+      'speed': 3,
+      'velocity': 3,
+      'u': 4,
+      'v': 4,
+    };
+
+    return precision[fieldName.toLowerCase()] ?? 3;
+  }
+
   @override
   Widget build(BuildContext context) {
     final lat = (dataPoint['lat'] as num?)?.toDouble();
     final lon = (dataPoint['lon'] as num?)?.toDouble();
-    final temp = (dataPoint['temp'] as num?)?.toDouble();
-    final salinity = (dataPoint['salinity'] as num?)?.toDouble();
-    final ssh = (dataPoint['ssh'] as num?)?.toDouble();
-    final pressure = (dataPoint['pressure_dbars'] as num?)?.toDouble();
 
-    // Build list of layer widgets
+    // Build list of layer widgets dynamically from all fields
     final layerWidgets = <Widget>[];
 
-    if (temp != null) {
-      layerWidgets.add(_InfoRow(
-        label: 'Temperature',
-        value: '${temp.toStringAsFixed(2)} °C',
-      ));
-    }
-    if (salinity != null) {
-      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
-      layerWidgets.add(_InfoRow(
-        label: 'Salinity',
-        value: '${salinity.toStringAsFixed(2)} PSU',
-      ));
-    }
-    if (ssh != null) {
-      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
-      layerWidgets.add(_InfoRow(
-        label: 'SSH',
-        value: '${ssh.toStringAsFixed(3)} m',
-      ));
-    }
-    if (pressure != null) {
-      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
-      layerWidgets.add(_InfoRow(
-        label: 'Pressure',
-        value: '${pressure.toStringAsFixed(2)} dbar',
-      ));
+    // Iterate through all fields in dataPoint, excluding lat and lon
+    for (final entry in dataPoint.entries) {
+      final fieldName = entry.key;
+      final value = entry.value;
+
+      // Skip lat and lon (shown separately)
+      if (fieldName == 'lat' || fieldName == 'lon') continue;
+
+      // Only process numeric values
+      if (value is num) {
+        final doubleValue = value.toDouble();
+        final precision = _getPrecision(fieldName);
+        final unit = _getUnit(fieldName);
+        final label = _formatFieldName(fieldName);
+
+        // Add spacing before each field widget (except the first one)
+        if (layerWidgets.isNotEmpty) {
+          layerWidgets.add(const SizedBox(height: 10));
+        }
+
+        layerWidgets.add(_InfoRow(
+          label: label,
+          value: '${doubleValue.toStringAsFixed(precision)}${unit.isNotEmpty ? ' $unit' : ''}',
+        ));
+      }
     }
 
     return Container(
