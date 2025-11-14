@@ -105,13 +105,18 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Listen to map events (zoom, pan, rotate) and force redraw
     _mapController.mapEventStream.listen((event) {
       if (event is MapEventMove || event is MapEventRotate) {
-        // Track camera position changes
+        // Track user's camera position
+        if (event.source == MapEventSource.mapController && !_initialViewApplied) {
+          // This is initial setup, ignore
+          return;
+        }
+
+        // User-initiated move
         if (event is MapEventMove) {
-          final center = event.camera.center;
-          final zoom = event.camera.zoom;
-          _currentCenter = center;
-          _currentZoom = zoom;
-          debugPrint('📍 MAP POSITION: Updated to lat=${center.latitude.toStringAsFixed(4)}, lon=${center.longitude.toStringAsFixed(4)}, zoom=${zoom.toStringAsFixed(2)}');
+          _currentCenter = event.camera.center;
+          _currentZoom = event.camera.zoom;
+          debugPrint('📍 MAP POSITION: Updated to lat=${_currentCenter?.latitude.toStringAsFixed(4)}, '
+                     'lon=${_currentCenter?.longitude.toStringAsFixed(4)}, zoom=${_currentZoom?.toStringAsFixed(2)}');
         }
 
         // Force repaint of custom painters on zoom/pan/rotate
@@ -170,22 +175,17 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void didUpdateWidget(NativeOceanMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Only apply initialViewState on the very first initialization
-    // After that, preserve the user's current camera position
-    if (!_initialViewApplied && oldWidget.initialViewState != widget.initialViewState && _mapReady) {
-      try {
-        final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
-        final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
-        final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
-
-        _mapController.move(LatLng(latitude, longitude), zoom);
-        _currentCenter = LatLng(latitude, longitude);
-        _currentZoom = zoom;
-        _initialViewApplied = true;
-        debugPrint('📍 MAP POSITION: Initialized to lat=$latitude, lon=$longitude, zoom=$zoom');
-      } catch (e) {
-        debugPrint('⚠️ Error updating map view: $e');
+    // Only apply initialViewState if this is truly first load and user hasn't moved
+    if (!_initialViewApplied && _currentCenter == null && _currentZoom == null) {
+      if (oldWidget.initialViewState != widget.initialViewState && _mapReady) {
+        _initializeMapView();
       }
+    }
+    // Otherwise, preserve user's camera position - do NOT reset map
+
+    // Force rebuild for data changes
+    if (_mapReady) {
+      setState(() {});
     }
   }
 
