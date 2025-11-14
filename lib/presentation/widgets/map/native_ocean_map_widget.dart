@@ -675,6 +675,40 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     return minDist < maxDistance ? nearest : null;
   }
 
+  /// Unified hover handler that collects data from all active layers
+  void _handleMapHover(PointerEvent event, Size size) {
+    final screenX = event.localPosition.dx;
+    final screenY = event.localPosition.dy;
+
+    // Convert screen position to lat/lon
+    final latLng = _screenToLatLng(screenX, screenY, size);
+
+    Map<String, dynamic> dataPoint = {
+      'lat': latLng.latitude,
+      'lon': latLng.longitude,
+    };
+
+    // Check each active layer and add its data
+    if (widget.mapLayerVisibility['temperature'] == true) {
+      final tempData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
+      if (tempData != null) dataPoint['temp'] = tempData['value'];
+    }
+    if (widget.mapLayerVisibility['salinity'] == true) {
+      final salData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
+      if (salData != null) dataPoint['salinity'] = salData['value'];
+    }
+    if (widget.mapLayerVisibility['ssh'] == true) {
+      final sshData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
+      if (sshData != null) dataPoint['ssh'] = sshData['value'];
+    }
+    if (widget.mapLayerVisibility['pressure'] == true) {
+      final pressData = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
+      if (pressData != null) dataPoint['pressure_dbars'] = pressData['value'];
+    }
+
+    setState(() => _hoveredDataPoint = dataPoint);
+  }
+
   /// Convert screen coordinates to lat/lng using camera bounds
   LatLng _screenToLatLng(double screenX, double screenY, Size size) {
     final bounds = _mapController.camera.visibleBounds;
@@ -750,25 +784,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
-                onHover: (event) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final screenX = event.localPosition.dx;
-                  final screenY = event.localPosition.dy;
-
-                  // Convert screen position to lat/lon
-                  final latLng = _screenToLatLng(screenX, screenY, size);
-
-                  // Find nearest data point
-                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'temperature');
-
-                  if (mounted && dataPoint != null) {
-                    setState(() {
-                      _hoveredDataPoint = dataPoint;
-                      _selectedVector = null; // Clear vector selection when hovering heatmap
-                    });
-                  }
-                },
+                onHover: (event) => _handleMapHover(event, size),
                 onExit: (_) {
                   if (mounted) {
                     setState(() {
@@ -797,25 +815,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
-                onHover: (event) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final screenX = event.localPosition.dx;
-                  final screenY = event.localPosition.dy;
-
-                  // Convert screen position to lat/lon
-                  final latLng = _screenToLatLng(screenX, screenY, size);
-
-                  // Find nearest data point
-                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'salinity');
-
-                  if (mounted && dataPoint != null) {
-                    setState(() {
-                      _hoveredDataPoint = dataPoint;
-                      _selectedVector = null; // Clear vector selection when hovering heatmap
-                    });
-                  }
-                },
+                onHover: (event) => _handleMapHover(event, size),
                 onExit: (_) {
                   if (mounted) {
                     setState(() {
@@ -844,25 +846,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
-                onHover: (event) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final screenX = event.localPosition.dx;
-                  final screenY = event.localPosition.dy;
-
-                  // Convert screen position to lat/lon
-                  final latLng = _screenToLatLng(screenX, screenY, size);
-
-                  // Find nearest data point
-                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'ssh');
-
-                  if (mounted && dataPoint != null) {
-                    setState(() {
-                      _hoveredDataPoint = dataPoint;
-                      _selectedVector = null; // Clear vector selection when hovering heatmap
-                    });
-                  }
-                },
+                onHover: (event) => _handleMapHover(event, size),
                 onExit: (_) {
                   if (mounted) {
                     setState(() {
@@ -891,25 +877,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
-                onHover: (event) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final screenX = event.localPosition.dx;
-                  final screenY = event.localPosition.dy;
-
-                  // Convert screen position to lat/lon
-                  final latLng = _screenToLatLng(screenX, screenY, size);
-
-                  // Find nearest data point
-                  final dataPoint = _findNearestDataPoint(latLng.latitude, latLng.longitude, 'pressure');
-
-                  if (mounted && dataPoint != null) {
-                    setState(() {
-                      _hoveredDataPoint = dataPoint;
-                      _selectedVector = null; // Clear vector selection when hovering heatmap
-                    });
-                  }
-                },
+                onHover: (event) => _handleMapHover(event, size),
                 onExit: (_) {
                   if (mounted) {
                     setState(() {
@@ -1539,31 +1509,40 @@ class _HeatmapInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lat = (dataPoint['lat'] as num?)?.toDouble();
     final lon = (dataPoint['lon'] as num?)?.toDouble();
-    final value = (dataPoint['value'] as num?)?.toDouble();
-    final layer = dataPoint['layer'] as String?;
-    final field = dataPoint['field'] as String?;
+    final temp = (dataPoint['temp'] as num?)?.toDouble();
+    final salinity = (dataPoint['salinity'] as num?)?.toDouble();
+    final ssh = (dataPoint['ssh'] as num?)?.toDouble();
+    final pressure = (dataPoint['pressure_dbars'] as num?)?.toDouble();
 
-    // Get layer display name and unit
-    String layerName = 'Unknown';
-    String unit = '';
+    // Build list of layer widgets
+    final layerWidgets = <Widget>[];
 
-    switch (layer) {
-      case 'temperature':
-        layerName = 'Temperature';
-        unit = '°C';
-        break;
-      case 'salinity':
-        layerName = 'Salinity';
-        unit = 'PSU';
-        break;
-      case 'ssh':
-        layerName = 'Sea Surface Height';
-        unit = 'm';
-        break;
-      case 'pressure':
-        layerName = 'Pressure';
-        unit = 'dbar';
-        break;
+    if (temp != null) {
+      layerWidgets.add(_InfoRow(
+        label: 'Temperature',
+        value: '${temp.toStringAsFixed(2)} °C',
+      ));
+    }
+    if (salinity != null) {
+      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
+      layerWidgets.add(_InfoRow(
+        label: 'Salinity',
+        value: '${salinity.toStringAsFixed(2)} PSU',
+      ));
+    }
+    if (ssh != null) {
+      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
+      layerWidgets.add(_InfoRow(
+        label: 'SSH',
+        value: '${ssh.toStringAsFixed(3)} m',
+      ));
+    }
+    if (pressure != null) {
+      if (layerWidgets.isNotEmpty) layerWidgets.add(const SizedBox(height: 10));
+      layerWidgets.add(_InfoRow(
+        label: 'Pressure',
+        value: '${pressure.toStringAsFixed(2)} dbar',
+      ));
     }
 
     return Container(
@@ -1591,10 +1570,10 @@ class _HeatmapInfoCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  layerName,
-                  style: const TextStyle(
+                  'Ocean Data',
+                  style: TextStyle(
                     color: Color(0xFF1E293B),
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -1635,11 +1614,23 @@ class _HeatmapInfoCard extends StatelessWidget {
             label: 'Longitude',
             value: lon != null ? lon.toStringAsFixed(4) : 'N/A',
           ),
-          const SizedBox(height: 10),
-          _InfoRow(
-            label: 'Value',
-            value: value != null ? '${value.toStringAsFixed(2)} $unit' : 'N/A',
-          ),
+          if (layerWidgets.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF64748B).withOpacity(0.1),
+                    const Color(0xFF64748B).withOpacity(0.2),
+                    const Color(0xFF64748B).withOpacity(0.1),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...layerWidgets,
+          ],
         ],
       ),
     );
