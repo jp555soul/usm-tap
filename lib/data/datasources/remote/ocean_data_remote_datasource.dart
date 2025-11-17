@@ -121,7 +121,13 @@ abstract class OceanDataRemoteDataSource {
 
   Map<String, dynamic> validateCoordinateData(List<dynamic> rawData);
 
-  Future<List<OceanDataEntity>> getOceanData({DateTime? startDate, required String endDate});
+  Future<List<OceanDataEntity>> getOceanData({
+    DateTime? startDate,
+    required String endDate,
+    String? stationId,
+    double? depth,
+    String? model,
+  });
   Future<List<dynamic>> getStations();
   Future<EnvDataEntity> getEnvironmentalData({DateTime? timestamp, double? depth, double? latitude, double? longitude});
   Future<List<dynamic>> getAvailableModels({required String stationId});
