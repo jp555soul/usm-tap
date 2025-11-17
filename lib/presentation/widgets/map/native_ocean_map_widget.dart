@@ -171,13 +171,76 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     }
   }
 
+  /// Get the default coordinates and zoom level for a study area
+  Map<String, double> _getAreaCoordinates(String area) {
+    switch (area.toUpperCase()) {
+      case 'MBL': // Mobile Bay
+        return {'latitude': 30.7, 'longitude': -88.0, 'zoom': 10.0};
+      case 'MSR': // Mississippi River
+        return {'latitude': 29.9, 'longitude': -89.4, 'zoom': 10.0};
+      case 'USM': // Gulf of Mexico (default)
+      default:
+        return {'latitude': 30.1, 'longitude': -89.0, 'zoom': 10.0};
+    }
+  }
+
+  /// Move the map to the center of a study area
+  void _moveToArea(String area) {
+    try {
+      final coords = _getAreaCoordinates(area);
+      final latitude = coords['latitude']!;
+      final longitude = coords['longitude']!;
+      final zoom = coords['zoom']!;
+
+      debugPrint('🗺️ MAP: Moving to area $area: lat=$latitude, lon=$longitude, zoom=$zoom');
+
+      _mapController.move(LatLng(latitude, longitude), zoom);
+      _currentCenter = LatLng(latitude, longitude);
+      _currentZoom = zoom;
+
+      debugPrint('📍 MAP POSITION: Updated to lat=$latitude, lon=$longitude, zoom=$zoom');
+    } catch (e) {
+      debugPrint('⚠️ Error moving map to area $area: $e');
+    }
+  }
+
   @override
   void didUpdateWidget(NativeOceanMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // ===== COMPREHENSIVE LOGGING: Map Data Updates =====
+    if (oldWidget.selectedArea != widget.selectedArea) {
+      debugPrint('🗺️ MAP: Study Area changed from ${oldWidget.selectedArea} to ${widget.selectedArea}');
+
+      // Automatically move map to new study area when area changes
+      if (_mapReady && widget.selectedArea.isNotEmpty) {
+        _moveToArea(widget.selectedArea);
+      }
+    }
+
+    if (oldWidget.rawData.length != widget.rawData.length) {
+      debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
+    }
+
+    final oldCurrentsCount = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+    final newCurrentsCount = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+    if (oldCurrentsCount != newCurrentsCount) {
+      debugPrint('🗺️ MAP: Currents vectors updated: $oldCurrentsCount → $newCurrentsCount features');
+      // Clear marker cache when GeoJSON changes
+      _cachedCurrentsMarkers = null;
+      _lastCurrentsGeoJSON = null;
+    }
+
+    final oldWindCount = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+    final newWindCount = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+    if (oldWindCount != newWindCount) {
+      debugPrint('🗺️ MAP: Wind vectors updated: $oldWindCount → $newWindCount features');
+    }
+
     // Only apply initialViewState if this is truly first load and user hasn't moved
     if (!_initialViewApplied && _currentCenter == null && _currentZoom == null) {
       if (oldWidget.initialViewState != widget.initialViewState && _mapReady) {
+        debugPrint('🗺️ MAP: Applying initial view state');
         _initializeMapView();
       }
     }
@@ -185,7 +248,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
     // Force rebuild for data changes
     if (_mapReady) {
-      setState(() {});
+      setState(() {
+        debugPrint('🗺️ MAP: setState called - triggering map rebuild');
+      });
     }
   }
 

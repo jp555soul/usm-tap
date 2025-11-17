@@ -183,27 +183,31 @@ Future<Map<String, dynamic>> loadAllData({
   final defaultEndDate = DateTime.parse('2025-08-01T00:00:00Z');
   final start = startDate ?? defaultStartDate;
   final end = endDate ?? defaultEndDate;
-  
+
   final tableName = getTableNameForArea(selectedArea);
+
+  // ===== COMPREHENSIVE LOGGING: Query Construction =====
+  debugPrint('🌊 DATA SOURCE: loadAllData called');
+  debugPrint('🌊 AREA: $selectedArea → TABLE: $tableName');
+  debugPrint('🌊 DATE RANGE: ${start.toIso8601String()} to ${end.toIso8601String()}');
+
   final baseQuery = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms FROM `${_apiConfig.database}.$tableName`';
   final whereClauses = <String>[];
-  
+
   final startISO = start.toIso8601String();
   final endISO = end.toIso8601String();
   //whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
-  
+
   String query = baseQuery;
   if (whereClauses.isNotEmpty) {
     query += ' WHERE ${whereClauses.join(' AND ')}';
   }
   query += ' ORDER BY time DESC LIMIT 10000';
+
+  debugPrint('🌊 SQL QUERY: $query');
+  debugPrint('🌊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
+
   try {
-    // Log request details
-    // debugPrint('=== API Request ===');
-    // debugPrint('URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
-    // debugPrint('Query: $query');
-    // debugPrint('Database: ${_apiConfig.database}');
-    // debugPrint('Table: $tableName');
     
     final response = await _dio.get(
       '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
@@ -228,7 +232,9 @@ Future<Map<String, dynamic>> loadAllData({
     
     if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
       final apiData = response.data as List;
-      
+
+      debugPrint('🌊 API RESPONSE: Status ${response.statusCode} - Received ${apiData.length} records');
+
       final allData = apiData.map((row) {
         final dataMap = row as Map<String, dynamic>;
         return {
@@ -239,20 +245,35 @@ Future<Map<String, dynamic>> loadAllData({
           '_loaded_at': DateTime.now().toIso8601String(),
         };
       }).toList();
-      
+
+      // Log sample data for verification
+      if (allData.isNotEmpty) {
+        final firstRecord = allData.first;
+        debugPrint('🌊 SAMPLE RECORD: lat=${firstRecord['lat']}, lon=${firstRecord['lon']}, temp=${firstRecord['temp']}, area=${firstRecord['area']}');
+      }
+
+      // Log coordinate bounds
+      final lats = allData.where((r) => r['lat'] != null).map((r) => (r['lat'] as num).toDouble()).toList();
+      final lons = allData.where((r) => r['lon'] != null).map((r) => (r['lon'] as num).toDouble()).toList();
+      if (lats.isNotEmpty && lons.isNotEmpty) {
+        debugPrint('🌊 DATA BOUNDS: lat [${lats.reduce((a, b) => a < b ? a : b)}, ${lats.reduce((a, b) => a > b ? a : b)}]');
+        debugPrint('🌊 DATA BOUNDS: lon [${lons.reduce((a, b) => a < b ? a : b)}, ${lons.reduce((a, b) => a > b ? a : b)}]');
+      }
+
       _cachedData = allData;
-      
+
+      debugPrint('✅ DATA SOURCE: Successfully loaded ${allData.length} records for $selectedArea');
+
       return {'allData': allData};
     } else {
+      debugPrint('❌ API ERROR: HTTP ${response.statusCode}: ${response.statusMessage}');
       throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
     }
   } catch (error) {
-    // debugPrint('=== API Error ===');
-    // debugPrint('Error Type: ${error.runtimeType}');
-    // debugPrint('Error: $error');
+    debugPrint('❌ DATA SOURCE ERROR: ${error.runtimeType} - $error');
     if (error is DioException) {
-      // debugPrint('DioException Response: ${error.response?.data}');
-      // debugPrint('DioException Message: ${error.message}');
+      debugPrint('❌ DioException: ${error.message}');
+      debugPrint('❌ Response: ${error.response?.data}');
     }
     return {'allData': []};
   }

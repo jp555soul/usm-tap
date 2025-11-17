@@ -1127,9 +1127,131 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     }
   }
   
-  void _onSetSelectedArea(SetSelectedAreaEvent event, Emitter<OceanDataState> emit) {
+  Future<void> _onSetSelectedArea(SetSelectedAreaEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
-      emit((state as OceanDataLoadedState).copyWith(selectedArea: event.area));
+      final currentState = state as OceanDataLoadedState;
+
+      // ===== COMPREHENSIVE LOGGING: Study Area Change =====
+      debugPrint('📍 STUDY AREA CHANGE: ${currentState.selectedArea} → ${event.area}');
+      debugPrint('📍 Current data count: ${currentState.rawData.length} records');
+      debugPrint('📍 Current currents vectors: ${(currentState.currentsGeoJSON['features'] as List?)?.length ?? 0}');
+      debugPrint('📍 Current wind vectors: ${(currentState.windVelocityGeoJSON['features'] as List?)?.length ?? 0}');
+
+      // Set loading state while fetching new data
+      emit(currentState.copyWith(
+        selectedArea: event.area,
+        isLoading: true,
+      ));
+
+      try {
+        debugPrint('📍 FETCHING DATA: Requesting data for area=${event.area}');
+        debugPrint('📍 Date range: ${currentState.startDate} to ${currentState.endDate}');
+
+        // Fetch new data for the selected area
+        final rawDataResult = await _remoteDataSource.loadAllData(
+          area: event.area,
+          startDate: currentState.startDate,
+          endDate: currentState.endDate,
+        );
+
+        final rawDataList = rawDataResult['allData'] as List?;
+        debugPrint('📍 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for ${event.area}');
+
+        if (rawDataList == null || rawDataList.isEmpty) {
+          debugPrint('⚠️ WARNING: No data returned for area ${event.area}');
+          emit(currentState.copyWith(
+            selectedArea: event.area,
+            isLoading: false,
+            hasError: true,
+            errorMessage: 'No data available for area ${event.area}',
+          ));
+          return;
+        }
+
+        final rawData = rawDataList.cast<Map<String, dynamic>>();
+
+        // Log data bounds
+        final lats = rawData.where((r) => r['lat'] != null).map((r) => (r['lat'] as num).toDouble()).toList();
+        final lons = rawData.where((r) => r['lon'] != null).map((r) => (r['lon'] as num).toDouble()).toList();
+        if (lats.isNotEmpty && lons.isNotEmpty) {
+          debugPrint('📍 DATA BOUNDS: lat [${lats.reduce((a, b) => a < b ? a : b)}, ${lats.reduce((a, b) => a > b ? a : b)}]');
+          debugPrint('📍 DATA BOUNDS: lon [${lons.reduce((a, b) => a < b ? a : b)}, ${lons.reduce((a, b) => a > b ? a : b)}]');
+        }
+
+        // Generate currents GeoJSON in background isolate
+        debugPrint('📍 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+        final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
+        final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
+        debugPrint('📍 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
+        // Generate wind velocity GeoJSON in background isolate
+        debugPrint('📍 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+        final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
+        final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+        debugPrint('📍 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
+        // Process ocean data
+        final result = await _getOceanDataUseCase(GetOceanDataParams(
+          startDate: currentState.startDate,
+          endDate: currentState.endDate,
+        ));
+
+        final oceanData = result.getOrElse(() => []);
+        debugPrint('📍 OCEAN DATA PROCESSED: ${oceanData.length} data points');
+
+        // Fetch environmental data if we have ocean data
+        EnvDataEntity? envData;
+        List<Map<String, dynamic>> timeSeriesData = const [];
+
+        if (oceanData.isNotEmpty && rawData.isNotEmpty) {
+          try {
+            final firstDataPoint = oceanData.first;
+            envData = await _remoteDataSource.getEnvironmentalData(
+              timestamp: firstDataPoint.timestamp,
+              depth: currentState.selectedDepth,
+              latitude: firstDataPoint.latitude,
+              longitude: firstDataPoint.longitude,
+            );
+            debugPrint('📍 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
+
+            timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
+            debugPrint('📍 TIME SERIES: Processed ${timeSeriesData.length} points');
+          } catch (e) {
+            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
+          }
+        }
+
+        final dataQuality = _calculateDataQuality(oceanData);
+
+        // Emit new state with updated data
+        debugPrint('📍 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
+        debugPrint('📍 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
+
+        emit(currentState.copyWith(
+          selectedArea: event.area,
+          isLoading: false,
+          hasError: false,
+          errorMessage: null,
+          data: oceanData,
+          rawData: rawData,
+          currentsGeoJSON: currentsGeoJSON,
+          windVelocityGeoJSON: windVelocityGeoJSON,
+          envData: envData,
+          timeSeriesData: timeSeriesData,
+          dataQuality: dataQuality,
+        ));
+
+        debugPrint('✅ STUDY AREA CHANGE COMPLETE: Successfully updated to ${event.area}');
+      } catch (e, stackTrace) {
+        debugPrint('❌ ERROR: Failed to load data for area ${event.area}: $e');
+        debugPrint('Stack trace: $stackTrace');
+        emit(currentState.copyWith(
+          selectedArea: event.area,
+          isLoading: false,
+          hasError: true,
+          errorMessage: 'Failed to load data for ${event.area}: $e',
+        ));
+      }
     }
   }
   

@@ -367,7 +367,11 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
               DropdownMenuItem(value: 'MBL', child: Text('MBL')),
               DropdownMenuItem(value: 'MSR', child: Text('MSR')),
             ],
-            onChanged: (value) => widget.onAreaChange?.call(value ?? 'USM'),
+            onChanged: (value) {
+              debugPrint('🎛️ CONTROL PANEL: Study Area dropdown changed to: $value');
+              debugPrint('🎛️ Previous value was: ${widget.selectedArea}');
+              widget.onAreaChange?.call(value ?? 'USM');
+            },
           ),
         ],
       ),
