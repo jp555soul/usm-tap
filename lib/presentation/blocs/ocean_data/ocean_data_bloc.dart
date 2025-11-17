@@ -1322,9 +1322,124 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     }
   }
   
-  void _onSetSelectedDepth(SetSelectedDepthEvent event, Emitter<OceanDataState> emit) {
+  Future<void> _onSetSelectedDepth(SetSelectedDepthEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
-      emit((state as OceanDataLoadedState).copyWith(selectedDepth: event.depth));
+      final currentState = state as OceanDataLoadedState;
+
+      debugPrint('🌊 DEPTH CHANGE: ${currentState.selectedDepth} → ${event.depth}');
+
+      // Set loading state while fetching data with new depth filter
+      emit(currentState.copyWith(
+        selectedDepth: event.depth,
+        isLoading: true,
+      ));
+
+      try {
+        debugPrint('🌊 FETCHING DATA: Requesting data for depth=${event.depth}');
+        debugPrint('🌊 Area: ${currentState.selectedArea}');
+        debugPrint('🌊 Date range: ${currentState.startDate} to ${currentState.endDate}');
+
+        // Fetch new data with depth filter
+        final rawDataResult = await _remoteDataSource.loadAllData(
+          area: currentState.selectedArea,
+          startDate: currentState.startDate,
+          endDate: currentState.endDate,
+          depth: event.depth,
+          stationId: null,
+          model: currentState.selectedModel,
+        );
+
+        final rawDataList = rawDataResult['allData'] as List?;
+        debugPrint('🌊 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for depth ${event.depth}');
+
+        if (rawDataList == null || rawDataList.isEmpty) {
+          debugPrint('⚠️ WARNING: No data returned for depth ${event.depth}');
+          emit(currentState.copyWith(
+            selectedDepth: event.depth,
+            isLoading: false,
+            hasError: true,
+            errorMessage: 'No data available for depth ${event.depth}',
+          ));
+          return;
+        }
+
+        final rawData = rawDataList.cast<Map<String, dynamic>>();
+
+        // Generate currents GeoJSON in background isolate
+        debugPrint('🌊 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+        final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
+        final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
+        debugPrint('🌊 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
+        // Generate wind velocity GeoJSON in background isolate
+        debugPrint('🌊 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+        final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
+        final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+        debugPrint('🌊 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
+        // Process ocean data
+        final result = await _getOceanDataUseCase(GetOceanDataParams(
+          startDate: currentState.startDate,
+          endDate: currentState.endDate,
+          depth: event.depth,
+        ));
+
+        final oceanData = result.getOrElse(() => []);
+        debugPrint('🌊 OCEAN DATA PROCESSED: ${oceanData.length} data points');
+
+        // Fetch environmental data if we have ocean data
+        EnvDataEntity? envData;
+        List<Map<String, dynamic>> timeSeriesData = const [];
+
+        if (oceanData.isNotEmpty && rawData.isNotEmpty) {
+          try {
+            final firstDataPoint = oceanData.first;
+            envData = await _remoteDataSource.getEnvironmentalData(
+              timestamp: firstDataPoint.timestamp,
+              depth: event.depth,
+              latitude: firstDataPoint.latitude,
+              longitude: firstDataPoint.longitude,
+            );
+            debugPrint('🌊 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
+
+            timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
+            debugPrint('🌊 TIME SERIES: Processed ${timeSeriesData.length} points');
+          } catch (e) {
+            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
+          }
+        }
+
+        final dataQuality = _calculateDataQuality(oceanData);
+
+        // Emit new state with updated data
+        debugPrint('🌊 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
+        debugPrint('🌊 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
+
+        emit(currentState.copyWith(
+          selectedDepth: event.depth,
+          isLoading: false,
+          hasError: false,
+          errorMessage: null,
+          data: oceanData,
+          rawData: rawData,
+          currentsGeoJSON: currentsGeoJSON,
+          windVelocityGeoJSON: windVelocityGeoJSON,
+          envData: envData,
+          timeSeriesData: timeSeriesData,
+          dataQuality: dataQuality,
+        ));
+
+        debugPrint('✅ DEPTH CHANGE COMPLETE: Successfully updated to ${event.depth}');
+      } catch (e, stackTrace) {
+        debugPrint('❌ ERROR: Failed to load data for depth ${event.depth}: $e');
+        debugPrint('Stack trace: $stackTrace');
+        emit(currentState.copyWith(
+          selectedDepth: event.depth,
+          isLoading: false,
+          hasError: true,
+          errorMessage: 'Failed to load data for depth ${event.depth}: $e',
+        ));
+      }
     }
   }
   
