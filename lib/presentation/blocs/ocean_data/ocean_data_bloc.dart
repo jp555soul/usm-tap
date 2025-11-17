@@ -1013,6 +1013,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           : await compute(_generateWindVelocityInIsolate, rawData);
         debugPrint('BLOC: Generated ${(windVelocityGeoJSON['features'] as List).length} wind vectors');
 
+        // Query available depths from database
+        List<double> availableDepths = [];
+        try {
+          availableDepths = await _remoteDataSource.getAvailableDepths('');
+          debugPrint('📊 BLOC: Loaded ${availableDepths.length} available depths from database');
+        } catch (e) {
+          debugPrint('⚠️ BLOC: Failed to load depths: $e');
+          // Leave empty list if query fails
+        }
+
         final dataQuality = _calculateDataQuality(oceanData);
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
@@ -1022,7 +1032,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
-          availableDepths: const [0.0, 10.0, 20.0, 30.0, 50.0, 100.0],
+          availableDepths: availableDepths,
           availableDates: const [], availableTimes: const [], currentFrame: 0,
           totalFrames: 100, isPlaying: false, playbackSpeed: 1.0, loopMode: false,
           mapLayerVisibility: const {
