@@ -645,6 +645,7 @@ class OceanDataErrorState extends OceanDataState {
 class OceanDataLoadedState extends OceanDataState {
   final bool dataLoaded;
   final bool isLoading;
+  final String? loadingArea;  // NEW: Track which area is being loaded
   final bool hasError;
   final String? errorMessage;
   final List<OceanDataEntity> data;
@@ -688,10 +689,11 @@ class OceanDataLoadedState extends OceanDataState {
   final Map<String, dynamic>? dataQuality;
   final List<ChatMessage> chatMessages;
   final bool isTyping;
-  
+
   const OceanDataLoadedState({
     required this.dataLoaded,
     this.isLoading = false,
+    this.loadingArea,  // NEW: Initialize as null
     this.hasError = false,
     this.errorMessage,
     required this.data,
@@ -736,10 +738,10 @@ class OceanDataLoadedState extends OceanDataState {
     required this.chatMessages,
     this.isTyping = false,
   });
-  
+
   @override
   List<Object?> get props => [
-    dataLoaded, isLoading, hasError, errorMessage, data, stationData, timeSeriesData,
+    dataLoaded, isLoading, loadingArea, hasError, errorMessage, data, stationData, timeSeriesData,
     rawData, currentsGeoJSON, windVelocityGeoJSON, envData, selectedArea, selectedModel, selectedDepth,
     dataSource, timeZone, startDate, endDate, currentDate, currentTime, selectedStation,
     availableModels, availableDepths, availableDates, availableTimes, currentFrame,
@@ -750,7 +752,7 @@ class OceanDataLoadedState extends OceanDataState {
   ];
   
   OceanDataLoadedState copyWith({
-    bool? dataLoaded, bool? isLoading, bool? hasError, String? errorMessage,
+    bool? dataLoaded, bool? isLoading, String? loadingArea, bool? hasError, String? errorMessage,
     List<OceanDataEntity>? data, List<StationDataEntity>? stationData,
     List<Map<String, dynamic>>? timeSeriesData, List<Map<String, dynamic>>? rawData,
     Map<String, dynamic>? currentsGeoJSON, Map<String, dynamic>? windVelocityGeoJSON,
@@ -767,10 +769,12 @@ class OceanDataLoadedState extends OceanDataState {
     Map<String, dynamic>? holoOcean, ConnectionStatusEntity? connectionStatus,
     Map<String, dynamic>? connectionDetails, Map<String, dynamic>? dataQuality,
     List<ChatMessage>? chatMessages, bool? isTyping,
+    bool clearLoadingArea = false,  // NEW: Flag to clear loadingArea
   }) {
     return OceanDataLoadedState(
       dataLoaded: dataLoaded ?? this.dataLoaded,
       isLoading: isLoading ?? this.isLoading,
+      loadingArea: clearLoadingArea ? null : (loadingArea ?? this.loadingArea),
       hasError: hasError ?? this.hasError,
       errorMessage: errorMessage ?? this.errorMessage,
       data: data ?? this.data,
@@ -818,13 +822,36 @@ class OceanDataLoadedState extends OceanDataState {
   }
 }
 
+/// Cache for area data to avoid re-fetching
+class _AreaDataCache {
+  final List<Map<String, dynamic>> rawData;
+  final Map<String, dynamic> currentsGeoJSON;
+  final Map<String, dynamic> windVelocityGeoJSON;
+  final List<Map<String, dynamic>> timeSeriesData;
+  final DateTime cachedAt;
+
+  _AreaDataCache({
+    required this.rawData,
+    required this.currentsGeoJSON,
+    required this.windVelocityGeoJSON,
+    required this.timeSeriesData,
+    required this.cachedAt,
+  });
+
+  // Cache is valid for 5 minutes
+  bool get isExpired => DateTime.now().difference(cachedAt).inMinutes > 5;
+}
+
 class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   final GetOceanDataUseCase _getOceanDataUseCase;
   final UpdateTimeRangeUseCase _updateTimeRangeUseCase;
   final ControlAnimationUseCase _controlAnimationUseCase;
   final ConnectHoloOceanUseCase _connectHoloOceanUseCase;
   final OceanDataRemoteDataSource _remoteDataSource;
-  
+
+  // Cache for area data to avoid re-fetching
+  final Map<String, _AreaDataCache> _areaCache = {};
+
   OceanDataBloc({
     required GetOceanDataUseCase getOceanDataUseCase,
     required UpdateTimeRangeUseCase updateTimeRangeUseCase,
@@ -1137,10 +1164,32 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       debugPrint('📍 Current currents vectors: ${(currentState.currentsGeoJSON['features'] as List?)?.length ?? 0}');
       debugPrint('📍 Current wind vectors: ${(currentState.windVelocityGeoJSON['features'] as List?)?.length ?? 0}');
 
-      // Set loading state while fetching new data
+      // Check cache first
+      final cachedData = _areaCache[event.area];
+      if (cachedData != null && !cachedData.isExpired) {
+        debugPrint('✅ CACHE HIT: Using cached data for ${event.area}');
+        debugPrint('📍 Cache age: ${DateTime.now().difference(cachedData.cachedAt).inSeconds}s');
+
+        // Use cached data immediately - no loading state needed
+        emit(currentState.copyWith(
+          selectedArea: event.area,
+          rawData: cachedData.rawData,
+          currentsGeoJSON: cachedData.currentsGeoJSON,
+          windVelocityGeoJSON: cachedData.windVelocityGeoJSON,
+          timeSeriesData: cachedData.timeSeriesData,
+        ));
+
+        debugPrint('✅ STUDY AREA CHANGE COMPLETE (from cache): Successfully updated to ${event.area}');
+        return;
+      }
+
+      debugPrint('📍 CACHE MISS: Fetching data for ${event.area}');
+
+      // Set loading state with area name while fetching new data
       emit(currentState.copyWith(
         selectedArea: event.area,
         isLoading: true,
+        loadingArea: event.area,
       ));
 
       try {
@@ -1223,6 +1272,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
 
         final dataQuality = _calculateDataQuality(oceanData);
 
+        // Cache the data for future use
+        _areaCache[event.area] = _AreaDataCache(
+          rawData: rawData,
+          currentsGeoJSON: currentsGeoJSON,
+          windVelocityGeoJSON: windVelocityGeoJSON,
+          timeSeriesData: timeSeriesData,
+          cachedAt: DateTime.now(),
+        );
+        debugPrint('💾 CACHED: Data for ${event.area} cached for 5 minutes');
+
         // Emit new state with updated data
         debugPrint('📍 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
         debugPrint('📍 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
@@ -1230,6 +1289,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         emit(currentState.copyWith(
           selectedArea: event.area,
           isLoading: false,
+          clearLoadingArea: true,  // Clear the loading area
           hasError: false,
           errorMessage: null,
           data: oceanData,
@@ -1248,6 +1308,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         emit(currentState.copyWith(
           selectedArea: event.area,
           isLoading: false,
+          clearLoadingArea: true,  // Clear the loading area on error too
           hasError: true,
           errorMessage: 'Failed to load data for ${event.area}: $e',
         ));
