@@ -320,7 +320,11 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                   SizedBox(height: 16),
                   Text(
                     'Loading ocean data...',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ],
               ),
