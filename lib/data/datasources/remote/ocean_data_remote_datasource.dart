@@ -141,6 +141,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   final Dio _dio;
   late final ApiConfig _apiConfig;
   List<dynamic>? _cachedData;
+  String? _currentArea; // Track current area for depth queries
   
   OceanDataRemoteDataSourceImpl(this._dio) {
     _initializeConfig();
@@ -191,6 +192,7 @@ Future<Map<String, dynamic>> loadAllData({
   String? model,
 }) async {
   final selectedArea = area ?? 'USM';
+  _currentArea = selectedArea; // Track current area for depth queries
   final defaultStartDate = DateTime.parse('2025-07-31T00:00:00Z');
   final defaultEndDate = DateTime.parse('2025-08-01T00:00:00Z');
   final start = startDate ?? defaultStartDate;
@@ -1512,13 +1514,14 @@ Future<Map<String, dynamic>> loadAllData({
   Future<List<double>> getAvailableDepths(String stationId) async {
     try {
       // Use the current area to determine the table name
-      final currentArea = 'USM'; // Default area, could be passed as parameter if needed
-      final tableName = getTableNameForArea(currentArea);
+      final tableName = getTableNameForArea(_currentArea ?? 'USM');
 
-      // Query to get distinct depth values from the database
-      final query = 'SELECT DISTINCT depth FROM `${_apiConfig.database}.$tableName` ORDER BY depth ASC';
+      // Query for distinct depth values from current area/table
+      final query = 'SELECT DISTINCT depth FROM `${_apiConfig.database}.$tableName` '
+                    'WHERE depth IS NOT NULL '
+                    'ORDER BY depth ASC';
 
-      debugPrint('🌊 Querying available depths: $query');
+      debugPrint('📊 DEPTHS QUERY: $query');
 
       final response = await _dio.get(
         '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
@@ -1529,43 +1532,27 @@ Future<Map<String, dynamic>> loadAllData({
             'Authorization': 'Bearer ${_apiConfig.token}',
           },
           receiveTimeout: _apiConfig.timeout,
-          validateStatus: (status) => true,
         ),
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        if (data != null && data['results'] != null && data['results'][0] != null) {
-          final rows = data['results'][0]['data'] as List? ?? [];
-          final depths = rows
-              .map((row) {
-                final rowData = row as Map<String, dynamic>;
-                final depth = rowData['depth'];
-                if (depth is num) {
-                  return depth.toDouble();
-                }
-                return null;
-              })
-              .where((d) => d != null)
-              .cast<double>()
-              .toList();
+        final data = response.data as List;
+        final depths = data
+            .map((row) => (row['depth'] as num?)?.toDouble())
+            .where((d) => d != null)
+            .cast<double>()
+            .toSet() // Remove duplicates
+            .toList()
+          ..sort();
 
-          debugPrint('🌊 Found ${depths.length} distinct depths: $depths');
-
-          // Return the depths, or fallback to defaults if empty
-          if (depths.isNotEmpty) {
-            return depths;
-          }
-        }
+        debugPrint('📊 DEPTHS: Found ${depths.length} unique depths: $depths');
+        return depths;
       }
 
-      // Fallback to default depths if query fails
-      debugPrint('🌊 Using fallback depths');
-      return [0.0, 10.0, 20.0, 30.0, 50.0, 100.0];
+      throw ServerException('Failed to fetch depths: ${response.statusCode}');
     } catch (e) {
-      debugPrint('🌊 Error querying depths: $e');
-      // Return default depths on error
-      return [0.0, 10.0, 20.0, 30.0, 50.0, 100.0];
+      debugPrint('❌ ERROR fetching depths: $e');
+      throw ServerException('Failed to fetch available depths: $e');
     }
   }
 }

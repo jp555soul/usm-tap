@@ -469,32 +469,51 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             ],
           ),
           const SizedBox(height: 4),
-          DropdownButtonFormField<double>(
-            value: widget.selectedDepth,
-            decoration: InputDecoration(
-              contentPadding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: _errors.containsKey('depth') ? Colors.red[500]! : const Color(0xFF475569),
+          widget.availableDepths.isEmpty && !widget.isLoading && widget.dataLoaded
+              ? Container(
+                  padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.orange[500]!),
+                    borderRadius: BorderRadius.circular(4),
+                    color: const Color(0xFF334155),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_rounded, size: 16, color: Colors.orange[400]),
+                      const SizedBox(width: 8),
+                      Text(
+                        'No depth data available',
+                        style: TextStyle(fontSize: isSmall ? 12 : 14, color: Colors.orange[400]),
+                      ),
+                    ],
+                  ),
+                )
+              : DropdownButtonFormField<double>(
+                  value: widget.availableDepths.contains(widget.selectedDepth) ? widget.selectedDepth : null,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: _errors.containsKey('depth') ? Colors.red[500]! : const Color(0xFF475569),
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF334155),
+                  ),
+                  style: TextStyle(fontSize: isSmall ? 12 : 14, color: Colors.white),
+                  dropdownColor: const Color(0xFF334155),
+                  items: widget.availableDepths.isEmpty
+                      ? [const DropdownMenuItem(value: 0.0, child: Text('Loading...'))]
+                      : widget.availableDepths.map((depth) {
+                          return DropdownMenuItem(
+                            value: depth,
+                            child: Text(depth == 0 ? '0 m (Surface)' : '$depth m'),
+                          );
+                        }).toList(),
+                  onChanged: widget.dataLoaded && widget.availableDepths.isNotEmpty
+                      ? (value) => widget.onDepthChange?.call(value ?? 0)
+                      : null,
                 ),
-              ),
-              filled: true,
-              fillColor: const Color(0xFF334155),
-            ),
-            style: TextStyle(fontSize: isSmall ? 12 : 14, color: Colors.white),
-            dropdownColor: const Color(0xFF334155),
-            items: widget.availableDepths.isEmpty
-                ? [const DropdownMenuItem(value: 0.0, child: Text('Loading...'))]
-                : widget.availableDepths.map((depth) {
-                    return DropdownMenuItem(
-                      value: depth,
-                      child: Text(depth == 0 ? '0 m (Surface)' : '$depth m'),
-                    );
-                  }).toList(),
-            onChanged: widget.dataLoaded && widget.availableDepths.isNotEmpty
-                ? (value) => widget.onDepthChange?.call(value ?? 0)
-                : null,
-          ),
         ],
       ),
     );
