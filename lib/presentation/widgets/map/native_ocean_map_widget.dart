@@ -30,6 +30,8 @@ class NativeOceanMapWidget extends StatefulWidget {
   final List<double> availableDepths;
   final Map<String, dynamic> currentsGeoJSON;
   final Map<String, dynamic> windVelocityGeoJSON;
+  final bool isLoading;  // NEW: BLoC loading state
+  final String? loadingArea;  // NEW: Area being loaded
 
   const NativeOceanMapWidget({
     Key? key,
@@ -73,6 +75,8 @@ class NativeOceanMapWidget extends StatefulWidget {
     this.availableDepths = const [],
     this.currentsGeoJSON = const {},
     this.windVelocityGeoJSON = const {},
+    this.isLoading = false,  // NEW: Default to false
+    this.loadingArea,  // NEW: Optional area name
   }) : super(key: key);
 
   @override
@@ -84,7 +88,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   Map<String, dynamic>? _selectedStation;
   Map<String, dynamic>? _selectedVector;
   Map<String, dynamic>? _hoveredDataPoint;
-  bool _isLoading = false;
   bool _mapReady = false;
 
   // Camera position tracking to prevent reset on widget updates
@@ -830,13 +833,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
             ),
           ),
 
-        // Loading indicator
-        if (_isLoading)
-          const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-            ),
-          ),
+        // Loading indicator overlay for study area changes
+        if (widget.isLoading && widget.loadingArea != null)
+          _buildLoadingOverlay(widget.loadingArea!),
 
         // Map controls overlay
         Positioned(
@@ -989,6 +988,87 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Build loading overlay for study area changes
+  Widget _buildLoadingOverlay(String areaName) {
+    // Get full area name for display
+    String fullAreaName;
+    switch (areaName.toUpperCase()) {
+      case 'USM':
+        fullAreaName = 'USM';
+        break;
+      case 'MBL':
+        fullAreaName = 'Mobile Bay';
+        break;
+      case 'MSR':
+        fullAreaName = 'Mississippi River';
+        break;
+      default:
+        fullAreaName = areaName;
+    }
+
+    return Positioned.fill(
+      child: Container(
+        color: const Color(0xFF0F172A).withOpacity(0.85),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFEC4899).withOpacity(0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Spinner
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFFEC4899),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Loading text
+                Text(
+                  'Loading $fullAreaName data...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Subtitle
+                Text(
+                  'Fetching and processing ocean data',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

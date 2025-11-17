@@ -552,6 +552,8 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                   isOutputCollapsed,
                                               availableDepths:
                                                   oceanState.availableDepths,
+                                              isLoading: oceanState.isLoading,
+                                              loadingArea: oceanState.loadingArea,
                                               onPOVChange: (pov) {
                                                 context.read<OceanDataBloc>().add(
                                                       SetHoloOceanPOVEvent(pov),
