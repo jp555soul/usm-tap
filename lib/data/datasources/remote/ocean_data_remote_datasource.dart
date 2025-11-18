@@ -181,17 +181,6 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
     return areaTableMap[areaName] ?? areaTableMap['USM']!;
   }
 
-  /// Sanitizes SQL parameters to prevent SQL injection
-  /// Only allows alphanumeric characters, underscores, hyphens, and periods
-  /// @param value - The parameter value to sanitize
-  /// @returns The sanitized parameter value
-  ///
-  /// SECURITY: This prevents SQL injection by removing potentially dangerous characters
-  /// from user-supplied parameters like station_id and model
-  String _sanitizeParameter(String value) {
-    // Remove any characters that are not alphanumeric, underscore, hyphen, or period
-    return value.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '');
-  }
 
   /// OPTIMIZATION NOTES:
   ///
@@ -233,78 +222,37 @@ Future<Map<String, dynamic>> loadAllData({
   double? depth,
   String? model,
 }) async {
+  // Require startDate and endDate - no defaults
+  if (startDate == null || endDate == null) {
+    throw ArgumentError('startDate and endDate are required');
+  }
+
   final selectedArea = area ?? 'USM';
   _currentArea = selectedArea; // Track current area for depth queries
-  final defaultStartDate = DateTime.parse('2025-07-31T00:00:00Z');
-  final defaultEndDate = DateTime.parse('2025-08-01T00:00:00Z');
-  final start = startDate ?? defaultStartDate;
-  final end = endDate ?? defaultEndDate;
 
   // Track current date range for depth queries
-  _currentStartDate = start;
-  _currentEndDate = end;
+  _currentStartDate = startDate;
+  _currentEndDate = endDate;
 
   final tableName = getTableNameForArea(selectedArea);
 
   // ===== COMPREHENSIVE LOGGING: Query Construction =====
   debugPrint('🌊 DATA SOURCE: loadAllData called');
   debugPrint('🌊 AREA: $selectedArea → TABLE: $tableName');
-  debugPrint('🌊 DATE RANGE: ${start.toIso8601String()} to ${end.toIso8601String()}');
-  if (depth != null) {
-    debugPrint('🌊 DEPTH FILTER: $depth m');
-  }
-  if (stationId != null) {
-    debugPrint('🌊 STATION FILTER: $stationId');
-  }
-  if (model != null) {
-    debugPrint('🌊 MODEL FILTER: $model');
-  }
+  debugPrint('🌊 DATE RANGE: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
 
-  // Build WHERE clauses with proper sanitization
-  final whereClauses = <String>[];
-
-  // SECURITY: Add TIMESTAMP filtering - REQUIRED for all queries
-  // This ensures queries are scoped to specific time ranges and prevents full table scans
   // Convert to UTC to ensure .000Z suffix format
-  final startUtc = start.toUtc().toIso8601String();
-  final endUtc = end.toUtc().toIso8601String();
-  whereClauses.add("time BETWEEN TIMESTAMP('$startUtc') AND TIMESTAMP('$endUtc')");
-  debugPrint('🔒 TIMESTAMP FILTER: $startUtc to $endUtc');
+  final startUtc = startDate.toUtc().toIso8601String();
+  final endUtc = endDate.toUtc().toIso8601String();
 
-  // Add depth filter if specified
-  if (depth != null) {
-    whereClauses.add('depth = $depth');
-    debugPrint('🔒 DEPTH FILTER: depth = $depth');
-  }
-
-  // Add station filter if specified (with sanitization to prevent SQL injection)
-  if (stationId != null) {
-    final sanitizedStationId = _sanitizeParameter(stationId);
-    if (sanitizedStationId.isNotEmpty) {
-      whereClauses.add("station_id = '$sanitizedStationId'");
-      debugPrint('🔒 SANITIZED STATION_ID: $stationId → $sanitizedStationId');
-    }
-  }
-
-  // Add model filter if specified (with sanitization to prevent SQL injection)
-  if (model != null) {
-    final sanitizedModel = _sanitizeParameter(model);
-    if (sanitizedModel.isNotEmpty) {
-      whereClauses.add("model = '$sanitizedModel'");
-      debugPrint('🔒 SANITIZED MODEL: $model → $sanitizedModel');
-    }
-  }
-
-  // Build the complete query using standardized format
-  final whereConditions = whereClauses.join(' AND ');
+  // Build the query with only time filter
   final query = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
                 'FROM `isdata-usmcom.usm_com.$tableName` '
-                'WHERE $whereConditions '
+                'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\') '
                 'ORDER BY time DESC '
                 'LIMIT 10000';
 
-  // URL encode the query ONCE to prevent Dio from double-encoding
-  // Use Uri.encodeQueryComponent to properly encode spaces as %20, parentheses as %28/%29, etc.
+  // URL encode the query - use %20 for spaces, proper encoding for special chars
   final encodedQuery = Uri.encodeQueryComponent(query);
 
   // Build the full URL manually to prevent Dio from re-encoding
@@ -1456,7 +1404,14 @@ Future<Map<String, dynamic>> loadAllData({
   Future<List<dynamic>> getStations() async {
     try {
       // debugPrint('Fetching stations from API...');
-      final result = await loadAllData();
+      // Require dates to be tracked from previous loadAllData call
+      if (_currentStartDate == null || _currentEndDate == null) {
+        throw ArgumentError('Dates not available. Call loadAllData first.');
+      }
+      final result = await loadAllData(
+        startDate: _currentStartDate,
+        endDate: _currentEndDate,
+      );
       final rawData = result['allData'] as List? ?? [];
       final stations = generateOptimizedStationDataFromAPI(rawData);
       // debugPrint('Generated ${stations.length} stations');
@@ -1476,9 +1431,16 @@ Future<Map<String, dynamic>> loadAllData({
   }) async {
     try {
       // debugPrint('Fetching environmental data...');
-      
+
       if (_cachedData == null || _cachedData!.isEmpty) {
-        final result = await loadAllData();
+        // Require dates to be tracked from previous loadAllData call
+        if (_currentStartDate == null || _currentEndDate == null) {
+          throw ArgumentError('Dates not available. Call loadAllData first.');
+        }
+        final result = await loadAllData(
+          startDate: _currentStartDate,
+          endDate: _currentEndDate,
+        );
         _cachedData = result['allData'] as List?;
       }
       
@@ -1583,46 +1545,21 @@ Future<Map<String, dynamic>> loadAllData({
       // Use the current area to determine the table name
       final tableName = getTableNameForArea(_currentArea ?? 'USM');
 
-      // Build WHERE clauses with proper security measures
-      final whereClauses = <String>[];
+      // Simple query without time filter
+      final query = 'SELECT DISTINCT depth FROM `isdata-usmcom.usm_com.$tableName` ORDER BY depth ASC';
 
-      // SECURITY: Add TIMESTAMP filtering to prevent full table scans
-      // Use tracked date range from control panel if available, otherwise use last 365 days
-      final endDate = _currentEndDate ?? DateTime.now();
-      final startDate = _currentStartDate ?? endDate.subtract(const Duration(days: 365));
+      // URL encode the query - spaces as +, special chars properly encoded
+      final encodedQuery = query
+          .replaceAll(' ', '+')
+          .replaceAll('`', '%60')
+          .replaceAll('.', '%2E');
 
-      // Convert to UTC to ensure .000Z suffix format
-      final startUtc = startDate.toUtc().toIso8601String();
-      final endUtc = endDate.toUtc().toIso8601String();
-      whereClauses.add("time BETWEEN TIMESTAMP('$startUtc') AND TIMESTAMP('$endUtc')");
-      debugPrint('🔒 DEPTHS QUERY - TIMESTAMP FILTER: $startUtc to $endUtc');
-
-      // SECURITY: Sanitize stationId to prevent SQL injection
-      if (stationId.isNotEmpty) {
-        final sanitizedStationId = _sanitizeParameter(stationId);
-        if (sanitizedStationId.isNotEmpty) {
-          whereClauses.add("station_id = '$sanitizedStationId'");
-          debugPrint('🔒 DEPTHS QUERY - SANITIZED STATION_ID: $stationId → $sanitizedStationId');
-        }
-      }
-
-      // Build query using standardized format
-      final whereConditions = whereClauses.join(' AND ');
-      final query = 'SELECT DISTINCT depth '
-                    'FROM `isdata-usmcom.usm_com.$tableName` '
-                    'WHERE $whereConditions '
-                    'ORDER BY depth ASC';
-
-      // URL encode the query ONCE to prevent Dio from double-encoding
-      final encodedQuery = Uri.encodeQueryComponent(query);
-
-      // Build the full URL manually to prevent Dio from re-encoding
+      // Build the full URL
       final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
 
       debugPrint('📊 DEPTHS QUERY: $query');
       debugPrint('📊 ENCODED URL: $fullUrl');
 
-      // Pass the full URL without queryParameters to prevent double-encoding
       final response = await _dio.get(
         fullUrl,
         options: Options(
