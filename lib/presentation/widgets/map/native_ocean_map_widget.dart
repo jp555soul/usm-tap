@@ -221,23 +221,34 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       }
     }
 
-    if (oldWidget.rawData.length != widget.rawData.length) {
-      debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
-    }
-
-    final oldCurrentsCount = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
-    final newCurrentsCount = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
-    if (oldCurrentsCount != newCurrentsCount) {
-      debugPrint('🗺️ MAP: Currents vectors updated: $oldCurrentsCount → $newCurrentsCount features');
-      // Clear marker cache when GeoJSON changes
+    // Check if depth changed - this is critical for cache invalidation
+    if (oldWidget.selectedDepth != widget.selectedDepth) {
+      debugPrint('🗺️ MAP: Depth changed from ${oldWidget.selectedDepth}m → ${widget.selectedDepth}m');
+      // Clear all caches when depth changes to force fresh render
       _cachedCurrentsMarkers = null;
       _lastCurrentsGeoJSON = null;
     }
 
-    final oldWindCount = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-    final newWindCount = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-    if (oldWindCount != newWindCount) {
-      debugPrint('🗺️ MAP: Wind vectors updated: $oldWindCount → $newWindCount features');
+    if (oldWidget.rawData.length != widget.rawData.length) {
+      debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
+    }
+
+    // Check if currentsGeoJSON object reference changed (not just feature count)
+    // Using identical() to check object reference equality
+    if (!identical(oldWidget.currentsGeoJSON, widget.currentsGeoJSON)) {
+      final oldCurrentsCount = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+      final newCurrentsCount = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
+      debugPrint('🗺️ MAP: Currents GeoJSON updated: $oldCurrentsCount → $newCurrentsCount features');
+      // Clear marker cache when GeoJSON reference changes
+      _cachedCurrentsMarkers = null;
+      _lastCurrentsGeoJSON = null;
+    }
+
+    // Check if windVelocityGeoJSON object reference changed
+    if (!identical(oldWidget.windVelocityGeoJSON, widget.windVelocityGeoJSON)) {
+      final oldWindCount = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+      final newWindCount = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
+      debugPrint('🗺️ MAP: Wind velocity GeoJSON updated: $oldWindCount → $newWindCount features');
     }
 
     // Only apply initialViewState if this is truly first load and user hasn't moved
@@ -417,9 +428,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       return [];
     }
 
-    // Return cache if GeoJSON unchanged
+    // Return cache if GeoJSON object reference unchanged
+    // Using identical() to check if it's the exact same object
     if (_cachedCurrentsMarkers != null &&
-        _lastCurrentsGeoJSON == widget.currentsGeoJSON) {
+        identical(_lastCurrentsGeoJSON, widget.currentsGeoJSON)) {
       return _cachedCurrentsMarkers!;
     }
 
