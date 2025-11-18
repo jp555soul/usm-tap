@@ -272,11 +272,11 @@ class TimeManagementLoadedState extends TimeManagementState {
 
 // BLOC
 class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> {
-  // Define the specific start date
+  // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
   static final DateTime initialStartDate = DateTime.parse('2025-08-01T00:00:00Z');
-  
-  // Define a default end date (24 hours after the start)
-  static final DateTime initialEndDate = initialStartDate.add(const Duration(days: 1));
+
+  // Define a default end date (7 days after the start)
+  static final DateTime initialEndDate = DateTime.parse('2025-08-08T00:00:00Z');
   
   TimeManagementBloc() : super(
     TimeManagementLoadedState(
