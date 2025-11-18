@@ -1597,9 +1597,6 @@ Future<Map<String, dynamic>> loadAllData({
       whereClauses.add("time BETWEEN TIMESTAMP('$startUtc') AND TIMESTAMP('$endUtc')");
       debugPrint('🔒 DEPTHS QUERY - TIMESTAMP FILTER: $startUtc to $endUtc');
 
-      // Add depth NOT NULL filter
-      whereClauses.add('depth IS NOT NULL');
-
       // SECURITY: Sanitize stationId to prevent SQL injection
       if (stationId.isNotEmpty) {
         final sanitizedStationId = _sanitizeParameter(stationId);

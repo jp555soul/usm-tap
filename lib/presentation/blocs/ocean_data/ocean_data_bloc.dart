@@ -967,6 +967,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         if (oceanData.isNotEmpty) {
           try {
             // Get raw data from the data source for processing
+            // Don't filter by depth on initial load - get all depths
             final rawDataResult = await _remoteDataSource.loadAllData(
               startDate: startDate,
               endDate: endDate,
@@ -1024,12 +1025,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
+        // Use first available depth from query results, fallback to 0.0
+        final initialDepth = availableDepths.isNotEmpty ? availableDepths.first : 0.0;
+        debugPrint('📊 INITIAL DEPTH: Using ${initialDepth}m from available depths: $availableDepths');
+
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
           stationData: const [], timeSeriesData: timeSeriesData, rawData: rawData,
           currentsGeoJSON: currentsGeoJSON, windVelocityGeoJSON: windVelocityGeoJSON,
           envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
-          selectedDepth: 0.0, dataSource: 'API Stream', timeZone: 'UTC',
+          selectedDepth: initialDepth, dataSource: 'API Stream', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
           availableDepths: availableDepths,
@@ -1087,6 +1092,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               final rawDataResult = await _remoteDataSource.loadAllData(
                 startDate: currentState.startDate,
                 endDate: currentState.endDate,
+                depth: currentState.selectedDepth,
               );
               final rawDataList = rawDataResult['allData'] as List?;
 
@@ -1205,12 +1211,14 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       try {
         debugPrint('📍 FETCHING DATA: Requesting data for area=${event.area}');
         debugPrint('📍 Date range: ${currentState.startDate} to ${currentState.endDate}');
+        debugPrint('📍 Depth: ${currentState.selectedDepth}');
 
         // Fetch new data for the selected area
         final rawDataResult = await _remoteDataSource.loadAllData(
           area: event.area,
           startDate: currentState.startDate,
           endDate: currentState.endDate,
+          depth: currentState.selectedDepth,
         );
 
         final rawDataList = rawDataResult['allData'] as List?;
