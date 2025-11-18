@@ -257,6 +257,11 @@ Future<Map<String, dynamic>> loadAllData({
   // Build WHERE clauses with proper sanitization
   final whereClauses = <String>[];
 
+  // SECURITY: Add TIMESTAMP filtering - REQUIRED for all queries
+  // This ensures queries are scoped to specific time ranges and prevents full table scans
+  whereClauses.add("time BETWEEN TIMESTAMP('${start.toIso8601String()}') AND TIMESTAMP('${end.toIso8601String()}')");
+  debugPrint('🔒 TIMESTAMP FILTER: ${start.toIso8601String()} to ${end.toIso8601String()}');
+
   // Add depth filter if specified
   if (depth != null) {
     whereClauses.add('depth = $depth');
@@ -281,7 +286,7 @@ Future<Map<String, dynamic>> loadAllData({
   }
 
   // Build the complete query using standardized format
-  final whereConditions = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : '1=1';
+  final whereConditions = whereClauses.join(' AND ');
   final query = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
                 'FROM `isdata-usmcom.usm_com.$tableName` '
                 'WHERE $whereConditions '
@@ -1564,10 +1569,32 @@ Future<Map<String, dynamic>> loadAllData({
       // Use the current area to determine the table name
       final tableName = getTableNameForArea(_currentArea ?? 'USM');
 
+      // Build WHERE clauses with proper security measures
+      final whereClauses = <String>[];
+
+      // SECURITY: Add TIMESTAMP filtering to prevent full table scans
+      // Use last 365 days as default range for metadata queries
+      final endDate = DateTime.now();
+      final startDate = endDate.subtract(const Duration(days: 365));
+      whereClauses.add("time BETWEEN TIMESTAMP('${startDate.toIso8601String()}') AND TIMESTAMP('${endDate.toIso8601String()}')");
+
+      // Add depth NOT NULL filter
+      whereClauses.add('depth IS NOT NULL');
+
+      // SECURITY: Sanitize stationId to prevent SQL injection
+      if (stationId.isNotEmpty) {
+        final sanitizedStationId = _sanitizeParameter(stationId);
+        if (sanitizedStationId.isNotEmpty) {
+          whereClauses.add("station_id = '$sanitizedStationId'");
+          debugPrint('🔒 DEPTHS QUERY - SANITIZED STATION_ID: $stationId → $sanitizedStationId');
+        }
+      }
+
       // Build query using standardized format
+      final whereConditions = whereClauses.join(' AND ');
       final query = 'SELECT DISTINCT depth '
                     'FROM `isdata-usmcom.usm_com.$tableName` '
-                    'WHERE depth IS NOT NULL '
+                    'WHERE $whereConditions '
                     'ORDER BY depth ASC';
 
       // URL encode the query
