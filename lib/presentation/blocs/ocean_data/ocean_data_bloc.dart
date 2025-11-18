@@ -967,10 +967,14 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         if (oceanData.isNotEmpty) {
           try {
             // Get raw data from the data source for processing
-            // Don't filter by depth on initial load - get all depths
+            // Filter by depth based on the first record's depth
+            final firstRecordDepth = oceanData.first.depth;
+            debugPrint('📊 INITIAL LOAD: Using depth ${firstRecordDepth}m from first record');
+
             final rawDataResult = await _remoteDataSource.loadAllData(
               startDate: startDate,
               endDate: endDate,
+              depth: firstRecordDepth,
             );
             final rawDataList = rawDataResult['allData'] as List?;
 
@@ -1025,9 +1029,11 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
-        // Use first available depth from query results, fallback to 0.0
-        final initialDepth = availableDepths.isNotEmpty ? availableDepths.first : 0.0;
-        debugPrint('📊 INITIAL DEPTH: Using ${initialDepth}m from available depths: $availableDepths');
+        // Use first record's depth, fallback to first available depth or 0.0
+        final initialDepth = oceanData.isNotEmpty
+            ? oceanData.first.depth
+            : (availableDepths.isNotEmpty ? availableDepths.first : 0.0);
+        debugPrint('📊 INITIAL DEPTH: Using ${initialDepth}m from first record (available depths: $availableDepths)');
 
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
