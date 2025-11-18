@@ -223,7 +223,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
           selectedStation: station,
           centerLatitude: station.latitude,
           centerLongitude: station.longitude,
-          zoom: 10.0,
+          zoom: 8.0,
         ));
       },
     );

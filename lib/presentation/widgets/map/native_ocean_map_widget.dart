@@ -54,7 +54,7 @@ class NativeOceanMapWidget extends StatefulWidget {
     this.initialViewState = const {
       'longitude': -89.0,
       'latitude': 30.1,
-      'zoom': 10,
+      'zoom': 8,
       'pitch': 0,
       'bearing': 0
     },
@@ -162,7 +162,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     try {
       final longitude = (widget.initialViewState['longitude'] as num?)?.toDouble() ?? -89.0;
       final latitude = (widget.initialViewState['latitude'] as num?)?.toDouble() ?? 30.1;
-      final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 10.0;
+      final zoom = (widget.initialViewState['zoom'] as num?)?.toDouble() ?? 8.0;
 
       _mapController.move(LatLng(latitude, longitude), zoom);
       _currentCenter = LatLng(latitude, longitude);
@@ -178,12 +178,12 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   Map<String, double> _getAreaCoordinates(String area) {
     switch (area.toUpperCase()) {
       case 'MBL': // Mobile Bay
-        return {'latitude': 30.7, 'longitude': -88.0, 'zoom': 10.0};
+        return {'latitude': 30.7, 'longitude': -88.0, 'zoom': 8.0};
       case 'MSR': // Mississippi River
-        return {'latitude': 29.9, 'longitude': -89.4, 'zoom': 10.0};
+        return {'latitude': 29.9, 'longitude': -89.4, 'zoom': 8.0};
       case 'USM': // Gulf of Mexico (default)
       default:
-        return {'latitude': 30.1, 'longitude': -89.0, 'zoom': 10.0};
+        return {'latitude': 30.1, 'longitude': -89.0, 'zoom': 8.0};
     }
   }
 
@@ -1680,9 +1680,9 @@ class HeatmapPainter extends CustomPainter {
 
     try {
       // Calculate zoom-dependent spacing and radius for proper scaling
-      // Base spacing at zoom 10, scales proportionally with zoom level
+      // Base spacing at zoom 8, scales proportionally with zoom level
       final zoomFactor = math.pow(2, camera.zoom - 10).toDouble();
-      final sampleSpacing = (25.0 * zoomFactor).clamp(10.0, 100.0);
+      final sampleSpacing = (25.0 * zoomFactor).clamp(8.0, 100.0);
       final heatRadius = (sampleSpacing / 2 * heatmapScale).clamp(5.0, 50.0);
 
       // Create paint for heatmap points with sharper blur for better detail
