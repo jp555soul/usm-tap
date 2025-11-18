@@ -175,9 +175,49 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
       'MSR': 'msr_ngofs2',
       'USM': 'usm_ngofs2',
     };
-    
+
     return areaTableMap[areaName] ?? areaTableMap['USM']!;
   }
+
+  /// Sanitizes SQL parameters to prevent SQL injection
+  /// Only allows alphanumeric characters, underscores, hyphens, and periods
+  /// @param value - The parameter value to sanitize
+  /// @returns The sanitized parameter value
+  ///
+  /// SECURITY: This prevents SQL injection by removing potentially dangerous characters
+  /// from user-supplied parameters like station_id and model
+  String _sanitizeParameter(String value) {
+    // Remove any characters that are not alphanumeric, underscore, hyphen, or period
+    return value.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '');
+  }
+
+  /// OPTIMIZATION NOTES:
+  ///
+  /// 1. Query Caching: The _cachedData field provides basic caching. Consider adding:
+  ///    - Cache invalidation strategies based on time or area changes
+  ///    - Separate cache for getAvailableDepths results (depths rarely change)
+  ///    - Cache key based on query parameters to avoid redundant API calls
+  ///
+  /// 2. Database Indexes (Recommend to DB team):
+  ///    - CREATE INDEX idx_depth ON table_name(depth)
+  ///    - CREATE INDEX idx_time ON table_name(time DESC)
+  ///    - CREATE INDEX idx_station_model ON table_name(station_id, model)
+  ///    These indexes would significantly improve query performance
+  ///
+  /// 3. Query Optimization:
+  ///    - LIMIT 10000 is appropriate to prevent excessive data transfer
+  ///    - ORDER BY time DESC leverages temporal data patterns
+  ///    - WHERE 1=1 could be omitted when no filters present (minor optimization)
+  ///
+  /// 4. Network Optimization:
+  ///    - Consider implementing request debouncing for rapid filter changes
+  ///    - Batch multiple parameter changes into single query when possible
+  ///    - Use connection pooling (Dio handles this automatically)
+  ///
+  /// 5. Data Processing:
+  ///    - Grid-based aggregation (already implemented) reduces data points effectively
+  ///    - Consider server-side aggregation for very large datasets
+  ///    - Pagination could be added for datasets exceeding 10K rows
   
   /// Loads data from the oceanographic API based on specified query parameters.
   /// @param queryParams - The query parameters for filtering data.
@@ -214,39 +254,47 @@ Future<Map<String, dynamic>> loadAllData({
     debugPrint('🌊 MODEL FILTER: $model');
   }
 
-  final baseQuery = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms FROM `${_apiConfig.database}.$tableName`';
+  // Build WHERE clauses with proper sanitization
   final whereClauses = <String>[];
-
-  final startISO = start.toIso8601String();
-  final endISO = end.toIso8601String();
-  //whereClauses.add("time BETWEEN TIMESTAMP('$startISO') AND TIMESTAMP('$endISO')");
 
   // Add depth filter if specified
   if (depth != null) {
     whereClauses.add('depth = $depth');
   }
 
-  // Add station filter if specified
+  // Add station filter if specified (with sanitization to prevent SQL injection)
   if (stationId != null) {
-    whereClauses.add("station_id = '$stationId'");
+    final sanitizedStationId = _sanitizeParameter(stationId);
+    if (sanitizedStationId.isNotEmpty) {
+      whereClauses.add("station_id = '$sanitizedStationId'");
+      debugPrint('🔒 SANITIZED STATION_ID: $stationId → $sanitizedStationId');
+    }
   }
 
-  // Add model filter if specified
+  // Add model filter if specified (with sanitization to prevent SQL injection)
   if (model != null) {
-    whereClauses.add("model = '$model'");
+    final sanitizedModel = _sanitizeParameter(model);
+    if (sanitizedModel.isNotEmpty) {
+      whereClauses.add("model = '$sanitizedModel'");
+      debugPrint('🔒 SANITIZED MODEL: $model → $sanitizedModel');
+    }
   }
 
-  String query = baseQuery;
-  if (whereClauses.isNotEmpty) {
-    query += ' WHERE ${whereClauses.join(' AND ')}';
-  }
-  query += ' ORDER BY time DESC LIMIT 10000';
+  // Build the complete query using standardized format
+  final whereConditions = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : '1=1';
+  final query = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
+                'FROM `isdata-usmcom.usm_com.$tableName` '
+                'WHERE $whereConditions '
+                'ORDER BY time DESC '
+                'LIMIT 10000';
+
+  // URL encode the query
+  final encodedQuery = Uri.encodeComponent(query);
 
   debugPrint('🌊 SQL QUERY: $query');
-  debugPrint('🌊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}');
+  debugPrint('🌊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery');
 
   try {
-    
     final response = await _dio.get(
       '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
       queryParameters: {'query': query},
@@ -259,7 +307,7 @@ Future<Map<String, dynamic>> loadAllData({
         validateStatus: (status) => true, // Accept all status codes to see response
       ),
     );
-    
+
     // Log response details
     // debugPrint('=== API Response ===');
     // debugPrint('Status Code: ${response.statusCode}');
@@ -267,7 +315,7 @@ Future<Map<String, dynamic>> loadAllData({
     // // debugPrint('Response Headers: ${response.headers}');
     // // debugPrint('Response Data Type: ${response.data.runtimeType}');
     //// debugPrint('Response Data: ${response.data}');
-    
+
     if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
       final apiData = response.data as List;
 
@@ -1516,12 +1564,17 @@ Future<Map<String, dynamic>> loadAllData({
       // Use the current area to determine the table name
       final tableName = getTableNameForArea(_currentArea ?? 'USM');
 
-      // Query for distinct depth values from current area/table
-      final query = 'SELECT DISTINCT depth FROM `${_apiConfig.database}.$tableName` '
+      // Build query using standardized format
+      final query = 'SELECT DISTINCT depth '
+                    'FROM `isdata-usmcom.usm_com.$tableName` '
                     'WHERE depth IS NOT NULL '
                     'ORDER BY depth ASC';
 
+      // URL encode the query
+      final encodedQuery = Uri.encodeComponent(query);
+
       debugPrint('📊 DEPTHS QUERY: $query');
+      debugPrint('📊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery');
 
       final response = await _dio.get(
         '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
