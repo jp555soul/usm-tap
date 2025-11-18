@@ -142,6 +142,8 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   late final ApiConfig _apiConfig;
   List<dynamic>? _cachedData;
   String? _currentArea; // Track current area for depth queries
+  DateTime? _currentStartDate; // Track current start date for depth queries
+  DateTime? _currentEndDate; // Track current end date for depth queries
   
   OceanDataRemoteDataSourceImpl(this._dio) {
     _initializeConfig();
@@ -238,6 +240,10 @@ Future<Map<String, dynamic>> loadAllData({
   final start = startDate ?? defaultStartDate;
   final end = endDate ?? defaultEndDate;
 
+  // Track current date range for depth queries
+  _currentStartDate = start;
+  _currentEndDate = end;
+
   final tableName = getTableNameForArea(selectedArea);
 
   // ===== COMPREHENSIVE LOGGING: Query Construction =====
@@ -259,12 +265,16 @@ Future<Map<String, dynamic>> loadAllData({
 
   // SECURITY: Add TIMESTAMP filtering - REQUIRED for all queries
   // This ensures queries are scoped to specific time ranges and prevents full table scans
-  whereClauses.add("time BETWEEN TIMESTAMP('${start.toIso8601String()}') AND TIMESTAMP('${end.toIso8601String()}')");
-  debugPrint('🔒 TIMESTAMP FILTER: ${start.toIso8601String()} to ${end.toIso8601String()}');
+  // Convert to UTC to ensure .000Z suffix format
+  final startUtc = start.toUtc().toIso8601String();
+  final endUtc = end.toUtc().toIso8601String();
+  whereClauses.add("time BETWEEN TIMESTAMP('$startUtc') AND TIMESTAMP('$endUtc')");
+  debugPrint('🔒 TIMESTAMP FILTER: $startUtc to $endUtc');
 
   // Add depth filter if specified
   if (depth != null) {
     whereClauses.add('depth = $depth');
+    debugPrint('🔒 DEPTH FILTER: depth = $depth');
   }
 
   // Add station filter if specified (with sanitization to prevent SQL injection)
@@ -293,16 +303,20 @@ Future<Map<String, dynamic>> loadAllData({
                 'ORDER BY time DESC '
                 'LIMIT 10000';
 
-  // URL encode the query
-  final encodedQuery = Uri.encodeComponent(query);
+  // URL encode the query ONCE to prevent Dio from double-encoding
+  // Use Uri.encodeQueryComponent to properly encode spaces as %20, parentheses as %28/%29, etc.
+  final encodedQuery = Uri.encodeQueryComponent(query);
+
+  // Build the full URL manually to prevent Dio from re-encoding
+  final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
 
   debugPrint('🌊 SQL QUERY: $query');
-  debugPrint('🌊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery');
+  debugPrint('🌊 ENCODED URL: $fullUrl');
 
   try {
+    // Pass the full URL without queryParameters to prevent double-encoding
     final response = await _dio.get(
-      '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
-      queryParameters: {'query': query},
+      fullUrl,
       options: Options(
         headers: {
           'Content-Type': 'application/json',
@@ -1573,10 +1587,15 @@ Future<Map<String, dynamic>> loadAllData({
       final whereClauses = <String>[];
 
       // SECURITY: Add TIMESTAMP filtering to prevent full table scans
-      // Use last 365 days as default range for metadata queries
-      final endDate = DateTime.now();
-      final startDate = endDate.subtract(const Duration(days: 365));
-      whereClauses.add("time BETWEEN TIMESTAMP('${startDate.toIso8601String()}') AND TIMESTAMP('${endDate.toIso8601String()}')");
+      // Use tracked date range from control panel if available, otherwise use last 365 days
+      final endDate = _currentEndDate ?? DateTime.now();
+      final startDate = _currentStartDate ?? endDate.subtract(const Duration(days: 365));
+
+      // Convert to UTC to ensure .000Z suffix format
+      final startUtc = startDate.toUtc().toIso8601String();
+      final endUtc = endDate.toUtc().toIso8601String();
+      whereClauses.add("time BETWEEN TIMESTAMP('$startUtc') AND TIMESTAMP('$endUtc')");
+      debugPrint('🔒 DEPTHS QUERY - TIMESTAMP FILTER: $startUtc to $endUtc');
 
       // Add depth NOT NULL filter
       whereClauses.add('depth IS NOT NULL');
@@ -1597,15 +1616,18 @@ Future<Map<String, dynamic>> loadAllData({
                     'WHERE $whereConditions '
                     'ORDER BY depth ASC';
 
-      // URL encode the query
-      final encodedQuery = Uri.encodeComponent(query);
+      // URL encode the query ONCE to prevent Dio from double-encoding
+      final encodedQuery = Uri.encodeQueryComponent(query);
+
+      // Build the full URL manually to prevent Dio from re-encoding
+      final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
 
       debugPrint('📊 DEPTHS QUERY: $query');
-      debugPrint('📊 API URL: ${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery');
+      debugPrint('📊 ENCODED URL: $fullUrl');
 
+      // Pass the full URL without queryParameters to prevent double-encoding
       final response = await _dio.get(
-        '${_apiConfig.baseUrl}${_apiConfig.endpoint}',
-        queryParameters: {'query': query},
+        fullUrl,
         options: Options(
           headers: {
             'Content-Type': 'application/json',
