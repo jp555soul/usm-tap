@@ -898,9 +898,10 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<ConnectionStatusEntity> _checkApiConnection() async {
     try {
       // debugPrint('Checking API connection...');
+      // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
       final result = await _getOceanDataUseCase(GetOceanDataParams(
-        startDate: DateTime.now().subtract(const Duration(hours: 1)),
-        endDate: DateTime.now(),
+        startDate: DateTime.parse('2025-08-01T00:00:00Z'),
+        endDate: DateTime.parse('2025-08-08T23:59:59Z'),
       ));
       final isConnected = result.isRight();
       final hasApiKey = AppConstants.bearerToken.isNotEmpty;
@@ -947,8 +948,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     try {
       // debugPrint('Loading initial ocean data...');
       final connectionStatus = await _checkApiConnection();
-      final startDate = DateTime.now().subtract(const Duration(days: 7));
-      final endDate = DateTime.now();
+      // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
+      final startDate = DateTime.parse('2025-08-01T00:00:00Z');
+      final endDate = DateTime.parse('2025-08-08T23:59:59Z');
       
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: startDate,
