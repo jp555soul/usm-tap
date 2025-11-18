@@ -192,22 +192,25 @@ class AiService {
   /// Parses various date formats to DateTime
   DateTime _parseDate(dynamic date) {
     if (date == null) {
-      return DateTime(2025, 8, 1, 12, 0, 0); // Default fallback date
+      // Default date set to 08/01/2025 as this is currently the start of available data.
+      return DateTime(2025, 8, 1, 12, 0, 0);
     }
-    
+
     if (date is DateTime) {
       return date;
     }
-    
+
     if (date is String) {
       try {
         return DateTime.parse(date);
       } catch (e) {
-        return DateTime(2025, 8, 1, 12, 0, 0); // Default fallback date
+        // Default date set to 08/01/2025 as this is currently the start of available data.
+        return DateTime(2025, 8, 1, 12, 0, 0);
       }
     }
-    
-    return DateTime(2025, 8, 1, 12, 0, 0); // Default fallback date
+
+    // Default date set to 08/01/2025 as this is currently the start of available data.
+    return DateTime(2025, 8, 1, 12, 0, 0);
   }
 
   /// Formats DateTime to YYYY-MM-DD string
