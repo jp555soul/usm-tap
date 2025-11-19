@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart' show compute, debugPrint;
 import 'dart:math' as math;
@@ -868,10 +869,11 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     on<RefreshDataEvent>(_onRefreshData);
     on<ResetDataEvent>(_onResetData);
     on<CheckApiStatusEvent>(_onCheckApiStatus);
-    on<SetSelectedAreaEvent>(_onSetSelectedArea);
-    on<SetSelectedModelEvent>(_onSetSelectedModel);
-    on<SetSelectedDepthEvent>(_onSetSelectedDepth);
-    on<SetDateRangeEvent>(_onSetDateRange);
+    // Apply restartable() to prevent race conditions when user rapidly changes filters
+    on<SetSelectedAreaEvent>(_onSetSelectedArea, transformer: restartable());
+    on<SetSelectedModelEvent>(_onSetSelectedModel, transformer: restartable());
+    on<SetSelectedDepthEvent>(_onSetSelectedDepth, transformer: restartable());
+    on<SetDateRangeEvent>(_onSetDateRange, transformer: restartable());
     on<SetTimeZoneEvent>(_onSetTimeZone);
     on<SetCurrentFrameEvent>(_onSetCurrentFrame);
     on<TogglePlaybackEvent>(_onTogglePlayback);

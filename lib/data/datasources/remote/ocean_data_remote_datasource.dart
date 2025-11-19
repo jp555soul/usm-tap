@@ -245,10 +245,18 @@ Future<Map<String, dynamic>> loadAllData({
   final startUtc = startDate.toUtc().toIso8601String();
   final endUtc = endDate.toUtc().toIso8601String();
 
-  // Build the query with only time filter
+  // Build the query with time filter and optional depth filter
+  var whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
+
+  // Add depth filter if provided
+  if (depth != null) {
+    whereClause += ' AND depth = $depth';
+    debugPrint('🌊 DEPTH FILTER: Applied depth = $depth');
+  }
+
   final query = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
                 'FROM `isdata-usmcom.usm_com.$tableName` '
-                'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\') '
+                '$whereClause '
                 'ORDER BY time DESC '
                 'LIMIT 10000';
 

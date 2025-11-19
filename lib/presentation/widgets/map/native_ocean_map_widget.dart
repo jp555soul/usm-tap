@@ -211,6 +211,16 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void didUpdateWidget(NativeOceanMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // ===== FIX: Clear stale data when loading starts =====
+    // When isLoading becomes true, immediately clear caches to prevent race conditions
+    if (!oldWidget.isLoading && widget.isLoading) {
+      debugPrint('🗺️ MAP: Loading started - clearing all cached data immediately');
+      _cachedCurrentsMarkers = null;
+      _lastCurrentsGeoJSON = null;
+      _hoveredDataPoint = null;
+      _selectedVector = null;
+    }
+
     // ===== COMPREHENSIVE LOGGING: Map Data Updates =====
     if (oldWidget.selectedArea != widget.selectedArea) {
       debugPrint('🗺️ MAP: Study Area changed from ${oldWidget.selectedArea} to ${widget.selectedArea}');
@@ -713,6 +723,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                         dataField: 'temp',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
+                        selectedDepth: widget.selectedDepth,
                       ),
                       size: Size.infinite,
                     ),
@@ -744,6 +755,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                         dataField: 'salinity',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
+                        selectedDepth: widget.selectedDepth,
                       ),
                       size: Size.infinite,
                     ),
@@ -775,6 +787,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                         dataField: 'ssh',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
+                        selectedDepth: widget.selectedDepth,
                       ),
                       size: Size.infinite,
                     ),
@@ -806,6 +819,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                         dataField: 'pressure_dbars',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
+                        selectedDepth: widget.selectedDepth,
                       ),
                       size: Size.infinite,
                     ),
@@ -1678,12 +1692,14 @@ class HeatmapPainter extends CustomPainter {
   final String dataField;
   final double heatmapScale;
   final MapCamera camera;
+  final double selectedDepth;
 
   HeatmapPainter({
     required this.rawData,
     required this.dataField,
     required this.heatmapScale,
     required this.camera,
+    required this.selectedDepth,
   });
 
   @override
@@ -1713,8 +1729,15 @@ class HeatmapPainter extends CustomPainter {
         final lat = (point['lat'] as num?)?.toDouble();
         final lon = (point['lon'] as num?)?.toDouble();
         final value = (point[dataField] as num?)?.toDouble();
+        final pointDepth = (point['depth'] as num?)?.toDouble();
 
         if (lat == null || lon == null || value == null) continue;
+
+        // Filter by selectedDepth (safety check to prevent mixed-depth data)
+        // Use epsilon comparison for floating point safety
+        if (pointDepth != null && (pointDepth - selectedDepth).abs() > 0.1) {
+          continue;
+        }
 
         // Validate coordinates
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
@@ -1856,6 +1879,7 @@ class HeatmapPainter extends CustomPainter {
     return oldDelegate.rawData != rawData ||
            oldDelegate.dataField != dataField ||
            oldDelegate.heatmapScale != heatmapScale ||
+           oldDelegate.selectedDepth != selectedDepth ||
            oldDelegate.camera.center != camera.center ||
            oldDelegate.camera.zoom != camera.zoom;
   }
