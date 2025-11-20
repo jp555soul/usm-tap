@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 
 // EVENTS
@@ -78,13 +79,17 @@ abstract class TimeManagementState extends Equatable {
 
 class TimeManagementLoadedState extends TimeManagementState {
   final List<Map<String, dynamic>> rawData;
+  final List<List<Map<String, dynamic>>> processedFrames;
+  final List<String> uniqueTimestamps;
   final DateTime currentDate;
   final DateTime currentEndDate;
   final String timeZone;
   final Map<String, dynamic> timeConfig;
-  
+
   const TimeManagementLoadedState({
     required this.rawData,
+    this.processedFrames = const [],
+    this.uniqueTimestamps = const [],
     required this.currentDate,
     required this.currentEndDate,
     required this.timeZone,
@@ -247,14 +252,18 @@ class TimeManagementLoadedState extends TimeManagementState {
   @override
   List<Object?> get props => [
     rawData,
+    processedFrames,
+    uniqueTimestamps,
     currentDate,
     currentEndDate,
     timeZone,
     timeConfig,
   ];
-  
+
   TimeManagementLoadedState copyWith({
     List<Map<String, dynamic>>? rawData,
+    List<List<Map<String, dynamic>>>? processedFrames,
+    List<String>? uniqueTimestamps,
     DateTime? currentDate,
     DateTime? currentEndDate,
     String? timeZone,
@@ -262,6 +271,8 @@ class TimeManagementLoadedState extends TimeManagementState {
   }) {
     return TimeManagementLoadedState(
       rawData: rawData ?? this.rawData,
+      processedFrames: processedFrames ?? this.processedFrames,
+      uniqueTimestamps: uniqueTimestamps ?? this.uniqueTimestamps,
       currentDate: currentDate ?? this.currentDate,
       currentEndDate: currentEndDate ?? this.currentEndDate,
       timeZone: timeZone ?? this.timeZone,
@@ -301,11 +312,22 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
     on<UpdateTimeConfigEvent>(_onUpdateTimeConfig);
   }
   
-  void _onProcessRawData(ProcessRawDataEvent event, Emitter<TimeManagementState> emit) {
+  Future<void> _onProcessRawData(ProcessRawDataEvent event, Emitter<TimeManagementState> emit) async {
     if (state is TimeManagementLoadedState) {
       final currentState = state as TimeManagementLoadedState;
-      final newState = currentState.copyWith(rawData: event.data);
-      
+
+      // Process frames in isolate using compute
+      debugPrint('🔄 TIME_MANAGEMENT: Processing ${event.data.length} data points into frames');
+      final processedData = await compute(_groupDataByTime, event.data);
+
+      final newState = currentState.copyWith(
+        rawData: event.data,
+        processedFrames: processedData['frames'] as List<List<Map<String, dynamic>>>,
+        uniqueTimestamps: processedData['timestamps'] as List<String>,
+      );
+
+      debugPrint('🔄 TIME_MANAGEMENT: Extracted ${newState.processedFrames.length} unique time steps');
+
       // Set default date range when data is loaded if not set
       final timeRange = newState.timeRange;
       if (timeRange != null) {
@@ -383,4 +405,44 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
       emit(currentState.copyWith(timeConfig: updatedConfig));
     }
   }
+}
+
+/// Top-level function for Isolate processing
+/// Groups rawData by unique timestamp into frame-based lists
+/// This runs in a background isolate to prevent UI blocking
+Map<String, dynamic> _groupDataByTime(List<Map<String, dynamic>> rawData) {
+  debugPrint('🔄 ISOLATE: Processing ${rawData.length} data points into frames');
+
+  // Map to group data points by timestamp (time field)
+  final Map<String, List<Map<String, dynamic>>> frameMap = {};
+
+  for (final dataPoint in rawData) {
+    if (dataPoint == null) continue;
+
+    // Extract timestamp - try 'time', 'timestamp', or use a default
+    final timeValue = dataPoint['time']?.toString() ??
+                     dataPoint['timestamp']?.toString() ??
+                     'default';
+
+    // Group by timestamp
+    if (!frameMap.containsKey(timeValue)) {
+      frameMap[timeValue] = [];
+    }
+    frameMap[timeValue]!.add(dataPoint);
+  }
+
+  // Convert map to sorted list of frames
+  final sortedKeys = frameMap.keys.toList()..sort();
+  final List<List<Map<String, dynamic>>> frames = [];
+
+  for (final key in sortedKeys) {
+    frames.add(frameMap[key]!);
+  }
+
+  debugPrint('🔄 ISOLATE: Extracted ${frames.length} unique frames from ${sortedKeys.length} timestamps');
+
+  return {
+    'frames': frames,
+    'timestamps': sortedKeys,
+  };
 }

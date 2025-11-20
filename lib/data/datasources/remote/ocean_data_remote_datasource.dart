@@ -245,6 +245,28 @@ Future<Map<String, dynamic>> loadAllData({
   final startUtc = startDate.toUtc().toIso8601String();
   final endUtc = endDate.toUtc().toIso8601String();
 
+  // DIAGNOSTIC: Check what timestamps actually exist in the database
+  try {
+    final diagQuery = 'SELECT MIN(time) as min_time, MAX(time) as max_time, COUNT(DISTINCT time) as timestamp_count '
+                      'FROM `isdata-usmcom.usm_com.$tableName` '
+                      'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
+    final diagUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=${Uri.encodeQueryComponent(diagQuery)}';
+
+    final diagResponse = await _dio.get(diagUrl);
+    if (diagResponse.statusCode == 200 && diagResponse.data != null) {
+      final diagData = diagResponse.data as List<dynamic>;
+      if (diagData.isNotEmpty) {
+        final result = diagData[0] as Map<String, dynamic>;
+        debugPrint('📊 DATABASE DIAGNOSTIC:');
+        debugPrint('   • Requested range: $startUtc to $endUtc');
+        debugPrint('   • Actual data range: ${result['min_time']} to ${result['max_time']}');
+        debugPrint('   • Distinct timestamps available: ${result['timestamp_count']}');
+      }
+    }
+  } catch (e) {
+    debugPrint('⚠️ Diagnostic query failed (non-critical): $e');
+  }
+
   // Build the query with time filter and optional depth filter
   var whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
 
@@ -254,10 +276,26 @@ Future<Map<String, dynamic>> loadAllData({
     debugPrint('🌊 DEPTH FILTER: Applied depth = $depth');
   }
 
-  final query = 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
-                'FROM `isdata-usmcom.usm_com.$tableName` '
-                '$whereClause '
-                'ORDER BY time DESC '
+  // CRITICAL STRATEGY: Sample data across MULTIPLE timestamps for animation
+  // Instead of getting 10K records from early timestamps, we use a sampling approach:
+  // 1. Get distinct timestamps first (if we knew them)
+  // 2. Since BigQuery doesn't easily support "N records per timestamp", we use a workaround:
+  //    - Select a subset of records that are spread across time
+  //    - Use MOD on row numbers to downsample spatial resolution, keeping temporal depth
+  //
+  // Target: Capture ALL available timestamps with ~385 spatial points per timestamp
+  // Strategy: MOD 200 = every 200th spatial point (minimal spatial resolution, maximum temporal coverage)
+  // Math: 20 timestamps × 385 points = 7,700 records (well within 10K limit)
+  final query = 'WITH numbered_data AS ('
+                '  SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms, '
+                '         ROW_NUMBER() OVER (PARTITION BY time ORDER BY lat, lon) as rn '
+                '  FROM `isdata-usmcom.usm_com.$tableName` '
+                '  $whereClause'
+                ') '
+                'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
+                'FROM numbered_data '
+                'WHERE MOD(rn, 200) = 0 '  // Take every 200th spatial point per timestamp
+                'ORDER BY time ASC '
                 'LIMIT 10000';
 
   // URL encode the query - use %20 for spaces, proper encoding for special chars
@@ -323,7 +361,45 @@ Future<Map<String, dynamic>> loadAllData({
 
       _cachedData = allData;
 
+      // Analyze temporal distribution for animation readiness
+      final uniqueTimestamps = <String>{};
+      for (final record in allData) {
+        final timestamp = record['time']?.toString();
+        if (timestamp != null) {
+          uniqueTimestamps.add(timestamp);
+        }
+      }
+
       debugPrint('✅ DATA SOURCE: Successfully loaded ${allData.length} records for $selectedArea');
+      debugPrint('🎬 TEMPORAL ANALYSIS: ${uniqueTimestamps.length} unique timestamps (target: 50-100 for animation)');
+
+      // Log the actual timestamps for diagnosis
+      if (uniqueTimestamps.isNotEmpty) {
+        final timestampList = uniqueTimestamps.toList()..sort();
+        if (timestampList.length <= 5) {
+          debugPrint('📅 ALL TIMESTAMPS: ${timestampList.join(", ")}');
+        } else {
+          debugPrint('📅 FIRST TIMESTAMP: ${timestampList.first}');
+          debugPrint('📅 LAST TIMESTAMP: ${timestampList.last}');
+          debugPrint('📅 SAMPLE MIDDLE: ${timestampList[timestampList.length ~/ 2]}');
+        }
+      }
+
+      if (uniqueTimestamps.length < 10) {
+        debugPrint('⚠️ WARNING: Very few unique timestamps (${uniqueTimestamps.length})!');
+        debugPrint('⚠️ DATABASE ISSUE: The database appears to only contain data for ${uniqueTimestamps.length} moment(s) in time.');
+        debugPrint('⚠️ Query strategy: Sampling every 200th spatial point per timestamp (MOD 200)');
+        debugPrint('💡 SOLUTION: Database needs data spanning multiple timestamps for animation.');
+        debugPrint('💡 If database has temporal data: Increase date range or adjust spatial sampling rate (try MOD 500).');
+      } else if (uniqueTimestamps.length >= 50) {
+        debugPrint('✅ ANIMATION READY: Sufficient temporal depth for smooth animation');
+        final avgPointsPerTimestamp = allData.length / uniqueTimestamps.length;
+        debugPrint('✅ Average spatial points per timestamp: ${avgPointsPerTimestamp.toStringAsFixed(1)}');
+      } else {
+        debugPrint('⚡ PARTIAL COVERAGE: ${uniqueTimestamps.length} timestamps (acceptable, but could be better)');
+        final avgPointsPerTimestamp = allData.length / uniqueTimestamps.length;
+        debugPrint('⚡ Average spatial points per timestamp: ${avgPointsPerTimestamp.toStringAsFixed(1)}');
+      }
 
       return {'allData': allData};
     } else {

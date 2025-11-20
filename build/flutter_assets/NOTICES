@@ -1203,6 +1203,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 bloc
+bloc_concurrency
 bloc_test
 flutter_bloc
 mocktail

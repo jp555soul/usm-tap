@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
@@ -99,6 +100,13 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   List<Marker>? _cachedCurrentsMarkers;
   Map<String, dynamic>? _lastCurrentsGeoJSON;
 
+  // OPTIMIZATION: Frame-based caching for instant replay
+  // Cache heatmap computations per frame to avoid recomputation
+  final Map<String, Map<int, List<Map<String, dynamic>>>> _frameDataCache = {};
+  int? _lastCachedFrame;
+  int _cacheHits = 0;
+  int _cacheMisses = 0;
+
   @override
   void initState() {
     super.initState();
@@ -145,12 +153,21 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void dispose() {
     try {
       debugPrint('📍 MAP POSITION TRACKING: Disposed - Instance: $hashCode');
+
+      // OPTIMIZATION: Log cache performance before disposal
+      final totalCacheAccess = _cacheHits + _cacheMisses;
+      if (totalCacheAccess > 0) {
+        final hitRate = (_cacheHits / totalCacheAccess * 100).toStringAsFixed(1);
+        debugPrint('💾 CACHE STATS: $hitRate% hit rate ($_cacheHits hits, $_cacheMisses misses)');
+      }
+
       _mapController.dispose();
       _mapReady = false;
       _selectedStation = null;
       _selectedVector = null;
       _cachedCurrentsMarkers = null;
       _lastCurrentsGeoJSON = null;
+      _frameDataCache.clear(); // Clear frame cache
     } catch (e) {
       debugPrint('⚠️ Error during map disposal: $e');
     } finally {
@@ -276,6 +293,70 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         debugPrint('🗺️ MAP: setState called - triggering map rebuild');
       });
     }
+  }
+
+  /// Get data for the current frame with caching and adaptive LOD
+  /// OPTIMIZATION: Cache frame data to avoid recomputation during replay
+  /// OPTIMIZATION: Apply adaptive level of detail based on zoom
+  List<Map<String, dynamic>> _getCurrentFrameData() {
+    // The BLoC now provides pre-filtered data for the current time step
+    // Check if this frame is cached
+    final frameKey = 'frame_${widget.currentFrame}';
+
+    if (_frameDataCache.containsKey(frameKey) &&
+        _frameDataCache[frameKey]!.containsKey(widget.rawData.hashCode)) {
+      _cacheHits++;
+      return _frameDataCache[frameKey]![widget.rawData.hashCode]!;
+    }
+
+    // Cache miss - apply adaptive LOD and store for future access
+    _cacheMisses++;
+    final processedData = _applyAdaptiveLOD(widget.rawData);
+
+    if (!_frameDataCache.containsKey(frameKey)) {
+      _frameDataCache[frameKey] = {};
+    }
+    _frameDataCache[frameKey]![widget.rawData.hashCode] = processedData;
+
+    // Limit cache size to prevent memory bloat (keep last 100 frames)
+    if (_frameDataCache.length > 100) {
+      final oldestKey = _frameDataCache.keys.first;
+      _frameDataCache.remove(oldestKey);
+    }
+
+    _lastCachedFrame = widget.currentFrame;
+    return processedData;
+  }
+
+  /// OPTIMIZATION: Adaptive Level of Detail based on zoom level
+  /// Reduces point density at lower zoom levels for better performance
+  List<Map<String, dynamic>> _applyAdaptiveLOD(List<Map<String, dynamic>> data) {
+    if (!_mapReady || data.isEmpty) return data;
+
+    final zoom = _mapController.camera.zoom;
+
+    // Determine sampling rate based on zoom level
+    int sampleRate;
+    if (zoom < 7) {
+      sampleRate = 5; // Very low zoom - keep every 5th point
+    } else if (zoom < 9) {
+      sampleRate = 3; // Medium zoom - keep every 3rd point
+    } else if (zoom < 11) {
+      sampleRate = 2; // High zoom - keep every 2nd point
+    } else {
+      sampleRate = 1; // Very high zoom - keep all points
+    }
+
+    if (sampleRate == 1) return data;
+
+    // Apply sampling
+    final sampledData = <Map<String, dynamic>>[];
+    for (int i = 0; i < data.length; i += sampleRate) {
+      sampledData.add(data[i]);
+    }
+
+    debugPrint('🔍 ADAPTIVE LOD: Zoom ${zoom.toStringAsFixed(1)} - Sampled ${sampledData.length}/${data.length} points (1:$sampleRate)');
+    return sampledData;
   }
 
   /// Build station markers if stations layer is visible
@@ -705,6 +786,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['temperature'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              // Get current frame data or fallback to empty list
+              final currentFrameData = _getCurrentFrameData();
+
               final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
                 onHover: (event) => _handleMapHover(event, size),
@@ -719,7 +803,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   child: RepaintBoundary(
                     child: CustomPaint(
                       painter: HeatmapPainter(
-                        rawData: widget.rawData,
+                        rawData: currentFrameData,
                         dataField: 'temp',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
@@ -737,6 +821,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['salinity'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              // Get current frame data or fallback to empty list
+              final currentFrameData = _getCurrentFrameData();
+
               final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
                 onHover: (event) => _handleMapHover(event, size),
@@ -751,7 +838,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   child: RepaintBoundary(
                     child: CustomPaint(
                       painter: HeatmapPainter(
-                        rawData: widget.rawData,
+                        rawData: currentFrameData,
                         dataField: 'salinity',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
@@ -769,6 +856,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['ssh'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              // Get current frame data or fallback to empty list
+              final currentFrameData = _getCurrentFrameData();
+
               final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
                 onHover: (event) => _handleMapHover(event, size),
@@ -783,7 +873,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   child: RepaintBoundary(
                     child: CustomPaint(
                       painter: HeatmapPainter(
-                        rawData: widget.rawData,
+                        rawData: currentFrameData,
                         dataField: 'ssh',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
@@ -801,6 +891,9 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (_mapReady && (widget.mapLayerVisibility['pressure'] ?? false))
           LayoutBuilder(
             builder: (context, constraints) {
+              // Get current frame data or fallback to empty list
+              final currentFrameData = _getCurrentFrameData();
+
               final size = Size(constraints.maxWidth, constraints.maxHeight);
               return MouseRegion(
                 onHover: (event) => _handleMapHover(event, size),
@@ -815,7 +908,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
                   child: RepaintBoundary(
                     child: CustomPaint(
                       painter: HeatmapPainter(
-                        rawData: widget.rawData,
+                        rawData: currentFrameData,
                         dataField: 'pressure_dbars',
                         heatmapScale: widget.heatmapScale,
                         camera: _mapController.camera,
@@ -1694,6 +1787,10 @@ class HeatmapPainter extends CustomPainter {
   final MapCamera camera;
   final double selectedDepth;
 
+  // OPTIMIZATION: Reusable paint object to avoid recreation
+  static final Paint _reusablePaint = Paint()
+    ..style = PaintingStyle.fill;
+
   HeatmapPainter({
     required this.rawData,
     required this.dataField,
@@ -1707,16 +1804,18 @@ class HeatmapPainter extends CustomPainter {
     if (rawData.isEmpty) return;
 
     try {
+      // OPTIMIZATION: Adaptive LOD - Increase spacing values for better performance
       // Calculate zoom-dependent spacing and radius for proper scaling
       // Base spacing at zoom 8, scales proportionally with zoom level
       final zoomFactor = math.pow(2, camera.zoom - 10).toDouble();
-      final sampleSpacing = (25.0 * zoomFactor).clamp(8.0, 100.0);
+
+      // OPTIMIZATION: Increased base spacing from 25.0 to 35.0 and max from 100.0 to 150.0
+      // This reduces point density while maintaining visual quality
+      final sampleSpacing = (35.0 * zoomFactor).clamp(15.0, 150.0);
       final heatRadius = (sampleSpacing / 2 * heatmapScale).clamp(5.0, 50.0);
 
-      // Create paint for heatmap points with sharper blur for better detail
-      final paint = Paint()
-        ..style = PaintingStyle.fill
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, heatRadius * 0.3);
+      // OPTIMIZATION: Reuse paint object and only update the maskFilter
+      _reusablePaint.maskFilter = MaskFilter.blur(BlurStyle.normal, heatRadius * 0.3);
 
       // Track drawn points to avoid overlap
       final drawnPoints = <String>{};
@@ -1766,16 +1865,22 @@ class HeatmapPainter extends CustomPainter {
         // Get color based on value and data type
         final color = _getColorForValue(value, dataField);
         // Enhanced opacity with minimum threshold for better visibility
-        paint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
+        // OPTIMIZATION: Use the reusable paint object
+        _reusablePaint.color = color.withOpacity((0.85 * heatmapScale).clamp(0.3, 1.0));
 
         // Draw heatmap point with zoom-scaled radius for proper coverage
         canvas.drawCircle(
           Offset(screenPoint.dx, screenPoint.dy),
           heatRadius,
-          paint,
+          _reusablePaint,
         );
 
         renderedPoints++;
+      }
+
+      // OPTIMIZATION: Log rendering metrics for performance monitoring
+      if (renderedPoints > 0) {
+        debugPrint('🎨 HEATMAP: Rendered $renderedPoints/${ rawData.length} points for $dataField at zoom ${camera.zoom.toStringAsFixed(1)}');
       }
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error painting heatmap ($dataField): $e');
@@ -1912,6 +2017,15 @@ class ParticlePainter extends CustomPainter {
   final int particleCount;
   List<_Particle> particles = [];
 
+  // OPTIMIZATION: Reusable paint objects to avoid recreation
+  static final Paint _strokePaint = Paint()
+    ..strokeWidth = 1.5
+    ..strokeCap = StrokeCap.round
+    ..style = PaintingStyle.stroke;
+
+  static final Paint _fillPaint = Paint()
+    ..style = PaintingStyle.fill;
+
   ParticlePainter({
     required this.currentsData,
     required this.camera,
@@ -1940,11 +2054,6 @@ class ParticlePainter extends CustomPainter {
     if (currentsData.isEmpty || size.isEmpty) return;
 
     try {
-      final paint = Paint()
-        ..strokeWidth = 1.5
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-
       int renderedParticles = 0;
 
       // Update and draw each particle
@@ -1995,17 +2104,19 @@ class ParticlePainter extends CustomPainter {
             final opacity = (1 - particle.age / particle.maxAge).clamp(0.2, 0.8);
             final color = _getParticleColor(speed).withOpacity(opacity);
 
-            paint.color = color;
+            // OPTIMIZATION: Reuse paint objects
+            _fillPaint.color = color;
 
             // Draw particle as small circle
             canvas.drawCircle(
               Offset(screenPoint.dx, screenPoint.dy),
               2,
-              paint..style = PaintingStyle.fill,
+              _fillPaint,
             );
 
             // Draw short trail
             if (speed > 0.001) {
+              _strokePaint.color = color;
               final trailEnd = Offset(
                 screenPoint.dx - particle.vx * 5,
                 screenPoint.dy - particle.vy * 5,
@@ -2013,7 +2124,7 @@ class ParticlePainter extends CustomPainter {
               canvas.drawLine(
                 Offset(screenPoint.dx, screenPoint.dy),
                 trailEnd,
-                paint..style = PaintingStyle.stroke,
+                _strokePaint,
               );
             }
 
@@ -2023,6 +2134,11 @@ class ParticlePainter extends CustomPainter {
           // Skip this particle and continue with others
           continue;
         }
+      }
+
+      // OPTIMIZATION: Log particle rendering metrics
+      if (renderedParticles > 0) {
+        debugPrint('🌊 PARTICLES: Rendered $renderedParticles/${particles.length} particles');
       }
     } catch (e, stackTrace) {
       debugPrint('⚠️ Error painting particles: $e');

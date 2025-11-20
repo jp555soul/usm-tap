@@ -10,6 +10,8 @@ import 'presentation/blocs/auth/auth_bloc.dart';
 import 'presentation/blocs/ocean_data/ocean_data_bloc.dart';
 import 'presentation/blocs/tutorial/tutorial_bloc.dart';
 import 'presentation/blocs/chat/chat_bloc.dart';
+import 'presentation/blocs/animation/animation_bloc.dart' as anim;
+import 'presentation/blocs/time_management/time_management_bloc.dart' as time;
 import 'data/datasources/local/session_key_service.dart';
 import 'injection_container.dart' as di;
 
@@ -304,35 +306,101 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<OceanDataBloc, OceanDataState>(
-      builder: (context, oceanState) {
-        // Show loading indicator while ocean data is being fetched
-        if (oceanState is! OceanDataLoadedState) {
-          return Container(
-            color: const Color(0xFF0F172A),
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading ocean data...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+    return MultiBlocListener(
+      listeners: [
+        // Listen to OceanDataBloc to sync data with TimeManagementBloc
+        // AnimationBloc will be synced via TimeManagementBloc listener
+        BlocListener<OceanDataBloc, OceanDataState>(
+          listener: (context, oceanState) {
+            if (oceanState is OceanDataLoadedState && oceanState.rawData.isNotEmpty) {
+              // Sync time management with the raw data
+              // This will trigger frame processing in the TimeManagementBloc
+              debugPrint('🔄 APP: Ocean data loaded with ${oceanState.rawData.length} data points');
+              context.read<time.TimeManagementBloc>().add(
+                time.ProcessRawDataEvent(oceanState.rawData),
+              );
+            }
+          },
+        ),
+        // Listen to TimeManagementBloc data changes to sync with AnimationBloc
+        BlocListener<time.TimeManagementBloc, time.TimeManagementState>(
+          listenWhen: (previous, current) {
+            // CRITICAL FIX: Only sync when the actual frame data changes, not when just the current date changes
+            // This prevents the infinite loop: Animation Tick -> Update Date -> New State -> Sync Data -> Reset Animation
+            if (previous is time.TimeManagementLoadedState && current is time.TimeManagementLoadedState) {
+              return previous.processedFrames != current.processedFrames;
+            }
+            return true;
+          },
+          listener: (context, timeState) {
+            if (timeState is time.TimeManagementLoadedState && timeState.processedFrames.isNotEmpty) {
+              // CRITICAL FIX: Use processedFrames.length (unique time steps) instead of rawData.length
+              // This ensures animation paces through actual time steps, not individual data points
+              debugPrint('🔄 APP: Syncing animation with ${timeState.processedFrames.length} time steps (from ${timeState.rawData.length} data points)');
+              context.read<anim.AnimationBloc>().add(
+                anim.SyncAnimationDataEvent(timeState.processedFrames.length),
+              );
+            }
+          },
+        ),
+        // Listen to AnimationBloc frame changes to update TimeManagementBloc
+        BlocListener<anim.AnimationBloc, anim.AnimationBlocState>(
+          listener: (context, animState) {
+            if (animState is anim.AnimationPlaying) {
+              final timeBloc = context.read<time.TimeManagementBloc>();
+              if (timeBloc.state is time.TimeManagementLoadedState) {
+                final timeState = timeBloc.state as time.TimeManagementLoadedState;
 
-        return BlocBuilder<TutorialBloc, TutorialState>(
+                // CRITICAL FIX: Use processedFrames to get the time for the current frame
+                // This ensures we're updating time based on unique time steps
+                if (timeState.processedFrames.isNotEmpty && timeState.uniqueTimestamps.isNotEmpty) {
+                  // Safe index calculation
+                  final frameIndex = animState.currentFrame % timeState.processedFrames.length;
+                  final timeString = timeState.uniqueTimestamps[frameIndex];
+
+                  if (timeString != 'default' && timeString.isNotEmpty) {
+                    try {
+                      // Update the app's concept of "Current Time"
+                      timeBloc.add(time.SetCurrentDateEvent(DateTime.parse(timeString)));
+                    } catch (e) {
+                      debugPrint('⚠️ APP: Failed to parse timestamp: $timeString');
+                    }
+                  }
+                }
+              }
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<OceanDataBloc, OceanDataState>(
+        builder: (context, oceanState) {
+          // Show loading indicator while ocean data is being fetched
+          if (oceanState is! OceanDataLoadedState) {
+            return Container(
+              color: const Color(0xFF0F172A),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading ocean data...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return BlocBuilder<TutorialBloc, TutorialState>(
           builder: (context, tutorialState) {
             return BlocBuilder<AuthBloc, AuthState>(builder: (context, authState) {
               return Scaffold(
@@ -391,35 +459,60 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                               controller: _scrollController,
                               child: Column(
                                 children: [
-                                  // Control Panel
-                                  Container(
-                                    key: const Key('control-panel'),
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Color(0x4DEC4899),
-                                          width: 1,
+                                  // Control Panel - Wrapped with AnimationBloc Builder
+                                  BlocBuilder<anim.AnimationBloc, anim.AnimationBlocState>(
+                                    builder: (context, animState) {
+                                      // Extract animation state
+                                      int currentFrame = 0;
+                                      int totalFrames = 0;
+                                      bool isPlaying = false;
+                                      double playbackSpeed = 1.0;
+
+                                      if (animState is anim.AnimationPlaying) {
+                                        currentFrame = animState.currentFrame;
+                                        totalFrames = animState.totalFrames;
+                                        isPlaying = true;
+                                        playbackSpeed = animState.speed;
+                                      } else if (animState is anim.AnimationPaused) {
+                                        currentFrame = animState.currentFrame;
+                                        totalFrames = animState.totalFrames;
+                                        isPlaying = false;
+                                        playbackSpeed = animState.speed;
+                                      } else if (animState is anim.AnimationStopped) {
+                                        currentFrame = 0;
+                                        totalFrames = animState.totalFrames;
+                                        isPlaying = false;
+                                        playbackSpeed = animState.speed;
+                                      }
+
+                                      return Container(
+                                        key: const Key('control-panel'),
+                                        decoration: const BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Color(0x4DEC4899),
+                                              width: 1,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    child: ControlPanelWidget(
-                                      isLoading: oceanState.isLoading,
-                                      availableModels: oceanState.availableModels,
-                                      availableDepths: oceanState.availableDepths,
-                                      dataLoaded: oceanState.dataLoaded,
-                                      selectedArea: oceanState.selectedArea,
-                                      selectedModel: oceanState.selectedModel,
-                                      selectedDepth: oceanState.selectedDepth,
-                                      startDate: oceanState.startDate,
-                                      endDate: oceanState.endDate,
-                                      timeZone: oceanState.timeZone,
-                                      currentFrame: oceanState.currentFrame,
-                                      isPlaying: oceanState.isPlaying,
-                                      playbackSpeed: oceanState.playbackSpeed,
-                                      loopMode: oceanState.loopMode ? 'loop' : 'once',
-                                      holoOceanPOV: oceanState.holoOceanPOV,
-                                      totalFrames: oceanState.totalFrames,
-                                      data: oceanState.data,
+                                        child: ControlPanelWidget(
+                                          isLoading: oceanState.isLoading,
+                                          availableModels: oceanState.availableModels,
+                                          availableDepths: oceanState.availableDepths,
+                                          dataLoaded: oceanState.dataLoaded,
+                                          selectedArea: oceanState.selectedArea,
+                                          selectedModel: oceanState.selectedModel,
+                                          selectedDepth: oceanState.selectedDepth,
+                                          startDate: oceanState.startDate,
+                                          endDate: oceanState.endDate,
+                                          timeZone: oceanState.timeZone,
+                                          currentFrame: currentFrame,
+                                          isPlaying: isPlaying,
+                                          playbackSpeed: playbackSpeed,
+                                          loopMode: oceanState.loopMode ? 'loop' : 'once',
+                                          holoOceanPOV: oceanState.holoOceanPOV,
+                                          totalFrames: totalFrames,
+                                          data: oceanState.data,
                                       mapLayerVisibility:
                                           oceanState.mapLayerVisibility,
                                       isSstHeatmapVisible:
@@ -443,36 +536,47 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                               SetSelectedDepthEvent(depth),
                                             );
                                       },
-                                      onDateRangeChange: (startDate, endDate) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetDateRangeEvent(startDate, endDate),
-                                            );
-                                      },
-                                      onTimeZoneChange: (timeZone) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetTimeZoneEvent(timeZone),
-                                            );
-                                      },
-                                      onSpeedChange: (speed) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetPlaybackSpeedEvent(speed),
-                                            );
-                                      },
-                                      onLoopModeChange: (loopMode) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetLoopModeEvent(loopMode == 'loop'),
-                                            );
-                                      },
-                                      onFrameChange: (frame) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetCurrentFrameEvent(frame),
-                                            );
-                                      },
-                                      onReset: () {
-                                        context.read<OceanDataBloc>().add(
-                                              const ResetDataEvent(),
-                                            );
-                                      },
+                                          onDateRangeChange: (startDate, endDate) {
+                                            context.read<time.TimeManagementBloc>().add(
+                                                  time.HandleDateRangeChangeEvent(startDate, endDate),
+                                                );
+                                          },
+                                          onTimeZoneChange: (timeZone) {
+                                            context.read<time.TimeManagementBloc>().add(
+                                                  time.SetTimeZoneEvent(timeZone),
+                                                );
+                                          },
+                                          onSpeedChange: (speed) {
+                                            context.read<anim.AnimationBloc>().add(
+                                                  anim.SetAnimationSpeedEvent(speed),
+                                                );
+                                          },
+                                          onLoopModeChange: (loopMode) {
+                                            context.read<OceanDataBloc>().add(
+                                                  SetLoopModeEvent(loopMode == 'loop'),
+                                                );
+                                          },
+                                          onFrameChange: (frame) {
+                                            context.read<anim.AnimationBloc>().add(
+                                                  anim.SetAnimationFrameEvent(frame),
+                                                );
+                                          },
+                                          onReset: () {
+                                            context.read<anim.AnimationBloc>().add(
+                                                  const anim.ResetAnimationEvent(),
+                                                );
+                                          },
+                                          togglePlay: () {
+                                            if (isPlaying) {
+                                              context.read<anim.AnimationBloc>().add(
+                                                    const anim.PauseAnimationEvent(),
+                                                  );
+                                            } else {
+                                              context.read<anim.AnimationBloc>().add(
+                                                    const anim.PlayAnimationEvent(),
+                                                  );
+                                            }
+                                          },
                                       onLayerToggle: (layer) {
                                         context.read<OceanDataBloc>().add(
                                               ToggleMapLayerEvent(layer),
@@ -493,157 +597,183 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                               SetCurrentsColorByEvent(colorBy),
                                             );
                                       },
-                                      onHeatmapScaleChange: (scale) {
-                                        context.read<OceanDataBloc>().add(
-                                              SetHeatmapScaleEvent({'value': scale}),
-                                            );
-                                      },
-                                    ),
+                                          onHeatmapScaleChange: (scale) {
+                                            context.read<OceanDataBloc>().add(
+                                                  SetHeatmapScaleEvent({'value': scale}),
+                                                );
+                                          },
+                                        ),
+                                      );
+                                    },
                                   ),
 
-                                  // Map and Output Section
-                                  SizedBox(
-                                    height: MediaQuery.of(context).size.height * 0.8,
-                                    child: Row(
-                                      children: [
-                                        // Map Container
-                                        Expanded(
-                                          flex: isOutputCollapsed ? 5 : 1,
-                                          child: ClipRect(
-                                            child: Container(
-                                              key: const Key('map-container'),
-                                              child: NativeOceanMapWidget(
-                                                key: const ValueKey('native-ocean-map'),
-                                              mapboxToken: AppConstants.mapboxAccessToken,
-                                              stationData: oceanState.stationData.map((s) => {
-                                                'id': s.id,
-                                                'name': s.name,
-                                                'latitude': s.latitude,
-                                                'longitude': s.longitude,
-                                                'type': s.type,
-                                                'description': s.description,
-                                              }).toList(),
-                                              timeSeriesData:
-                                                  oceanState.timeSeriesData,
-                                              rawData: oceanState.rawData,
-                                              currentsGeoJSON:
-                                                  oceanState.currentsGeoJSON,
-                                              windVelocityGeoJSON:
-                                                  oceanState.windVelocityGeoJSON,
-                                              currentFrame:
-                                                  oceanState.currentFrame,
-                                              selectedDepth:
-                                                  oceanState.selectedDepth,
-                                              selectedArea:
-                                                  oceanState.selectedArea,
-                                              holoOceanPOV:
-                                                  oceanState.holoOceanPOV,
-                                              currentDate: oceanState.currentDate.toIso8601String(),
-                                              currentTime: oceanState.currentTime,
-                                              mapLayerVisibility:
-                                                  oceanState.mapLayerVisibility,
-                                              currentsVectorScale:
-                                                  oceanState.currentsVectorScale,
-                                              currentsColorBy:
-                                                  oceanState.currentsColorBy,
-                                              heatmapScale:
-                                                  (oceanState.heatmapScale['value'] as num?)?.toDouble() ?? 1.0,
-                                              isOutputCollapsed:
-                                                  isOutputCollapsed,
-                                              availableDepths:
-                                                  oceanState.availableDepths,
-                                              isLoading: oceanState.isLoading,
-                                              loadingArea: oceanState.loadingArea,
-                                              onPOVChange: (pov) {
-                                                context.read<OceanDataBloc>().add(
-                                                      SetHoloOceanPOVEvent(pov),
-                                                    );
-                                              },
-                                              onDepthChange: (depth) {
-                                                context.read<OceanDataBloc>().add(
-                                                      SetSelectedDepthEvent(depth),
-                                                    );
-                                              },
-                                              onStationSelect: (station) {
-                                                if (station == null) {
-                                                  context.read<OceanDataBloc>().add(
-                                                        const SetSelectedStationEvent(null),
-                                                      );
-                                                  return;
-                                                }
-                                                final stationEntity = StationDataEntity(
-                                                  id: station['id'] as String? ?? 'default_id',
-                                                  name: station['name'] as String? ?? 'Unknown Station',
-                                                  latitude: (station['latitude'] as num?)?.toDouble() ?? 0.0,
-                                                  longitude: (station['longitude'] as num?)?.toDouble() ?? 0.0,
-                                                  type: station['type'] as String?,
-                                                  description: station['description'] as String?,
-                                                );
-                                                context.read<OceanDataBloc>().add(
-                                                      SetSelectedStationEvent(
-                                                          stationEntity),
-                                                    );
-                                              },
-                                              onEnvironmentUpdate: (envData) {
-                                                if (envData == null) return;
+                                  // Map and Output Section - Wrapped with AnimationBloc Builder
+                                  BlocBuilder<anim.AnimationBloc, anim.AnimationBlocState>(
+                                    builder: (context, animState) {
+                                      // Extract current frame from AnimationBloc
+                                      int currentFrame = 0;
+                                      if (animState is anim.AnimationPlaying) {
+                                        currentFrame = animState.currentFrame;
+                                      } else if (animState is anim.AnimationPaused) {
+                                        currentFrame = animState.currentFrame;
+                                      }
 
-                                                final timestampStr = envData['timestamp'] as String?;
-                                                final timestamp = timestampStr != null
-                                                    ? DateTime.tryParse(timestampStr) ?? DateTime.now()
-                                                    : DateTime.now();
+                                      // Get the current frame's data from TimeManagementBloc
+                                      List<Map<String, dynamic>> currentFrameData = oceanState.rawData;
+                                      final timeBloc = context.read<time.TimeManagementBloc>();
+                                      if (timeBloc.state is time.TimeManagementLoadedState) {
+                                        final timeState = timeBloc.state as time.TimeManagementLoadedState;
+                                        if (timeState.processedFrames.isNotEmpty) {
+                                          final safeFrameIndex = currentFrame.clamp(0, timeState.processedFrames.length - 1);
+                                          currentFrameData = timeState.processedFrames[safeFrameIndex];
+                                          debugPrint('🗺️ APP: Rendering frame $currentFrame/${timeState.processedFrames.length} with ${currentFrameData.length} data points');
+                                        }
+                                      }
 
-                                                final envEntity = EnvDataEntity(
-                                                  timestamp: timestamp,
-                                                  windSpeed: (envData['windSpeed'] as num?)?.toDouble(),
-                                                  windDirection: (envData['windDirection'] as num?)?.toDouble(),
-                                                  airTemperature: (envData['airTemperature'] as num?)?.toDouble(),
-                                                  airPressure: (envData['airPressure'] as num?)?.toDouble(),
-                                                  humidity: (envData['humidity'] as num?)?.toDouble(),
-                                                  waveHeight: (envData['waveHeight'] as num?)?.toDouble(),
-                                                  wavePeriod: (envData['wavePeriod'] as num?)?.toDouble(),
-                                                  visibility: (envData['visibility'] as num?)?.toDouble(),
-                                                  cloudCover: (envData['cloudCover'] as num?)?.toDouble(),
-                                                  weatherCondition: envData['weatherCondition'] as String?,
-                                                );
-
-                                                context.read<OceanDataBloc>().add(
-                                                      SetEnvDataEvent(envEntity),
+                                      return SizedBox(
+                                        height: MediaQuery.of(context).size.height * 0.8,
+                                        child: Row(
+                                          children: [
+                                            // Map Container
+                                            Expanded(
+                                              flex: isOutputCollapsed ? 5 : 1,
+                                              child: ClipRect(
+                                                child: Container(
+                                                  key: const Key('map-container'),
+                                                  child: NativeOceanMapWidget(
+                                                    key: const ValueKey('native-ocean-map'),
+                                                  mapboxToken: AppConstants.mapboxAccessToken,
+                                                  stationData: oceanState.stationData.map((s) => {
+                                                    'id': s.id,
+                                                    'name': s.name,
+                                                    'latitude': s.latitude,
+                                                    'longitude': s.longitude,
+                                                    'type': s.type,
+                                                    'description': s.description,
+                                                  }).toList(),
+                                                  timeSeriesData:
+                                                      oceanState.timeSeriesData,
+                                                  rawData: currentFrameData,
+                                                  currentsGeoJSON:
+                                                      oceanState.currentsGeoJSON,
+                                                  windVelocityGeoJSON:
+                                                      oceanState.windVelocityGeoJSON,
+                                                  currentFrame:
+                                                      currentFrame,
+                                                  selectedDepth:
+                                                      oceanState.selectedDepth,
+                                                  selectedArea:
+                                                      oceanState.selectedArea,
+                                                  holoOceanPOV:
+                                                      oceanState.holoOceanPOV,
+                                                  currentDate: oceanState.currentDate.toIso8601String(),
+                                                  currentTime: oceanState.currentTime,
+                                                  mapLayerVisibility:
+                                                      oceanState.mapLayerVisibility,
+                                                  currentsVectorScale:
+                                                      oceanState.currentsVectorScale,
+                                                  currentsColorBy:
+                                                      oceanState.currentsColorBy,
+                                                  heatmapScale:
+                                                      (oceanState.heatmapScale['value'] as num?)?.toDouble() ?? 1.0,
+                                                  isOutputCollapsed:
+                                                      isOutputCollapsed,
+                                                  availableDepths:
+                                                      oceanState.availableDepths,
+                                                  isLoading: oceanState.isLoading,
+                                                  loadingArea: oceanState.loadingArea,
+                                                  onPOVChange: (pov) {
+                                                    context.read<OceanDataBloc>().add(
+                                                          SetHoloOceanPOVEvent(pov),
+                                                        );
+                                                  },
+                                                  onDepthChange: (depth) {
+                                                    context.read<OceanDataBloc>().add(
+                                                          SetSelectedDepthEvent(depth),
+                                                        );
+                                                  },
+                                                  onStationSelect: (station) {
+                                                    if (station == null) {
+                                                      context.read<OceanDataBloc>().add(
+                                                            const SetSelectedStationEvent(null),
+                                                          );
+                                                      return;
+                                                    }
+                                                    final stationEntity = StationDataEntity(
+                                                      id: station['id'] as String? ?? 'default_id',
+                                                      name: station['name'] as String? ?? 'Unknown Station',
+                                                      latitude: (station['latitude'] as num?)?.toDouble() ?? 0.0,
+                                                      longitude: (station['longitude'] as num?)?.toDouble() ?? 0.0,
+                                                      type: station['type'] as String?,
+                                                      description: station['description'] as String?,
                                                     );
-                                              },
+                                                    context.read<OceanDataBloc>().add(
+                                                          SetSelectedStationEvent(
+                                                              stationEntity),
+                                                        );
+                                                  },
+                                                  onEnvironmentUpdate: (envData) {
+                                                    if (envData == null) return;
+
+                                                    final timestampStr = envData['timestamp'] as String?;
+                                                    final timestamp = timestampStr != null
+                                                        ? DateTime.tryParse(timestampStr) ?? DateTime.now()
+                                                        : DateTime.now();
+
+                                                    final envEntity = EnvDataEntity(
+                                                      timestamp: timestamp,
+                                                      windSpeed: (envData['windSpeed'] as num?)?.toDouble(),
+                                                      windDirection: (envData['windDirection'] as num?)?.toDouble(),
+                                                      airTemperature: (envData['airTemperature'] as num?)?.toDouble(),
+                                                      airPressure: (envData['airPressure'] as num?)?.toDouble(),
+                                                      humidity: (envData['humidity'] as num?)?.toDouble(),
+                                                      waveHeight: (envData['waveHeight'] as num?)?.toDouble(),
+                                                      wavePeriod: (envData['wavePeriod'] as num?)?.toDouble(),
+                                                      visibility: (envData['visibility'] as num?)?.toDouble(),
+                                                      cloudCover: (envData['cloudCover'] as num?)?.toDouble(),
+                                                      weatherCondition: envData['weatherCondition'] as String?,
+                                                    );
+
+                                                    context.read<OceanDataBloc>().add(
+                                                          SetEnvDataEvent(envEntity),
+                                                        );
+                                                  },
+                                                ),
+                                                ),
+                                              ),
                                             ),
+
+                                            // Output Module
+                                            Expanded(
+                                              flex: isOutputCollapsed ? 1 : 1,
+                                              child: Container(
+                                                key: const Key('output-module'),
+                                                child: OutputModuleWidget(
+                                                  chatMessages:
+                                                      oceanState.chatMessages,
+                                                  timeSeriesData:
+                                                      oceanState.timeSeriesData,
+                                                  currentsGeoJSON:
+                                                      oceanState.currentsGeoJSON,
+                                                  currentFrame:
+                                                      currentFrame,
+                                                  selectedDepth:
+                                                      oceanState.selectedDepth,
+                                                  isTyping: oceanState.isTyping,
+                                                  isCollapsed: isOutputCollapsed,
+                                                  onToggleCollapse: () {
+                                                    setState(() {
+                                                      isOutputCollapsed =
+                                                          !isOutputCollapsed;
+                                                    });
+                                                  },
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
-
-                                        // Output Module
-                                        Expanded(
-                                          flex: isOutputCollapsed ? 1 : 1,
-                                          child: Container(
-                                            key: const Key('output-module'),
-                                            child: OutputModuleWidget(
-                                              chatMessages:
-                                                  oceanState.chatMessages,
-                                              timeSeriesData:
-                                                  oceanState.timeSeriesData,
-                                              currentsGeoJSON:
-                                                  oceanState.currentsGeoJSON,
-                                              currentFrame:
-                                                  oceanState.currentFrame,
-                                              selectedDepth:
-                                                  oceanState.selectedDepth,
-                                              isTyping: oceanState.isTyping,
-                                              isCollapsed: isOutputCollapsed,
-                                              onToggleCollapse: () {
-                                                setState(() {
-                                                  isOutputCollapsed =
-                                                      !isOutputCollapsed;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      );
+                                    },
                                   ),
 
                                   // Vertical spacing between map and bottom panels
@@ -769,10 +899,11 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                   ],
                 ),
               );
-            });
-          },
-        );
-      },
+              });
+            },
+          );
+        },
+      ),
     );
   }
 }

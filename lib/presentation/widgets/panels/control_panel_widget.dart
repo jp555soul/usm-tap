@@ -118,8 +118,26 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
   Map<String, String> _errors = {};
 
   @override
+  void initState() {
+    super.initState();
+    debugPrint('🎛️ CONTROL_PANEL: Initialized with depth=${widget.selectedDepth}m');
+    debugPrint('🎛️ CONTROL_PANEL: Available depths=${widget.availableDepths}');
+  }
+
+  @override
   void didUpdateWidget(ControlPanelWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // Log depth changes
+    if (oldWidget.selectedDepth != widget.selectedDepth) {
+      debugPrint('🎛️ CONTROL_PANEL: Depth changed from ${oldWidget.selectedDepth}m to ${widget.selectedDepth}m');
+    }
+
+    // Log available depths changes
+    if (oldWidget.availableDepths != widget.availableDepths) {
+      debugPrint('🎛️ CONTROL_PANEL: Available depths updated to ${widget.availableDepths}');
+    }
+
     _validateInputs();
   }
 
@@ -511,7 +529,10 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                           );
                         }).toList(),
                   onChanged: widget.dataLoaded && widget.availableDepths.isNotEmpty
-                      ? (value) => widget.onDepthChange?.call(value ?? 0)
+                      ? (value) {
+                          debugPrint('🎛️ CONTROL_PANEL: User selected depth=${value ?? 0}m');
+                          widget.onDepthChange?.call(value ?? 0);
+                        }
                       : null,
                 ),
         ],

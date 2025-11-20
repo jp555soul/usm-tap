@@ -8,6 +8,7 @@ enum AnimationCommand {
   reset,
   speedUp,
   speedDown,
+  sync, // New command to sync data
 }
 
 class AnimationState {
@@ -28,11 +29,13 @@ class ControlAnimationParams {
   final AnimationCommand command;
   final double? speed;
   final int? frame;
+  final int? totalFrames; // Added totalFrames
 
   const ControlAnimationParams({
     required this.command,
     this.speed,
     this.frame,
+    this.totalFrames,
   });
 }
 
@@ -48,13 +51,16 @@ class ControlAnimationUseCase {
     ControlAnimationParams params,
   ) async {
     try {
+      // Update totalFrames if provided in params
+      int newTotalFrames = params.totalFrames ?? _state.totalFrames;
+
       switch (params.command) {
         case AnimationCommand.play:
           _state = AnimationState(
             isPlaying: true,
             speed: _state.speed,
             currentFrame: _state.currentFrame,
-            totalFrames: _state.totalFrames,
+            totalFrames: newTotalFrames,
           );
           break;
         case AnimationCommand.pause:
@@ -62,7 +68,7 @@ class ControlAnimationUseCase {
             isPlaying: false,
             speed: _state.speed,
             currentFrame: _state.currentFrame,
-            totalFrames: _state.totalFrames,
+            totalFrames: newTotalFrames,
           );
           break;
         case AnimationCommand.stop:
@@ -70,31 +76,40 @@ class ControlAnimationUseCase {
             isPlaying: false,
             speed: _state.speed,
             currentFrame: 0,
-            totalFrames: _state.totalFrames,
+            totalFrames: newTotalFrames,
           );
           break;
         case AnimationCommand.reset:
-          _state = const AnimationState(
+          _state = AnimationState(
             isPlaying: false,
             speed: 1.0,
             currentFrame: 0,
-            totalFrames: 0,
+            totalFrames: newTotalFrames,
           );
           break;
         case AnimationCommand.speedUp:
           _state = AnimationState(
             isPlaying: _state.isPlaying,
-            speed: (_state.speed * 1.5).clamp(0.1, 5.0),
+            speed: (_state.speed * 1.5).clamp(0.1, 20.0),
             currentFrame: _state.currentFrame,
-            totalFrames: _state.totalFrames,
+            totalFrames: newTotalFrames,
           );
           break;
         case AnimationCommand.speedDown:
           _state = AnimationState(
             isPlaying: _state.isPlaying,
-            speed: (_state.speed / 1.5).clamp(0.1, 5.0),
+            speed: (_state.speed / 1.5).clamp(0.1, 20.0),
             currentFrame: _state.currentFrame,
-            totalFrames: _state.totalFrames,
+            totalFrames: newTotalFrames,
+          );
+          break;
+        case AnimationCommand.sync:
+          _state = AnimationState(
+            isPlaying: _state.isPlaying,
+            speed: _state.speed,
+            currentFrame: _state.currentFrame, // Keep current frame or reset? Usually sync implies new data, so maybe 0?
+            // Let's keep it safe and just update totalFrames. The Bloc usually handles the frame reset on sync.
+            totalFrames: newTotalFrames,
           );
           break;
       }
@@ -102,7 +117,7 @@ class ControlAnimationUseCase {
       if (params.speed != null) {
         _state = AnimationState(
           isPlaying: _state.isPlaying,
-          speed: params.speed!.clamp(0.1, 5.0),
+          speed: params.speed!.clamp(0.1, 20.0),
           currentFrame: _state.currentFrame,
           totalFrames: _state.totalFrames,
         );
