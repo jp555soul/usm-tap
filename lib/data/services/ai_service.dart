@@ -27,17 +27,7 @@ class AiService {
       },
     );
 
-    // Add interceptors for logging (only log errors and request info, not full response body)
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: false,  // Don't log request body to reduce noise
-        responseBody: false, // Don't log response body to avoid massive ocean data logs
-        error: true,         // Still log errors
-        requestHeader: true, // Log request headers for debugging
-        responseHeader: false, // Don't need response headers
-        request: true,       // Log basic request info
-      ),
-    );
+
   }
 
   Future<Map<String, dynamic>> sendMessage({

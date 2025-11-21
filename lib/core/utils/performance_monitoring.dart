@@ -175,7 +175,7 @@ class PerformanceMonitoring {
 
     // Log significant events
     if (value is int && value > 16) {
-      debugPrint('⚠️ SLOW $category [$name]: ${value}ms');
+
     }
   }
 
@@ -213,8 +213,7 @@ class PerformanceMonitoring {
     final fps = 1000.0 / avgFrameTime;
     final slowFramePercent = (_slowFrameCount / _frameCount * 100).toStringAsFixed(1);
 
-    debugPrint('🎨 PERFORMANCE: Frame #$_frameCount | ${avgFrameTime.toStringAsFixed(1)}ms | '
-        '${fps.toStringAsFixed(1)}fps | slow frames: $slowFramePercent%');
+
 
     // Reset counters for next interval
     _slowFrameCount = 0;
@@ -231,7 +230,7 @@ class PerformanceMonitoring {
     // In production, you'd use DeviceInfoPlugin or similar
 
     // Log periodic memory checks
-    debugPrint('💾 MEMORY: Check performed (threshold: $thresholdPercent%)');
+
   }
 
   /// PERFORMANCE: Monitor BLoC event queue depth
@@ -241,7 +240,7 @@ class PerformanceMonitoring {
     if (!kDebugMode) return;
 
     if (queueDepth > 10) {
-      debugPrint('⚠️ BLOC QUEUE [$blocName]: $queueDepth events pending (possible backlog)');
+
     }
 
     _metrics['$blocName.queueDepth'] = queueDepth;

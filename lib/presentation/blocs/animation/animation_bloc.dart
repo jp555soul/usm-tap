@@ -462,7 +462,6 @@ class AnimationBloc extends Bloc<AnimationEvent, AnimationBlocState> {
 
     // Guard against empty or invalid frame counts
     if (currentState.totalFrames <= 0) {
-      debugPrint('⚠️ ANIMATION: Invalid totalFrames (${currentState.totalFrames}), stopping');
       add(const StopAnimationEvent());
       return;
     }

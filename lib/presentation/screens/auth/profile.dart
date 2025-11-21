@@ -155,7 +155,7 @@ class _ProfileState extends State<Profile> {
         });
       }
     } catch (error) {
-      // debugPrint('Error loading user profile: $error');
+
       setState(() {
         _isLoading = false;
         _isAuthenticated = false;

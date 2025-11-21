@@ -101,7 +101,7 @@ class SessionKeyService {
       try {
         return await _secureStorage.read(key: key);
       } catch (e) {
-        // debugPrint('Secure storage read failed, falling back to SharedPreferences: $e');
+
         _useSecureStorage = false;
       }
     }
@@ -116,7 +116,7 @@ class SessionKeyService {
         await _secureStorage.write(key: key, value: value);
         return;
       } catch (e) {
-        // debugPrint('Secure storage write failed, falling back to SharedPreferences: $e');
+
         _useSecureStorage = false;
       }
     }
@@ -131,7 +131,7 @@ class SessionKeyService {
         await _secureStorage.delete(key: key);
         return;
       } catch (e) {
-        // debugPrint('Secure storage delete failed, falling back to SharedPreferences: $e');
+
         _useSecureStorage = false;
       }
     }

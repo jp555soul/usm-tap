@@ -29,12 +29,12 @@ class EncryptedStorageService {
         final encryptedValue = _encryptData(jsonEncode(value), sessionKey);
         await _prefs.setString(key, encryptedValue);
       } catch (error) {
-        // debugPrint('Error encrypting data: $error');
+
         // Fallback to unencrypted storage
         await _prefs.setString(key, jsonEncode(value));
       }
     } else {
-      // debugPrint('Session key not set. Data will not be encrypted.');
+
       await _prefs.setString(key, jsonEncode(value));
     }
   }
@@ -55,7 +55,7 @@ class EncryptedStorageService {
         final decryptedValue = _decryptData(storedValue, sessionKey);
         return jsonDecode(decryptedValue);
       } catch (error) {
-        // debugPrint('Error decrypting data from storage: $error');
+
         return null;
       }
     } else {
@@ -126,7 +126,7 @@ class EncryptedStorageService {
       
       return decrypted;
     } catch (error) {
-      // debugPrint('Error in decryption: $error');
+
       rethrow;
     }
   }

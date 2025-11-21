@@ -317,7 +317,6 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
       final currentState = state as TimeManagementLoadedState;
 
       // Process frames in isolate using compute
-      debugPrint('🔄 TIME_MANAGEMENT: Processing ${event.data.length} data points into frames');
       final processedData = await compute(_groupDataByTime, event.data);
 
       final newState = currentState.copyWith(
@@ -325,8 +324,6 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
         processedFrames: processedData['frames'] as List<List<Map<String, dynamic>>>,
         uniqueTimestamps: processedData['timestamps'] as List<String>,
       );
-
-      debugPrint('🔄 TIME_MANAGEMENT: Extracted ${newState.processedFrames.length} unique time steps');
 
       // Set default date range when data is loaded if not set
       final timeRange = newState.timeRange;
@@ -411,7 +408,6 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
 /// Groups rawData by unique timestamp into frame-based lists
 /// This runs in a background isolate to prevent UI blocking
 Map<String, dynamic> _groupDataByTime(List<Map<String, dynamic>> rawData) {
-  debugPrint('🔄 ISOLATE: Processing ${rawData.length} data points into frames');
 
   // Map to group data points by timestamp (time field)
   final Map<String, List<Map<String, dynamic>>> frameMap = {};
@@ -438,8 +434,6 @@ Map<String, dynamic> _groupDataByTime(List<Map<String, dynamic>> rawData) {
   for (final key in sortedKeys) {
     frames.add(frameMap[key]!);
   }
-
-  debugPrint('🔄 ISOLATE: Extracted ${frames.length} unique frames from ${sortedKeys.length} timestamps');
 
   return {
     'frames': frames,

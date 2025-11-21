@@ -96,7 +96,6 @@ class _MainAppWidgetState extends State<MainAppWidget> {
           final key = _generateSessionKey(secret, salt);
           _sessionKeyService.setSessionKey(key);
         } else {
-          // debugPrint('AUTH0_CLIENT_SECRET is not set. Local storage will not be encrypted.');
         }
       }
     });
@@ -315,7 +314,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
             if (oceanState is OceanDataLoadedState && oceanState.rawData.isNotEmpty) {
               // Sync time management with the raw data
               // This will trigger frame processing in the TimeManagementBloc
-              debugPrint('🔄 APP: Ocean data loaded with ${oceanState.rawData.length} data points');
               context.read<time.TimeManagementBloc>().add(
                 time.ProcessRawDataEvent(oceanState.rawData),
               );
@@ -336,7 +334,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
             if (timeState is time.TimeManagementLoadedState && timeState.processedFrames.isNotEmpty) {
               // CRITICAL FIX: Use processedFrames.length (unique time steps) instead of rawData.length
               // This ensures animation paces through actual time steps, not individual data points
-              debugPrint('🔄 APP: Syncing animation with ${timeState.processedFrames.length} time steps (from ${timeState.rawData.length} data points)');
               context.read<anim.AnimationBloc>().add(
                 anim.SyncAnimationDataEvent(timeState.processedFrames.length),
               );
@@ -363,7 +360,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                       // Update the app's concept of "Current Time"
                       timeBloc.add(time.SetCurrentDateEvent(DateTime.parse(timeString)));
                     } catch (e) {
-                      debugPrint('⚠️ APP: Failed to parse timestamp: $timeString');
                     }
                   }
                 }
@@ -626,7 +622,6 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                         if (timeState.processedFrames.isNotEmpty) {
                                           final safeFrameIndex = currentFrame.clamp(0, timeState.processedFrames.length - 1);
                                           currentFrameData = timeState.processedFrames[safeFrameIndex];
-                                          debugPrint('🗺️ APP: Rendering frame $currentFrame/${timeState.processedFrames.length} with ${currentFrameData.length} data points');
                                         }
                                       }
 

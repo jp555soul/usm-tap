@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart' show compute, debugPrint;
+import 'package:flutter/foundation.dart' show compute;
 import 'dart:math' as math;
 
 import '../../../core/constants/app_constants.dart';
@@ -20,17 +20,14 @@ import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
 /// This is a top-level function so it can be used with compute()
 /// OCEAN CURRENTS: Uses 'direction' and 'speed' fields (NOT 'ndirection'/'nspeed')
 Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawData) {
-  debugPrint('🌊 CURRENTS ISOLATE: Processing ${rawData.length} raw data points');
 
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
   }
 
   // 🔍 RAW DATA FIRST 3 RECORDS
-  debugPrint('🔍 RAW DATA FIRST 3 RECORDS:');
   for (int i = 0; i < math.min(3, rawData.length); i++) {
     final row = rawData[i];
-    debugPrint('  Record $i: lat=${row['lat']}, lon=${row['lon']}, direction=${row['direction']}, ssh=${row['ssh']}');
   }
 
   // Count data types and field presence for comprehensive validation
@@ -90,21 +87,13 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   }
 
   final totalRecords = rawData.length;
-  debugPrint('🌊 DATA ANALYSIS: ocean(dir+speed)=$oceanRecords | wind=$windRecords | both=$bothRecords | directionOnly=$directionOnly');
-  debugPrint('🌊 Available fields (sample): ${availableFields.take(20).join(", ")}');
+
 
   // Log field presence rates
-  debugPrint('📊 FIELD PRESENCE: direction: $totalRecordsWithDirection/$totalRecords (${(totalRecordsWithDirection/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: ssh: $totalRecordsWithSSH/$totalRecords (${(totalRecordsWithSSH/totalRecords*100).toStringAsFixed(1)}%), speed: $totalRecordsWithSpeed/$totalRecords (${(totalRecordsWithSpeed/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: u: $totalRecordsWithU/$totalRecords (${(totalRecordsWithU/totalRecords*100).toStringAsFixed(1)}%), v: $totalRecordsWithV/$totalRecords (${(totalRecordsWithV/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 FIELD PRESENCE: nspeed: $totalRecordsWithNSpeed/$totalRecords (${(totalRecordsWithNSpeed/totalRecords*100).toStringAsFixed(1)}%), ndirection: $totalRecordsWithNDirection/$totalRecords (${(totalRecordsWithNDirection/totalRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 COMPLETE DATA: direction+ssh: $totalRecordsWithDirectionAndSSH/$totalRecords (${(totalRecordsWithDirectionAndSSH/totalRecords*100).toStringAsFixed(1)}%)');
 
   // Log representative valid samples (not just first record)
-  debugPrint('🔍 VALID SAMPLES (${validSamples.length} records with direction+ssh):');
   for (int i = 0; i < validSamples.length && i < 5; i++) {
     final sample = validSamples[i];
-    debugPrint('  #$i: lat=${sample['lat']}, lon=${sample['lon']}, dir=${sample['direction']}, ssh=${sample['ssh']}, speed=${sample['speed']}, nspeed=${sample['nspeed']}');
   }
 
   // Filter for valid OCEAN current data (require direction field)
@@ -116,10 +105,8 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
            row['lon'] != null &&
            direction != null &&
            direction is num &&
-           row['ndirection'] == null;  // Exclude wind records that have both
+    row['ndirection'] == null;  // Exclude wind records that have both
   }).toList();
-
-  debugPrint('🌊 CURRENTS: Filtered ${validData.length} ocean vectors (excluded ${rawData.length - validData.length} records)');
 
   if (validData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
@@ -145,7 +132,6 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
       final rawLon = (row['lon'] as num?)?.toDouble();
       final rawDirection = (row['direction'] as num?)?.toDouble();
       final rawSSH = (row['ssh'] as num?)?.toDouble();
-      debugPrint('🔍 RAW DATA #$validRecordsLogged: lat=$rawLat, lon=$rawLon, direction=$rawDirection, ssh=$rawSSH');
       validRecordsLogged++;
     }
 
@@ -153,8 +139,8 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     final gridLon = ((row['lon'] as num) / 0.01).round() * 0.01;
 
     // Verify GeoJSON coordinates will use actual lat/lon (gridded to 0.01 degree resolution)
+    // Verify GeoJSON coordinates will use actual lat/lon (gridded to 0.01 degree resolution)
     if (validRecordsLogged <= 10) {
-      //debugPrint('🔍 GEOJSON COORDS (gridded): [lon=$gridLon, lat=$gridLat]');
     }
 
     final key = '$gridLat,$gridLon';
@@ -216,10 +202,6 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
   }
 
   final avgSpeed = validData.isEmpty ? 0.0 : speedSum / validData.length;
-  debugPrint('🌊 Speed sources: explicit=$recordsWithSpeed | fromUV=$recordsWithUV | SSH-based=$recordsWithDefault');
-  debugPrint('📍 VECTOR BOUNDS: lat [$minLat, $maxLat], lon [$minLon, $maxLon]');
-  debugPrint('📊 EXPECTED: lat [28-31], lon [-91 to -86] (Gulf of Mexico)');
-  debugPrint('⚡ SPEED RANGE: min=${minSpeed.toStringAsFixed(3)}, max=${maxSpeed.toStringAsFixed(3)}, avg=${avgSpeed.toStringAsFixed(3)} m/s');
 
   // Take latest 1000 points and generate features
   final vectors = gridData.values.take(1000).toList();
@@ -243,9 +225,9 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 
     // Log first 5 features with API to GeoJSON coordinate mapping
     if (featureCount < 5) {
-      //debugPrint('🌊 FEATURE #$featureCount: API(lat=$lat, lon=$lon) → GeoJSON coords=$coordinates');
     }
 
+    // Log first 5 vectors for debugging with SSH information
     // Log first 5 vectors for debugging with SSH information
     if (featureCount < 5) {
       // Try to get SSH value from a matching raw data point
@@ -255,7 +237,6 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
         orElse: () => {},
       );
       final ssh = matchingRow.isNotEmpty ? (matchingRow['ssh'] as num?)?.toDouble() ?? 0.0 : 0.0;
-      debugPrint('🌊 VECTOR #$featureCount: lat=${lat.toStringAsFixed(4)}, lon=${lon.toStringAsFixed(4)}, dir=${avgDirection.toStringAsFixed(1)}°, ssh=${ssh.toStringAsFixed(3)}, speed=${avgMagnitude.toStringAsFixed(3)}m/s');
     }
     featureCount++;
 
@@ -274,8 +255,6 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
     };
   }).toList();
 
-  debugPrint('🌊 CURRENTS ISOLATE: Generated ${features.length} ocean current features');
-
   return {
     'type': 'FeatureCollection',
     'features': features,
@@ -290,7 +269,6 @@ Map<String, dynamic> _generateCurrentsInIsolate(List<Map<String, dynamic>> rawDa
 /// Generates wind velocity GeoJSON in a background isolate
 /// WIND: Uses 'ndirection' and 'nspeed' fields (NOT 'direction'/'speed')
 Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> rawData) {
-  debugPrint('🌬️ WIND ISOLATE: Processing ${rawData.length} raw data points');
 
   if (rawData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
@@ -323,15 +301,11 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
   }
 
   final totalWindRecords = rawData.length;
-  debugPrint('📊 WIND FIELD PRESENCE: nspeed: $windRecordsWithNSpeed/$totalWindRecords (${(windRecordsWithNSpeed/totalWindRecords*100).toStringAsFixed(1)}%), ndirection: $windRecordsWithNDirection/$totalWindRecords (${(windRecordsWithNDirection/totalWindRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 WIND COMPLETE DATA: nspeed+ndirection: $windRecordsWithBoth/$totalWindRecords (${(windRecordsWithBoth/totalWindRecords*100).toStringAsFixed(1)}%)');
-  debugPrint('📊 WIND CONFUSION CHECK: direction: $windRecordsWithDirection/$totalWindRecords (${(windRecordsWithDirection/totalWindRecords*100).toStringAsFixed(1)}%), speed: $windRecordsWithSpeed/$totalWindRecords (${(windRecordsWithSpeed/totalWindRecords*100).toStringAsFixed(1)}%)');
+
 
   // Log representative valid wind samples
-  debugPrint('🔍 VALID WIND SAMPLES (${windValidSamples.length} records with nspeed+ndirection):');
   for (int i = 0; i < windValidSamples.length && i < 5; i++) {
     final sample = windValidSamples[i];
-    debugPrint('  #$i: lat=${sample['lat']}, lon=${sample['lon']}, nspeed=${sample['nspeed']}, ndirection=${sample['ndirection']}, direction=${sample['direction']}, ssh=${sample['ssh']}');
   }
 
   // Filter for valid WIND data (require both nspeed and ndirection)
@@ -344,8 +318,6 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
            magnitude != null &&
            direction != null;
   }).toList();
-
-  debugPrint('🌬️ WIND: Filtered ${validData.length} wind vectors (excluded ${rawData.length - validData.length} records)');
 
   if (validData.isEmpty) {
     return {'type': 'FeatureCollection', 'features': []};
@@ -404,8 +376,6 @@ Map<String, dynamic> _generateWindVelocityInIsolate(List<Map<String, dynamic>> r
       }
     };
   }).toList();
-
-  debugPrint('🌬️ WIND ISOLATE: Generated ${features.length} wind velocity features');
 
   return {
     'type': 'FeatureCollection',
@@ -899,7 +869,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   
   Future<ConnectionStatusEntity> _checkApiConnection() async {
     try {
-      // debugPrint('Checking API connection...');
+
       // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: DateTime.parse('2025-08-01T00:00:00Z'),
@@ -908,9 +878,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final isConnected = result.isRight();
       final hasApiKey = AppConstants.bearerToken.isNotEmpty;
       final endpoint = AppConstants.baseUrl;
-      // debugPrint('API Connection Status: ${isConnected ? "Connected" : "Disconnected"}');
-      // debugPrint('Has API Key: $hasApiKey');
-      // debugPrint('Endpoint: $endpoint');
+
       return ConnectionStatusEntity(
         connected: isConnected,
         state: isConnected ? ConnectionState.excellent : ConnectionState.disconnected,
@@ -918,7 +886,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         hasApiKey: hasApiKey,
       );
     } catch (e) {
-      // debugPrint('API connection check failed: $e');
+
       return ConnectionStatusEntity(
         connected: false,
         state: ConnectionState.disconnected,
@@ -937,7 +905,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       uniqueStations.add('${item.latitude.toStringAsFixed(4)}_${item.longitude.toStringAsFixed(4)}');
     }
     final latestTimestamp = data.map((d) => d.timestamp).reduce((a, b) => a.isAfter(b) ? a : b);
-    // debugPrint('Data Quality - Stations: ${uniqueStations.length}, Measurements: ${data.length}');
+
     return {
       'stations': uniqueStations.length,
       'measurements': data.length,
@@ -948,7 +916,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<void> _onLoadInitialData(LoadInitialDataEvent event, Emitter<OceanDataState> emit) async {
     emit(const OceanDataLoadingState(isInitialLoad: true));
     try {
-      // debugPrint('Loading initial ocean data...');
+
       final connectionStatus = await _checkApiConnection();
       // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
       final startDate = DateTime.parse('2025-08-01T00:00:00Z');
@@ -961,7 +929,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       
       if (result.isRight()) {
         final oceanData = result.getOrElse(() => []);
-        // debugPrint('Loaded ${oceanData.length} ocean data points');
+
         
         // Fetch environmental data and process time series data
         EnvDataEntity? envData;
@@ -973,7 +941,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             // Get raw data from the data source for processing
             // CRITICAL FIX: Default to depth 0 (surface) on initial load instead of extracting from first record
             const defaultDepth = 0.0;
-            debugPrint('📊 INITIAL LOAD: Using default depth ${defaultDepth}m (surface)');
 
             final rawDataResult = await _remoteDataSource.loadAllData(
               startDate: startDate,
@@ -996,46 +963,41 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
                 latitude: firstDataPoint.latitude,
                 longitude: firstDataPoint.longitude,
               );
-              // debugPrint('Fetched environmental data: temp=${envData.temperature}, salinity=${envData.salinity}');
+
 
               // Process raw data into time series format
               timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-              // debugPrint('Processed ${timeSeriesData.length} time series data points');
+
             }
           } catch (e) {
-            // debugPrint('Error fetching environmental data or processing time series: $e');
+
             // Continue with empty data if there's an error
           }
         }
 
         // Generate currents GeoJSON in background isolate to avoid blocking UI
-        debugPrint('BLOC: Starting currents generation with ${rawData.length} data points');
         final currentsGeoJSON = rawData.isEmpty
           ? const {'type': 'FeatureCollection', 'features': []}
           : await compute(_generateCurrentsInIsolate, rawData);
-        debugPrint('BLOC: Generated ${(currentsGeoJSON['features'] as List).length} current vectors');
 
         // Generate wind velocity GeoJSON in background isolate
-        debugPrint('BLOC: Starting wind velocity generation with ${rawData.length} data points');
+
         final windVelocityGeoJSON = rawData.isEmpty
           ? const {'type': 'FeatureCollection', 'features': []}
           : await compute(_generateWindVelocityInIsolate, rawData);
-        debugPrint('BLOC: Generated ${(windVelocityGeoJSON['features'] as List).length} wind vectors');
+
 
         // Query available depths from database
         List<double> availableDepths = [];
         try {
           availableDepths = await _remoteDataSource.getAvailableDepths('');
-          debugPrint('📊 BLOC: Loaded ${availableDepths.length} available depths from database');
         } catch (e) {
-          debugPrint('⚠️ BLOC: Failed to load depths: $e');
           // Leave empty list if query fails
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
         // CRITICAL FIX: Always default to depth 0 (surface) on initial load
         const initialDepth = 0.0;
-        debugPrint('📊 INITIAL DEPTH: Set to ${initialDepth}m (surface) - available depths: $availableDepths');
 
         emit(OceanDataLoadedState(
           dataLoaded: true, isLoading: false, hasError: false, data: oceanData,
@@ -1066,11 +1028,11 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
       } else {
         final errorMessage = result.fold((l) => l.message, (r) => 'Unknown error');
-        // debugPrint('Failed to load ocean data: $errorMessage');
+
         emit(OceanDataErrorState(errorMessage));
       }
     } catch (e) {
-      // debugPrint('Exception loading initial data: $e');
+
       emit(OceanDataErrorState(e.toString()));
     }
   }
@@ -1080,14 +1042,14 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final currentState = state as OceanDataLoadedState;
       emit(currentState.copyWith(isLoading: true));
       try {
-        // debugPrint('Refreshing ocean data...');
+
         final connectionStatus = await _checkApiConnection();
         final result = await _getOceanDataUseCase(GetOceanDataParams(
           startDate: currentState.startDate, endDate: currentState.endDate,
         ));
         if (result.isRight()) {
           final oceanData = result.getOrElse(() => []);
-          // debugPrint('Refreshed ${oceanData.length} ocean data points');
+
           
           // Fetch environmental data and process time series data
           EnvDataEntity? envData;
@@ -1118,31 +1080,29 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
                   latitude: firstDataPoint.latitude,
                   longitude: firstDataPoint.longitude,
                 );
-                // debugPrint('Fetched environmental data on refresh');
+
 
                 // Process raw data into time series format
                 timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-                // debugPrint('Processed ${timeSeriesData.length} time series data points on refresh');
+
               }
             } catch (e) {
-              // debugPrint('Error fetching environmental data or processing time series on refresh: $e');
+
               // Continue with empty data if there's an error
             }
           }
 
           // Generate currents GeoJSON in background isolate to avoid blocking UI
-          debugPrint('BLOC: Starting currents generation with ${rawData.length} data points');
           final currentsGeoJSON = rawData.isEmpty
             ? const {'type': 'FeatureCollection', 'features': []}
             : await compute(_generateCurrentsInIsolate, rawData);
-          debugPrint('BLOC: Generated ${(currentsGeoJSON['features'] as List).length} current vectors');
 
           // Generate wind velocity GeoJSON in background isolate
-          debugPrint('BLOC: Starting wind velocity generation with ${rawData.length} data points');
+
           final windVelocityGeoJSON = rawData.isEmpty
             ? const {'type': 'FeatureCollection', 'features': []}
             : await compute(_generateWindVelocityInIsolate, rawData);
-          debugPrint('BLOC: Generated ${(windVelocityGeoJSON['features'] as List).length} wind vectors');
+
 
           final dataQuality = _calculateDataQuality(oceanData);
           emit(currentState.copyWith(
@@ -1159,7 +1119,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           ));
         }
       } catch (e) {
-        // debugPrint('Exception refreshing data: $e');
+
         emit(currentState.copyWith(isLoading: false, hasError: true, errorMessage: e.toString()));
       }
     }
@@ -1172,7 +1132,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<void> _onCheckApiStatus(CheckApiStatusEvent event, Emitter<OceanDataState> emit) async {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
-      // debugPrint('Checking API status...');
+
       final connectionStatus = await _checkApiConnection();
       emit(currentState.copyWith(connectionStatus: connectionStatus));
     }
@@ -1183,16 +1143,10 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final currentState = state as OceanDataLoadedState;
 
       // ===== COMPREHENSIVE LOGGING: Study Area Change =====
-      debugPrint('📍 STUDY AREA CHANGE: ${currentState.selectedArea} → ${event.area}');
-      debugPrint('📍 Current data count: ${currentState.rawData.length} records');
-      debugPrint('📍 Current currents vectors: ${(currentState.currentsGeoJSON['features'] as List?)?.length ?? 0}');
-      debugPrint('📍 Current wind vectors: ${(currentState.windVelocityGeoJSON['features'] as List?)?.length ?? 0}');
 
       // Check cache first
       final cachedData = _areaCache[event.area];
       if (cachedData != null && !cachedData.isExpired) {
-        debugPrint('✅ CACHE HIT: Using cached data for ${event.area}');
-        debugPrint('📍 Cache age: ${DateTime.now().difference(cachedData.cachedAt).inSeconds}s');
 
         // Use cached data immediately - no loading state needed
         emit(currentState.copyWith(
@@ -1203,11 +1157,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           timeSeriesData: cachedData.timeSeriesData,
         ));
 
-        debugPrint('✅ STUDY AREA CHANGE COMPLETE (from cache): Successfully updated to ${event.area}');
         return;
       }
-
-      debugPrint('📍 CACHE MISS: Fetching data for ${event.area}');
 
       // Set loading state with area name while fetching new data
       emit(currentState.copyWith(
@@ -1217,10 +1168,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       ));
 
       try {
-        debugPrint('📍 FETCHING DATA: Requesting data for area=${event.area}');
-        debugPrint('📍 Date range: ${currentState.startDate} to ${currentState.endDate}');
-        debugPrint('📍 Depth: ${currentState.selectedDepth}');
-
         // Fetch new data for the selected area
         final rawDataResult = await _remoteDataSource.loadAllData(
           area: event.area,
@@ -1230,11 +1177,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         );
 
         final rawDataList = rawDataResult['allData'] as List?;
-        debugPrint('📍 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for ${event.area}');
 
         if (rawDataList == null || rawDataList.isEmpty) {
-          debugPrint('⚠️ WARNING: No data returned for area ${event.area}');
-          debugPrint('⚠️ CLEARING MAP: Removing all cached visualizations');
 
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
@@ -1258,21 +1202,19 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final lats = rawData.where((r) => r['lat'] != null).map((r) => (r['lat'] as num).toDouble()).toList();
         final lons = rawData.where((r) => r['lon'] != null).map((r) => (r['lon'] as num).toDouble()).toList();
         if (lats.isNotEmpty && lons.isNotEmpty) {
-          debugPrint('📍 DATA BOUNDS: lat [${lats.reduce((a, b) => a < b ? a : b)}, ${lats.reduce((a, b) => a > b ? a : b)}]');
-          debugPrint('📍 DATA BOUNDS: lon [${lons.reduce((a, b) => a < b ? a : b)}, ${lons.reduce((a, b) => a > b ? a : b)}]');
         }
 
         // Generate currents GeoJSON in background isolate
-        debugPrint('📍 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+
         final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
         final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('📍 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
 
         // Generate wind velocity GeoJSON in background isolate
-        debugPrint('📍 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+
         final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
         final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('📍 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
 
         // Process ocean data
         final result = await _getOceanDataUseCase(GetOceanDataParams(
@@ -1281,7 +1223,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
 
         final oceanData = result.getOrElse(() => []);
-        debugPrint('📍 OCEAN DATA PROCESSED: ${oceanData.length} data points');
 
         // Fetch environmental data if we have ocean data
         EnvDataEntity? envData;
@@ -1296,12 +1237,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               latitude: firstDataPoint.latitude,
               longitude: firstDataPoint.longitude,
             );
-            debugPrint('📍 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
 
             timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-            debugPrint('📍 TIME SERIES: Processed ${timeSeriesData.length} points');
           } catch (e) {
-            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
           }
         }
 
@@ -1315,11 +1253,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           timeSeriesData: timeSeriesData,
           cachedAt: DateTime.now(),
         );
-        debugPrint('💾 CACHED: Data for ${event.area} cached for 5 minutes');
 
         // Emit new state with updated data
-        debugPrint('📍 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
-        debugPrint('📍 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
 
         emit(currentState.copyWith(
           selectedArea: event.area,
@@ -1336,10 +1271,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           dataQuality: dataQuality,
         ));
 
-        debugPrint('✅ STUDY AREA CHANGE COMPLETE: Successfully updated to ${event.area}');
       } catch (e, stackTrace) {
-        debugPrint('❌ ERROR: Failed to load data for area ${event.area}: $e');
-        debugPrint('Stack trace: $stackTrace');
         emit(currentState.copyWith(
           selectedArea: event.area,
           isLoading: false,
@@ -1355,20 +1287,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
 
-      debugPrint('🌊 MODEL CHANGE: ${currentState.selectedModel} → ${event.model}');
-
-      // Set loading state while fetching data with new model filter
-      emit(currentState.copyWith(
-        selectedModel: event.model,
-        isLoading: true,
-      ));
-
       try {
-        debugPrint('🌊 FETCHING DATA: Requesting data for model=${event.model}');
-        debugPrint('🌊 Area: ${currentState.selectedArea}');
-        debugPrint('🌊 Depth: ${currentState.selectedDepth}');
-        debugPrint('🌊 Date range: ${currentState.startDate} to ${currentState.endDate}');
-
         // Fetch new data with model filter
         final rawDataResult = await _remoteDataSource.loadAllData(
           area: currentState.selectedArea,
@@ -1380,11 +1299,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         );
 
         final rawDataList = rawDataResult['allData'] as List?;
-        debugPrint('🌊 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for model ${event.model}');
 
         if (rawDataList == null || rawDataList.isEmpty) {
-          debugPrint('⚠️ WARNING: No data returned for model ${event.model}');
-          debugPrint('⚠️ CLEARING MAP: Removing all cached visualizations');
 
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
@@ -1404,16 +1320,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final rawData = rawDataList.cast<Map<String, dynamic>>();
 
         // Generate currents GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+
         final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
         final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
 
         // Generate wind velocity GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+
         final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
         final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
 
         // Process ocean data
         final result = await _getOceanDataUseCase(GetOceanDataParams(
@@ -1423,7 +1339,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
 
         final oceanData = result.getOrElse(() => []);
-        debugPrint('🌊 OCEAN DATA PROCESSED: ${oceanData.length} data points');
+
 
         // Fetch environmental data if we have ocean data
         EnvDataEntity? envData;
@@ -1438,20 +1354,19 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               latitude: firstDataPoint.latitude,
               longitude: firstDataPoint.longitude,
             );
-            debugPrint('🌊 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
+
 
             timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-            debugPrint('🌊 TIME SERIES: Processed ${timeSeriesData.length} points');
+
           } catch (e) {
-            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
+
           }
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
 
         // Emit new state with updated data
-        debugPrint('🌊 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
-        debugPrint('🌊 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
+
 
         emit(currentState.copyWith(
           selectedModel: event.model,
@@ -1467,10 +1382,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           dataQuality: dataQuality,
         ));
 
-        debugPrint('✅ MODEL CHANGE COMPLETE: Successfully updated to ${event.model}');
       } catch (e, stackTrace) {
-        debugPrint('❌ ERROR: Failed to load data for model ${event.model}: $e');
-        debugPrint('Stack trace: $stackTrace');
         emit(currentState.copyWith(
           selectedModel: event.model,
           isLoading: false,
@@ -1485,19 +1397,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
 
-      debugPrint('🌊 DEPTH CHANGE: ${currentState.selectedDepth} → ${event.depth}');
-
-      // Set loading state while fetching data with new depth filter
-      emit(currentState.copyWith(
-        selectedDepth: event.depth,
-        isLoading: true,
-      ));
-
       try {
-        debugPrint('🌊 FETCHING DATA: Requesting data for depth=${event.depth}');
-        debugPrint('🌊 Area: ${currentState.selectedArea}');
-        debugPrint('🌊 Date range: ${currentState.startDate} to ${currentState.endDate}');
-
         // Fetch new data with depth filter
         final rawDataResult = await _remoteDataSource.loadAllData(
           area: currentState.selectedArea,
@@ -1509,11 +1409,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         );
 
         final rawDataList = rawDataResult['allData'] as List?;
-        debugPrint('🌊 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for depth ${event.depth}');
 
         if (rawDataList == null || rawDataList.isEmpty) {
-          debugPrint('⚠️ WARNING: No data returned for depth ${event.depth}');
-          debugPrint('⚠️ CLEARING MAP: Removing all cached visualizations');
 
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
@@ -1533,16 +1430,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final rawData = rawDataList.cast<Map<String, dynamic>>();
 
         // Generate currents GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+
         final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
         final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
 
         // Generate wind velocity GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+
         final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
         final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
 
         // Process ocean data
         final result = await _getOceanDataUseCase(GetOceanDataParams(
@@ -1552,7 +1449,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
 
         final oceanData = result.getOrElse(() => []);
-        debugPrint('🌊 OCEAN DATA PROCESSED: ${oceanData.length} data points');
+
 
         // Fetch environmental data if we have ocean data
         EnvDataEntity? envData;
@@ -1567,20 +1464,19 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               latitude: firstDataPoint.latitude,
               longitude: firstDataPoint.longitude,
             );
-            debugPrint('🌊 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
+
 
             timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-            debugPrint('🌊 TIME SERIES: Processed ${timeSeriesData.length} points');
+
           } catch (e) {
-            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
+
           }
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
 
         // Emit new state with updated data
-        debugPrint('🌊 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
-        debugPrint('🌊 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
+
 
         emit(currentState.copyWith(
           selectedDepth: event.depth,
@@ -1596,10 +1492,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           dataQuality: dataQuality,
         ));
 
-        debugPrint('✅ DEPTH CHANGE COMPLETE: Successfully updated to ${event.depth}');
       } catch (e, stackTrace) {
-        debugPrint('❌ ERROR: Failed to load data for depth ${event.depth}: $e');
-        debugPrint('Stack trace: $stackTrace');
         emit(currentState.copyWith(
           selectedDepth: event.depth,
           isLoading: false,
@@ -1614,8 +1507,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
 
-      debugPrint('🌊 DATE RANGE CHANGE: ${currentState.startDate} → ${event.startDate} | ${currentState.endDate} → ${event.endDate}');
-
       // Set loading state while fetching data with new date range
       emit(currentState.copyWith(
         startDate: event.startDate,
@@ -1624,13 +1515,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       ));
 
       try {
-        debugPrint('🌊 FETCHING DATA: Requesting data for date range');
-        debugPrint('🌊 Start: ${event.startDate.toIso8601String()}');
-        debugPrint('🌊 End: ${event.endDate.toIso8601String()}');
-        debugPrint('🌊 Area: ${currentState.selectedArea}');
-        debugPrint('🌊 Model: ${currentState.selectedModel}');
-        debugPrint('🌊 Depth: ${currentState.selectedDepth}');
-
         // Fetch new data with date range filter
         final rawDataResult = await _remoteDataSource.loadAllData(
           area: currentState.selectedArea,
@@ -1642,11 +1526,10 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         );
 
         final rawDataList = rawDataResult['allData'] as List?;
-        debugPrint('🌊 DATA FETCHED: Received ${rawDataList?.length ?? 0} records for date range');
+
 
         if (rawDataList == null || rawDataList.isEmpty) {
-          debugPrint('⚠️ WARNING: No data returned for date range ${event.startDate} to ${event.endDate}');
-          debugPrint('⚠️ CLEARING MAP: Removing all cached visualizations');
+
 
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
@@ -1667,16 +1550,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final rawData = rawDataList.cast<Map<String, dynamic>>();
 
         // Generate currents GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting currents generation with ${rawData.length} records');
+
         final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
         final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${currentsFeatureCount} current vectors');
+
 
         // Generate wind velocity GeoJSON in background isolate
-        debugPrint('🌊 GENERATING GEOJSON: Starting wind generation with ${rawData.length} records');
+
         final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
         final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-        debugPrint('🌊 GEOJSON GENERATED: ${windFeatureCount} wind vectors');
+
 
         // Process ocean data
         final result = await _getOceanDataUseCase(GetOceanDataParams(
@@ -1686,7 +1569,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         ));
 
         final oceanData = result.getOrElse(() => []);
-        debugPrint('🌊 OCEAN DATA PROCESSED: ${oceanData.length} data points');
+
 
         // Fetch environmental data if we have ocean data
         EnvDataEntity? envData;
@@ -1701,20 +1584,19 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               latitude: firstDataPoint.latitude,
               longitude: firstDataPoint.longitude,
             );
-            debugPrint('🌊 ENV DATA: temp=${envData.temperature}, salinity=${envData.salinity}');
+
 
             timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
-            debugPrint('🌊 TIME SERIES: Processed ${timeSeriesData.length} points');
+
           } catch (e) {
-            debugPrint('⚠️ ERROR: Failed to fetch environmental data: $e');
+
           }
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
 
         // Emit new state with updated data
-        debugPrint('🌊 STATE UPDATE: Emitting new state with ${rawData.length} raw records');
-        debugPrint('🌊 MAP UPDATE: Map will receive ${currentsFeatureCount} currents + ${windFeatureCount} wind vectors');
+
 
         emit(currentState.copyWith(
           startDate: event.startDate,
@@ -1731,10 +1613,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           dataQuality: dataQuality,
         ));
 
-        debugPrint('✅ DATE RANGE CHANGE COMPLETE: Successfully updated to ${event.startDate} - ${event.endDate}');
       } catch (e, stackTrace) {
-        debugPrint('❌ ERROR: Failed to load data for date range: $e');
-        debugPrint('Stack trace: $stackTrace');
         emit(currentState.copyWith(
           startDate: event.startDate,
           endDate: event.endDate,

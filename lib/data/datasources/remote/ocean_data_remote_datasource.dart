@@ -154,7 +154,7 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
     if (kReleaseMode && 
         AppConstants.baseUrl.isNotEmpty && 
         !AppConstants.baseUrl.startsWith('https://')) {
-      // debugPrint('Insecure API endpoint configured for production environment. Please use https.');
+
     }
     
     _apiConfig = ApiConfig(
@@ -237,9 +237,7 @@ Future<Map<String, dynamic>> loadAllData({
   final tableName = getTableNameForArea(selectedArea);
 
   // ===== COMPREHENSIVE LOGGING: Query Construction =====
-  debugPrint('🌊 DATA SOURCE: loadAllData called');
-  debugPrint('🌊 AREA: $selectedArea → TABLE: $tableName');
-  debugPrint('🌊 DATE RANGE: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
+
 
   // Convert to UTC to ensure .000Z suffix format
   final startUtc = startDate.toUtc().toIso8601String();
@@ -257,14 +255,11 @@ Future<Map<String, dynamic>> loadAllData({
       final diagData = diagResponse.data as List<dynamic>;
       if (diagData.isNotEmpty) {
         final result = diagData[0] as Map<String, dynamic>;
-        debugPrint('📊 DATABASE DIAGNOSTIC:');
-        debugPrint('   • Requested range: $startUtc to $endUtc');
-        debugPrint('   • Actual data range: ${result['min_time']} to ${result['max_time']}');
-        debugPrint('   • Distinct timestamps available: ${result['timestamp_count']}');
+
       }
     }
   } catch (e) {
-    debugPrint('⚠️ Diagnostic query failed (non-critical): $e');
+
   }
 
   // Build the query with time filter and optional depth filter
@@ -273,7 +268,7 @@ Future<Map<String, dynamic>> loadAllData({
   // Add depth filter if provided
   if (depth != null) {
     whereClause += ' AND depth = $depth';
-    debugPrint('🌊 DEPTH FILTER: Applied depth = $depth');
+
   }
 
   // CRITICAL STRATEGY: Sample data across MULTIPLE timestamps for animation
@@ -304,8 +299,7 @@ Future<Map<String, dynamic>> loadAllData({
   // Build the full URL manually to prevent Dio from re-encoding
   final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
 
-  debugPrint('🌊 SQL QUERY: $query');
-  debugPrint('🌊 ENCODED URL: $fullUrl');
+
 
   try {
     // Pass the full URL without queryParameters to prevent double-encoding
@@ -322,17 +316,12 @@ Future<Map<String, dynamic>> loadAllData({
     );
 
     // Log response details
-    // debugPrint('=== API Response ===');
-    // debugPrint('Status Code: ${response.statusCode}');
-    // // debugPrint('Status Message: ${response.statusMessage}');
-    // // debugPrint('Response Headers: ${response.headers}');
-    // // debugPrint('Response Data Type: ${response.data.runtimeType}');
-    //// debugPrint('Response Data: ${response.data}');
+
 
     if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
       final apiData = response.data as List;
 
-      debugPrint('🌊 API RESPONSE: Status ${response.statusCode} - Received ${apiData.length} records');
+
 
       final allData = apiData.map((row) {
         final dataMap = row as Map<String, dynamic>;
@@ -348,15 +337,14 @@ Future<Map<String, dynamic>> loadAllData({
       // Log sample data for verification
       if (allData.isNotEmpty) {
         final firstRecord = allData.first;
-        debugPrint('🌊 SAMPLE RECORD: lat=${firstRecord['lat']}, lon=${firstRecord['lon']}, temp=${firstRecord['temp']}, area=${firstRecord['area']}');
+
       }
 
       // Log coordinate bounds
       final lats = allData.where((r) => r['lat'] != null).map((r) => (r['lat'] as num).toDouble()).toList();
       final lons = allData.where((r) => r['lon'] != null).map((r) => (r['lon'] as num).toDouble()).toList();
       if (lats.isNotEmpty && lons.isNotEmpty) {
-        debugPrint('🌊 DATA BOUNDS: lat [${lats.reduce((a, b) => a < b ? a : b)}, ${lats.reduce((a, b) => a > b ? a : b)}]');
-        debugPrint('🌊 DATA BOUNDS: lon [${lons.reduce((a, b) => a < b ? a : b)}, ${lons.reduce((a, b) => a > b ? a : b)}]');
+
       }
 
       _cachedData = allData;
@@ -370,48 +358,33 @@ Future<Map<String, dynamic>> loadAllData({
         }
       }
 
-      debugPrint('✅ DATA SOURCE: Successfully loaded ${allData.length} records for $selectedArea');
-      debugPrint('🎬 TEMPORAL ANALYSIS: ${uniqueTimestamps.length} unique timestamps (target: 50-100 for animation)');
+
 
       // Log the actual timestamps for diagnosis
       if (uniqueTimestamps.isNotEmpty) {
         final timestampList = uniqueTimestamps.toList()..sort();
         if (timestampList.length <= 5) {
-          debugPrint('📅 ALL TIMESTAMPS: ${timestampList.join(", ")}');
+
         } else {
-          debugPrint('📅 FIRST TIMESTAMP: ${timestampList.first}');
-          debugPrint('📅 LAST TIMESTAMP: ${timestampList.last}');
-          debugPrint('📅 SAMPLE MIDDLE: ${timestampList[timestampList.length ~/ 2]}');
+
         }
       }
 
       if (uniqueTimestamps.length < 10) {
-        debugPrint('⚠️ WARNING: Very few unique timestamps (${uniqueTimestamps.length})!');
-        debugPrint('⚠️ DATABASE ISSUE: The database appears to only contain data for ${uniqueTimestamps.length} moment(s) in time.');
-        debugPrint('⚠️ Query strategy: Sampling every 200th spatial point per timestamp (MOD 200)');
-        debugPrint('💡 SOLUTION: Database needs data spanning multiple timestamps for animation.');
-        debugPrint('💡 If database has temporal data: Increase date range or adjust spatial sampling rate (try MOD 500).');
+
       } else if (uniqueTimestamps.length >= 50) {
-        debugPrint('✅ ANIMATION READY: Sufficient temporal depth for smooth animation');
-        final avgPointsPerTimestamp = allData.length / uniqueTimestamps.length;
-        debugPrint('✅ Average spatial points per timestamp: ${avgPointsPerTimestamp.toStringAsFixed(1)}');
+
       } else {
-        debugPrint('⚡ PARTIAL COVERAGE: ${uniqueTimestamps.length} timestamps (acceptable, but could be better)');
-        final avgPointsPerTimestamp = allData.length / uniqueTimestamps.length;
-        debugPrint('⚡ Average spatial points per timestamp: ${avgPointsPerTimestamp.toStringAsFixed(1)}');
+
       }
 
       return {'allData': allData};
     } else {
-      debugPrint('❌ API ERROR: HTTP ${response.statusCode}: ${response.statusMessage}');
+
       throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
     }
   } catch (error) {
-    debugPrint('❌ DATA SOURCE ERROR: ${error.runtimeType} - $error');
-    if (error is DioException) {
-      debugPrint('❌ DioException: ${error.message}');
-      debugPrint('❌ Response: ${error.response?.data}');
-    }
+
     return {'allData': []};
   }
 }
@@ -428,7 +401,7 @@ Future<Map<String, dynamic>> loadAllData({
     int? maxDataPoints,
   }) {
     if (rawData.isEmpty) {
-      // debugPrint('No data to process');
+
       return [];
     }
     
@@ -1435,7 +1408,7 @@ Future<Map<String, dynamic>> loadAllData({
     String? model,
   }) async {
     try {
-      // debugPrint('Fetching ocean data from API...');
+
       final endDateTime = DateTime.parse(endDate);
       final result = await loadAllData(
         startDate: startDate,
@@ -1446,7 +1419,7 @@ Future<Map<String, dynamic>> loadAllData({
       );
       
       final rawData = result['allData'] as List? ?? [];
-      // debugPrint('Loaded ${rawData.length} data points from API');
+
       
       // Convert raw data to entities
       return rawData.map((item) {
@@ -1479,7 +1452,7 @@ Future<Map<String, dynamic>> loadAllData({
         );
       }).toList();
     } catch (e) {
-      // debugPrint('Error fetching ocean data: $e');
+
       throw ServerException('Failed to fetch ocean data: $e');
     }
   }
@@ -1487,7 +1460,7 @@ Future<Map<String, dynamic>> loadAllData({
   @override
   Future<List<dynamic>> getStations() async {
     try {
-      // debugPrint('Fetching stations from API...');
+
       // Require dates to be tracked from previous loadAllData call
       if (_currentStartDate == null || _currentEndDate == null) {
         throw ArgumentError('Dates not available. Call loadAllData first.');
@@ -1498,10 +1471,10 @@ Future<Map<String, dynamic>> loadAllData({
       );
       final rawData = result['allData'] as List? ?? [];
       final stations = generateOptimizedStationDataFromAPI(rawData);
-      // debugPrint('Generated ${stations.length} stations');
+
       return stations;
     } catch (e) {
-      // debugPrint('Error fetching stations: $e');
+
       return [];
     }
   }
@@ -1514,7 +1487,7 @@ Future<Map<String, dynamic>> loadAllData({
     double? longitude,
   }) async {
     try {
-      // debugPrint('Fetching environmental data...');
+
 
       if (_cachedData == null || _cachedData!.isEmpty) {
         // Require dates to be tracked from previous loadAllData call
@@ -1529,7 +1502,7 @@ Future<Map<String, dynamic>> loadAllData({
       }
       
       if (_cachedData == null || _cachedData!.isEmpty) {
-        // debugPrint('No data available for environmental query');
+
         return EnvDataEntity(
           timestamp: timestamp ?? DateTime.now(),
           temperature: null,
@@ -1582,7 +1555,7 @@ Future<Map<String, dynamic>> loadAllData({
           ? DateTime.parse(selectedData['time']) 
           : timestamp ?? DateTime.now();
       
-      // debugPrint('Environmental data point selected: temp=${selectedData['temp']}, salinity=${selectedData['salinity']}, depth=${selectedData['depth']}');
+
       
       return EnvDataEntity(
         timestamp: dataTimestamp,
@@ -1604,7 +1577,7 @@ Future<Map<String, dynamic>> loadAllData({
         },
       );
     } catch (e) {
-      // debugPrint('Error fetching environmental data: $e');
+
       return EnvDataEntity(
         timestamp: timestamp ?? DateTime.now(),
         temperature: null,
@@ -1641,8 +1614,7 @@ Future<Map<String, dynamic>> loadAllData({
       // Build the full URL
       final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
 
-      debugPrint('📊 DEPTHS QUERY: $query');
-      debugPrint('📊 ENCODED URL: $fullUrl');
+
 
       final response = await _dio.get(
         fullUrl,
@@ -1665,13 +1637,13 @@ Future<Map<String, dynamic>> loadAllData({
             .toList()
           ..sort();
 
-        debugPrint('📊 DEPTHS: Found ${depths.length} unique depths: $depths');
+
         return depths;
       }
 
       throw ServerException('Failed to fetch depths: ${response.statusCode}');
     } catch (e) {
-      debugPrint('❌ ERROR fetching depths: $e');
+
       throw ServerException('Failed to fetch available depths: $e');
     }
   }

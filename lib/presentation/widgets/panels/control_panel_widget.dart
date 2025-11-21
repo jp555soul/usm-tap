@@ -120,8 +120,6 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🎛️ CONTROL_PANEL: Initialized with depth=${widget.selectedDepth}m');
-    debugPrint('🎛️ CONTROL_PANEL: Available depths=${widget.availableDepths}');
   }
 
   @override
@@ -129,13 +127,13 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
     super.didUpdateWidget(oldWidget);
 
     // Log depth changes
+    // Log depth changes
     if (oldWidget.selectedDepth != widget.selectedDepth) {
-      debugPrint('🎛️ CONTROL_PANEL: Depth changed from ${oldWidget.selectedDepth}m to ${widget.selectedDepth}m');
     }
 
     // Log available depths changes
+    // Log available depths changes
     if (oldWidget.availableDepths != widget.availableDepths) {
-      debugPrint('🎛️ CONTROL_PANEL: Available depths updated to ${widget.availableDepths}');
     }
 
     _validateInputs();
@@ -386,8 +384,6 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
               DropdownMenuItem(value: 'MSR', child: Text('MSR')),
             ],
             onChanged: (value) {
-              debugPrint('🎛️ CONTROL PANEL: Study Area dropdown changed to: $value');
-              debugPrint('🎛️ Previous value was: ${widget.selectedArea}');
               widget.onAreaChange?.call(value ?? 'USM');
             },
           ),
@@ -530,7 +526,6 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                         }).toList(),
                   onChanged: widget.dataLoaded && widget.availableDepths.isNotEmpty
                       ? (value) {
-                          debugPrint('🎛️ CONTROL_PANEL: User selected depth=${value ?? 0}m');
                           widget.onDepthChange?.call(value ?? 0);
                         }
                       : null,
@@ -784,23 +779,23 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Speed: ${widget.playbackSpeed.toStringAsFixed(1)}x', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+        Text('Speed: ${widget.playbackSpeed.toStringAsFixed(2).replaceAll(RegExp(r"([.]*0)(?!.*\d)"), "")}x', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
         const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
               child: Slider(
                 value: widget.playbackSpeed,
-                min: 0.1,
-                max: 20.0,
-                divisions: 199,
+                min: 0.25,
+                max: 5.0,
+                divisions: 19,
                 onChanged: widget.dataLoaded ? (value) => widget.onSpeedChange?.call(value) : null,
                 activeColor: Colors.pink[500],
               ),
             ),
             Wrap(
               spacing: 4,
-              children: [1.0, 5.0, 10.0, 20.0].map((speed) {
+              children: [0.5, 1.0, 2.0, 5.0].map((speed) {
                 return SizedBox(
                   width: 32,
                   child: ElevatedButton(
@@ -811,7 +806,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(32, 24),
                     ),
-                    child: Text('${speed.toInt()}x', style: const TextStyle(fontSize: 10)),
+                    child: Text('${speed.toStringAsFixed(2).replaceAll(RegExp(r"([.]*0)(?!.*\d)"), "")}x', style: const TextStyle(fontSize: 10)),
                   ),
                 );
               }).toList(),

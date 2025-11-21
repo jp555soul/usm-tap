@@ -111,7 +111,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   void initState() {
     super.initState();
     _mapController = MapController();
-    debugPrint('📍 MAP POSITION TRACKING: Initialized - Instance: $hashCode');
 
     // Listen to map events (zoom, pan, rotate) and force redraw
     _mapController.mapEventStream.listen((event) {
@@ -126,8 +125,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         if (event is MapEventMove) {
           _currentCenter = event.camera.center;
           _currentZoom = event.camera.zoom;
-          debugPrint('📍 MAP POSITION: Updated to lat=${_currentCenter?.latitude.toStringAsFixed(4)}, '
-                     'lon=${_currentCenter?.longitude.toStringAsFixed(4)}, zoom=${_currentZoom?.toStringAsFixed(2)}');
         }
 
         // Force repaint of custom painters on zoom/pan/rotate
@@ -152,13 +149,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   @override
   void dispose() {
     try {
-      debugPrint('📍 MAP POSITION TRACKING: Disposed - Instance: $hashCode');
 
       // OPTIMIZATION: Log cache performance before disposal
       final totalCacheAccess = _cacheHits + _cacheMisses;
       if (totalCacheAccess > 0) {
         final hitRate = (_cacheHits / totalCacheAccess * 100).toStringAsFixed(1);
-        debugPrint('💾 CACHE STATS: $hitRate% hit rate ($_cacheHits hits, $_cacheMisses misses)');
       }
 
       _mapController.dispose();
@@ -169,7 +164,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       _lastCurrentsGeoJSON = null;
       _frameDataCache.clear(); // Clear frame cache
     } catch (e) {
-      debugPrint('⚠️ Error during map disposal: $e');
     } finally {
       super.dispose();
     }
@@ -185,9 +179,7 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       _currentCenter = LatLng(latitude, longitude);
       _currentZoom = zoom;
       _initialViewApplied = true;
-      debugPrint('📍 MAP POSITION: Initialized to lat=$latitude, lon=$longitude, zoom=$zoom');
     } catch (e) {
-      debugPrint('⚠️ Error initializing map view: $e');
     }
   }
 
@@ -212,15 +204,13 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       final longitude = coords['longitude']!;
       final zoom = coords['zoom']!;
 
-      debugPrint('🗺️ MAP: Moving to area $area: lat=$latitude, lon=$longitude, zoom=$zoom');
+
 
       _mapController.move(LatLng(latitude, longitude), zoom);
       _currentCenter = LatLng(latitude, longitude);
       _currentZoom = zoom;
 
-      debugPrint('📍 MAP POSITION: Updated to lat=$latitude, lon=$longitude, zoom=$zoom');
     } catch (e) {
-      debugPrint('⚠️ Error moving map to area $area: $e');
     }
   }
 
@@ -231,7 +221,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // ===== FIX: Clear stale data when loading starts =====
     // When isLoading becomes true, immediately clear caches to prevent race conditions
     if (!oldWidget.isLoading && widget.isLoading) {
-      debugPrint('🗺️ MAP: Loading started - clearing all cached data immediately');
       _cachedCurrentsMarkers = null;
       _lastCurrentsGeoJSON = null;
       _hoveredDataPoint = null;
@@ -240,7 +229,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
     // ===== COMPREHENSIVE LOGGING: Map Data Updates =====
     if (oldWidget.selectedArea != widget.selectedArea) {
-      debugPrint('🗺️ MAP: Study Area changed from ${oldWidget.selectedArea} to ${widget.selectedArea}');
 
       // Automatically move map to new study area when area changes
       if (_mapReady && widget.selectedArea.isNotEmpty) {
@@ -250,14 +238,12 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
 
     // Check if depth changed - this is critical for cache invalidation
     if (oldWidget.selectedDepth != widget.selectedDepth) {
-      debugPrint('🗺️ MAP: Depth changed from ${oldWidget.selectedDepth}m → ${widget.selectedDepth}m');
       // Clear all caches when depth changes to force fresh render
       _cachedCurrentsMarkers = null;
       _lastCurrentsGeoJSON = null;
     }
 
     if (oldWidget.rawData.length != widget.rawData.length || !identical(oldWidget.rawData, widget.rawData)) {
-    debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
     // Clear cache when raw data changes (animation frame update)
     _cachedCurrentsMarkers = null;
   }
@@ -266,7 +252,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     if (!identical(oldWidget.currentsGeoJSON, widget.currentsGeoJSON)) {
       final oldCurrentsCount = (oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0;
       final newCurrentsCount = (widget.currentsGeoJSON['features'] as List?)?.length ?? 0;
-      debugPrint('🗺️ MAP: Currents GeoJSON updated: $oldCurrentsCount → $newCurrentsCount features');
       // Clear marker cache when GeoJSON reference changes
       _cachedCurrentsMarkers = null;
       _lastCurrentsGeoJSON = null;
@@ -276,13 +261,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     if (!identical(oldWidget.windVelocityGeoJSON, widget.windVelocityGeoJSON)) {
       final oldWindCount = (oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
       final newWindCount = (widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-      debugPrint('🗺️ MAP: Wind velocity GeoJSON updated: $oldWindCount → $newWindCount features');
     }
 
     // Only apply initialViewState if this is truly first load and user hasn't moved
     if (!_initialViewApplied && _currentCenter == null && _currentZoom == null) {
       if (oldWidget.initialViewState != widget.initialViewState && _mapReady) {
-        debugPrint('🗺️ MAP: Applying initial view state');
         _initializeMapView();
       }
     }
@@ -291,7 +274,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Force rebuild for data changes
     if (_mapReady) {
       setState(() {
-        debugPrint('🗺️ MAP: setState called - triggering map rebuild');
       });
     }
   }
@@ -356,7 +338,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       sampledData.add(data[i]);
     }
 
-    debugPrint('🔍 ADAPTIVE LOD: Zoom ${zoom.toStringAsFixed(1)} - Sampled ${sampledData.length}/${data.length} points (1:$sampleRate)');
     return sampledData;
   }
 
@@ -456,8 +437,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint('⚠️ Error extracting currents data: $e');
-      debugPrint('Stack trace: $stackTrace');
     }
 
     return currentsData;
@@ -505,8 +484,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint('⚠️ Error extracting wind velocity data: $e');
-      debugPrint('Stack trace: $stackTrace');
     }
 
     return windData;
@@ -537,7 +514,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   try {
     // PRIORITY 1: Use Raw Data (Animation Frames)
     if (widget.rawData.isNotEmpty) {
-      // debugPrint('🗺️ MAP: Building vectors from ${widget.rawData.length} raw data points');
       
       for (final row in widget.rawData) {
         if (row == null) continue;
@@ -749,8 +725,6 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       }
     }
   } catch (e, stackTrace) {
-    debugPrint('⚠️ Error building current vectors: $e');
-    debugPrint('Stack trace: $stackTrace');
   }
 
     // Cache results
@@ -2000,11 +1974,8 @@ class HeatmapPainter extends CustomPainter {
 
       // OPTIMIZATION: Log rendering metrics for performance monitoring
       if (renderedPoints > 0) {
-        debugPrint('🎨 HEATMAP: Rendered $renderedPoints/${ rawData.length} points for $dataField at zoom ${camera.zoom.toStringAsFixed(1)}');
       }
     } catch (e, stackTrace) {
-      debugPrint('⚠️ Error painting heatmap ($dataField): $e');
-      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -2258,11 +2229,8 @@ class ParticlePainter extends CustomPainter {
 
       // OPTIMIZATION: Log particle rendering metrics
       if (renderedParticles > 0) {
-        debugPrint('🌊 PARTICLES: Rendered $renderedParticles/${particles.length} particles');
       }
     } catch (e, stackTrace) {
-      debugPrint('⚠️ Error painting particles: $e');
-      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -2411,8 +2379,6 @@ class GridPainter extends CustomPainter {
         );
       }
     } catch (e, stackTrace) {
-      debugPrint('⚠️ Error painting grid: $e');
-      debugPrint('Stack trace: $stackTrace');
     }
   }
 
