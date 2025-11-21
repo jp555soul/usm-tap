@@ -256,10 +256,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       _lastCurrentsGeoJSON = null;
     }
 
-    if (oldWidget.rawData.length != widget.rawData.length) {
-      debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
-    }
-
+    if (oldWidget.rawData.length != widget.rawData.length || !identical(oldWidget.rawData, widget.rawData)) {
+    debugPrint('🗺️ MAP: Raw data updated: ${oldWidget.rawData.length} → ${widget.rawData.length} records');
+    // Clear cache when raw data changes (animation frame update)
+    _cachedCurrentsMarkers = null;
+  }
     // Check if currentsGeoJSON object reference changed (not just feature count)
     // Using identical() to check object reference equality
     if (!identical(oldWidget.currentsGeoJSON, widget.currentsGeoJSON)) {
@@ -519,16 +520,134 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       return [];
     }
 
-    // Return cache if GeoJSON object reference unchanged
-    // Using identical() to check if it's the exact same object
-    if (_cachedCurrentsMarkers != null &&
-        identical(_lastCurrentsGeoJSON, widget.currentsGeoJSON)) {
+    // Return cache if valid
+  if (_cachedCurrentsMarkers != null) {
+    // If using GeoJSON, check if it changed
+    if (widget.rawData.isEmpty && identical(_lastCurrentsGeoJSON, widget.currentsGeoJSON)) {
       return _cachedCurrentsMarkers!;
     }
+    // If using rawData, didUpdateWidget clears cache when it changes, so non-null cache is valid
+    if (widget.rawData.isNotEmpty) {
+      return _cachedCurrentsMarkers!;
+    }
+  }
 
-    final List<Marker> vectors = [];
+  final List<Marker> vectors = [];
 
-    try {
+  try {
+    // PRIORITY 1: Use Raw Data (Animation Frames)
+    if (widget.rawData.isNotEmpty) {
+      // debugPrint('🗺️ MAP: Building vectors from ${widget.rawData.length} raw data points');
+      
+      for (final row in widget.rawData) {
+        if (row == null) continue;
+
+        final lat = (row['lat'] as num?)?.toDouble();
+        final lon = (row['lon'] as num?)?.toDouble();
+
+        if (lat == null || lon == null) continue;
+        
+        // Validate coordinates
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
+        // Get velocity components
+        double? u = (row['u'] as num?)?.toDouble();
+        double? v = (row['v'] as num?)?.toDouble();
+        double? speed = (row['speed'] as num?)?.toDouble();
+        double? direction = (row['direction'] as num?)?.toDouble();
+        
+        // Calculate speed if missing but u/v present
+        if ((speed == null || speed == 0) && u != null && v != null) {
+          speed = math.sqrt(u * u + v * v);
+        }
+        
+        // SSH Fallback for speed (if speed is missing/zero)
+        // This handles depth 2 where we have direction but no speed/u/v
+        if ((speed == null || speed == 0) && row['ssh'] != null) {
+          final ssh = (row['ssh'] as num).toDouble();
+          final sshAbs = ssh.abs();
+          // Map SSH (0-2m typical) to speed (0.1-1.5 m/s)
+          final baseSpeed = 0.1 + (sshAbs.clamp(0.0, 2.0) * 0.7);
+          // Add small random variation by location
+          final locationSeed = (lat * 1000 + lon * 1000).toInt();
+          final variation = (locationSeed % 20 - 10) * 0.02; 
+          speed = (baseSpeed + variation).clamp(0.05, 2.0);
+        }
+        
+        // Skip if we still have no speed
+        if (speed == null || speed == 0) continue;
+        
+        // Calculate direction if missing but u/v present
+        if (direction == null && u != null && v != null) {
+          direction = math.atan2(v, u) * 180 / math.pi;
+        }
+        
+        // We need u and v for the painter
+        if ((u == null || v == null) && direction != null) {
+          final dirRad = direction * math.pi / 180;
+          u = speed * math.sin(dirRad);
+          v = speed * math.cos(dirRad);
+        }
+        
+        // If we still don't have u/v, we can't draw direction
+        if (u == null || v == null) continue;
+
+        // Calculate color based on speed
+        final vectorColor = _getVectorColor(speed, row);
+
+        vectors.add(
+          Marker(
+            width: 30,
+            height: 30,
+            point: LatLng(lat, lon),
+            child: MouseRegion(
+              onEnter: (_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedVector = {
+                      'lat': lat,
+                      'lon': lon,
+                      'speed': speed,
+                      'direction': direction ?? 0.0,
+                      'ssh': row['ssh'],
+                    };
+                  });
+                }
+              },
+              onExit: (_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedVector = null;
+                  });
+                }
+              },
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedVector = {
+                      'lat': lat,
+                      'lon': lon,
+                      'speed': speed,
+                      'direction': direction ?? 0.0,
+                      'ssh': row['ssh'],
+                    };
+                  });
+                },
+                child: CustomPaint(
+                  painter: _VectorArrowPainter(
+                    angle: math.atan2(v!, u!),
+                    length: (speed! * widget.currentsVectorScale * 100).clamp(5.0, 30.0),
+                    color: vectorColor,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    } 
+    // PRIORITY 2: Fallback to GeoJSON (Static/Initial Data)
+    else {
       // Parse GeoJSON features
       final features = widget.currentsGeoJSON['features'] as List<dynamic>?;
       if (features == null || features.isEmpty) {
@@ -628,10 +747,11 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
           ),
         );
       }
-    } catch (e, stackTrace) {
-      debugPrint('⚠️ Error building current vectors: $e');
-      debugPrint('Stack trace: $stackTrace');
     }
+  } catch (e, stackTrace) {
+    debugPrint('⚠️ Error building current vectors: $e');
+    debugPrint('Stack trace: $stackTrace');
+  }
 
     // Cache results
     _cachedCurrentsMarkers = vectors;
