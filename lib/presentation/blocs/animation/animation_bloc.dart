@@ -230,6 +230,7 @@ class AnimationBloc extends Bloc<AnimationEvent, AnimationBlocState> {
       ControlAnimationParams(
         command: AnimationCommand.pause,
         totalFrames: currentTotalFrames > 0 ? currentTotalFrames : null,
+        frame: state is AnimationPlaying ? (state as AnimationPlaying).currentFrame : null,
       ),
     );
 
