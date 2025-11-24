@@ -553,7 +553,7 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
                     ],
                     IconButton(
                       icon: Icon(
-                        widget.isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                        widget.isCollapsed ? Icons.chevron_left : Icons.chevron_right,
                         size: 16,
                       ),
                       color: Colors.grey.shade400,

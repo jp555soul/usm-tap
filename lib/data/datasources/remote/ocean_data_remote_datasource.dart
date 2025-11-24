@@ -446,6 +446,7 @@ Future<Map<String, dynamic>> loadAllData({
         'sourceFile': row['_source_file'],
         'model': row['model'],
         'area': row['area'],
+        'windDirection': row['ndirection'] ?? 0,
       };
     }).toList();
     

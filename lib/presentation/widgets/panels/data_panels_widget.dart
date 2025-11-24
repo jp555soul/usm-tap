@@ -4,9 +4,7 @@ import 'package:video_player/video_player.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../domain/entities/env_data_entity.dart';
 
-// Assuming these BLoCs exist based on previous context
-// import '../blocs/ocean_data/ocean_data_bloc.dart';
-// import '../blocs/holoocean/holoocean_bloc.dart';
+
 
 class DataPanelsWidget extends StatefulWidget {
   final EnvDataEntity? envData;
@@ -53,6 +51,9 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
   String? _expandedPanel;
   int _chartTimeRange = 24;
   bool _isStreaming = true;
+  
+  // Track window start indices for each metric to enable correct tooltip timestamps
+  final Map<String, int> _chartWindowStarts = {};
 
   // Parameter mapping
   final Map<String, String> parameterMapping = {
@@ -165,12 +166,26 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
     
     if (widget.timeSeriesData.isEmpty) return [];
 
-    final data = widget.timeSeriesData.length > range
-        ? widget.timeSeriesData.sublist(widget.timeSeriesData.length - range)
-        : widget.timeSeriesData;
+    final len = widget.timeSeriesData.length;
+    
+    // Smart Window Logic: Try to center currentFrame in the window
+    int start = widget.currentFrame - (range ~/ 2);
+    
+    // Clamp start to bounds
+    if (start < 0) start = 0;
+    if (start + range > len) start = len - range;
+    if (start < 0) start = 0; // Handle case where len < range
+
+    final end = (start + range).clamp(0, len);
+    
+    // Store the window start for this metric so tooltips can use it
+    _chartWindowStarts[metric] = start;
+    
+    final data = widget.timeSeriesData.sublist(start, end);
 
     return data.asMap().entries.map((entry) {
       final value = (entry.value[dataKey] as num?)?.toDouble() ?? 0.0;
+      // Use relative index (0 to range) for sliding window effect
       return FlSpot(entry.key.toDouble(), value);
     }).toList();
   }
@@ -195,52 +210,81 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 768;
-        final isTablet = constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
 
-        return GridView.count(
-          crossAxisCount: isMobile ? 1 : isTablet ? 2 : 4,
-          childAspectRatio: isMobile ? 1.2 : 1.0,
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(),
-          children: [
-            // Video Panel (spans 2 columns on larger screens)
-            if (!isMobile)
-              GridTile(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.green.shade900.withOpacity(0.2),
-                        Colors.teal.shade900.withOpacity(0.2),
-                      ],
+        if (isMobile) {
+          // Mobile layout - single column
+          return Column(
+            children: [
+              if (widget.showCharts) _buildChartsPanel(),
+              if (widget.showHoloOcean) _buildHoloOceanPanel(),
+              if (widget.showEnvironmental) _buildEnvironmentalPanel(dataQuality),
+              const SizedBox(height: 24),
+            ],
+          );
+        }
+
+        // Desktop layout
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Column(
+            children: [
+              // First row: Time Series Analysis (full width)
+              if (widget.showCharts)
+                SizedBox(
+                  height: 650,
+                  child: _buildChartsPanel(),
+                ),
+              const SizedBox(height: 16),
+              // Second row: HoloOcean Video (50%) | HoloOcean Viz (25%) | Environmental Data (25%)
+              SizedBox(
+                height: 450,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // HoloOcean Video Panel (50%)
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.green.shade900.withOpacity(0.2),
+                              Colors.teal.shade900.withOpacity(0.2),
+                            ],
+                          ),
+                          border: Border.all(color: Colors.green.shade500.withOpacity(0.1)),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _videoController.value.isInitialized
+                              ? AspectRatio(
+                                  aspectRatio: _videoController.value.aspectRatio,
+                                  child: VideoPlayer(_videoController),
+                                )
+                              : const Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
                     ),
-                    border: Border.all(color: Colors.green.shade500.withOpacity(0.1)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: _videoController.value.isInitialized
-                        ? AspectRatio(
-                            aspectRatio: _videoController.value.aspectRatio,
-                            child: VideoPlayer(_videoController),
-                          )
-                        : const Center(child: CircularProgressIndicator()),
-                  ),
+                    const SizedBox(width: 16),
+                    // HoloOcean Viz Panel (25%)
+                    if (widget.showHoloOcean)
+                      Expanded(
+                        flex: 1,
+                        child: _buildHoloOceanPanel(),
+                      ),
+                    const SizedBox(width: 16),
+                    // Environmental Data Panel (25%)
+                    if (widget.showEnvironmental)
+                      Expanded(
+                        flex: 1,
+                        child: _buildEnvironmentalPanel(dataQuality),
+                      ),
+                  ],
                 ),
               ),
-
-            // HoloOcean Panel
-            if (widget.showHoloOcean)
-              _buildHoloOceanPanel(),
-
-            // Environmental Data Panel
-            if (widget.showEnvironmental)
-              _buildEnvironmentalPanel(dataQuality),
-
-            // Charts Panel
-            if (widget.showCharts)
-              _buildChartsPanel(),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -710,34 +754,50 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView(
+            child: Column(
               children: [
-                _buildChartCard(
-                  'Wind Speed (m/s)',
-                  formatValue(getCurrentValue('Wind Speed'), 'speed'),
-                  getChartData('Wind Speed', _chartTimeRange),
-                  Colors.amber.shade400,
+                Expanded(
+                  child: _buildChartCard(
+                    'Wind Speed (m/s)',
+                    formatValue(getCurrentValue('Wind Speed'), 'speed'),
+                    getChartData('Wind Speed', _chartTimeRange),
+                    Colors.amber.shade400,
+                    _chartTimeRange,
+                    'Wind Speed',
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildChartCard(
-                  'Current Direction (°)',
-                  formatValue(getCurrentValue('Current Direction'), 'direction'),
-                  getChartData('Current Direction', _chartTimeRange),
-                  Colors.green.shade400,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _buildChartCard(
+                    'Current Direction (°)',
+                    formatValue(getCurrentValue('Current Direction'), 'direction'),
+                    getChartData('Current Direction', _chartTimeRange),
+                    Colors.green.shade400,
+                    _chartTimeRange,
+                    'Current Direction',
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildChartCard(
-                  'Sound Speed (m/s)',
-                  formatValue(getCurrentValue('Sound Speed'), 'soundSpeed'),
-                  getChartData('Sound Speed', _chartTimeRange),
-                  Colors.green.shade300,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _buildChartCard(
+                    'Sound Speed (m/s)',
+                    formatValue(getCurrentValue('Sound Speed'), 'soundSpeed'),
+                    getChartData('Sound Speed', _chartTimeRange),
+                    Colors.green.shade300,
+                    _chartTimeRange,
+                    'Sound Speed',
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildChartCard(
-                  'Temperature (°F)',
-                  formatValue(getCurrentValue('Temperature'), 'temperature'),
-                  getChartData('Temperature', _chartTimeRange),
-                  Colors.orange.shade400,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _buildChartCard(
+                    'Temperature (°F)',
+                    formatValue(getCurrentValue('Temperature'), 'temperature'),
+                    getChartData('Temperature', _chartTimeRange),
+                    Colors.orange.shade400,
+                    _chartTimeRange,
+                    'Temperature',
+                  ),
                 ),
               ],
             ),
@@ -747,7 +807,7 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
     );
   }
 
-  Widget _buildChartCard(String title, String value, List<FlSpot> data, Color color) {
+  Widget _buildChartCard(String title, String value, List<FlSpot> data, Color color, int range, String metricKey) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -771,20 +831,78 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 60,
+          Expanded(
             child: LineChart(
               LineChartData(
+                minX: 0,
+                maxX: (range - 1).toDouble(),
                 gridData: const FlGridData(show: false),
                 titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    tooltipBgColor: Colors.grey.shade800.withOpacity(0.9),
+                    tooltipRoundedRadius: 8,
+                    tooltipPadding: const EdgeInsets.all(8),
+                    getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        // Calculate the actual data index by adding window start offset
+                        final chartIndex = touchedSpot.x.toInt();
+                        final windowStart = _chartWindowStarts[metricKey] ?? 0;
+                        final actualDataIndex = windowStart + chartIndex;
+                        
+                        // Get the timestamp from the time series data
+                        String dateTimeStr = '';
+                        String valueStr = touchedSpot.y.toStringAsFixed(2);
+                        
+                        if (widget.timeSeriesData.isNotEmpty && actualDataIndex < widget.timeSeriesData.length) {
+                          final dataPoint = widget.timeSeriesData[actualDataIndex];
+                          final timestamp = dataPoint['timestamp'] ?? dataPoint['time'];
+                          
+                          if (timestamp != null) {
+                            final dateTime = timestamp is DateTime 
+                                ? timestamp 
+                                : DateTime.fromMillisecondsSinceEpoch(timestamp as int);
+                            
+                            // Format date and time
+                            final date = '${dateTime.month}/${dateTime.day}/${dateTime.year}';
+                            final time = '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+                            dateTimeStr = '$date\n$time';
+                          }
+                        }
+                        
+                        
+                        return LineTooltipItem(
+                          '$dateTimeStr\n$title\n$valueStr',
+                          TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
                 lineBarsData: [
                   LineChartBarData(
                     spots: data.isEmpty ? [const FlSpot(0, 0)] : data,
                     isCurved: true,
                     color: color,
                     barWidth: 2,
-                    dotData: const FlDotData(show: false),
+                    // Show dots on all data points so users know where to hover
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 3,
+                          color: color,
+                          strokeWidth: 1,
+                          strokeColor: color.withOpacity(0.5),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
