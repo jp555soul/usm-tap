@@ -168,6 +168,15 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
 
     final len = widget.timeSeriesData.length;
     
+    // Handle "All" selection
+    if (range == -1) {
+      _chartWindowStarts[metric] = 0;
+      return widget.timeSeriesData.asMap().entries.map((entry) {
+        final value = (entry.value[dataKey] as num?)?.toDouble() ?? 0.0;
+        return FlSpot(entry.key.toDouble(), value);
+      }).toList();
+    }
+    
     // Smart Window Logic: Try to center currentFrame in the window
     int start = widget.currentFrame - (range ~/ 2);
     
@@ -739,16 +748,17 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
                 value: _chartTimeRange,
                 dropdownColor: Colors.grey.shade700,
                 style: const TextStyle(fontSize: 12, color: Colors.white),
-                items: const [
-                  DropdownMenuItem(value: 12, child: Text('12h')),
-                  DropdownMenuItem(value: 24, child: Text('24h')),
-                  DropdownMenuItem(value: 48, child: Text('48h')),
-                ],
                 onChanged: (value) {
                   setState(() {
                     _chartTimeRange = value ?? 24;
                   });
                 },
+                items: const [
+                  DropdownMenuItem(value: 12, child: Text('12h')),
+                  DropdownMenuItem(value: 24, child: Text('24h')),
+                  DropdownMenuItem(value: 48, child: Text('48h')),
+                  DropdownMenuItem(value: -1, child: Text('All')),
+                ],
               ),
             ],
           ),
@@ -835,7 +845,9 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
             child: LineChart(
               LineChartData(
                 minX: 0,
-                maxX: (range - 1).toDouble(),
+                maxX: range == -1 
+                    ? (widget.timeSeriesData.isEmpty ? 0 : widget.timeSeriesData.length - 1).toDouble()
+                    : (range - 1).toDouble(),
                 gridData: const FlGridData(show: false),
                 titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
