@@ -1135,6 +1135,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             }
           }
 
+          if (timeSeriesData.isNotEmpty) {
+             final firstDate = timeSeriesData.first['time'];
+             final lastDate = timeSeriesData.last['time'];
+             debugPrint('*** TIME SERIES DATA RANGE ***');
+             debugPrint('Start: $firstDate');
+             debugPrint('End: $lastDate');
+             debugPrint('Total Points: ${timeSeriesData.length}');
+          }
+
           // Generate currents GeoJSON in background isolate to avoid blocking UI
           final currentsGeoJSON = rawData.isEmpty
             ? const {'type': 'FeatureCollection', 'features': []}

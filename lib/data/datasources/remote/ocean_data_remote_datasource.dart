@@ -245,182 +245,193 @@ Future<Map<String, dynamic>> loadAllData({
 
   final tableName = getTableNameForArea(selectedArea);
 
-  // ===== COMPREHENSIVE LOGGING: Query Construction =====
-
-
-  // Convert to UTC to ensure .000Z suffix format
-  final startUtc = startDate?.toUtc().toIso8601String();
-  
-  // Adjust endDate to end of day (23:59:59.999) to include all data for the entire day
-  // Without this, a date like 2025-08-02 defaults to 00:00:00, excluding most of that day's data
-  DateTime? endDateAdjusted;
-  if (endDate != null) {
-    endDateAdjusted = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-      23,
-      59,
-      59,
-      999,
-    );
-  }
-  final endUtc = endDateAdjusted?.toUtc().toIso8601String();
-
-  // DIAGNOSTIC: Check what timestamps actually exist in the database
-  try {
-    final diagQuery = 'SELECT MIN(time) as min_time, MAX(time) as max_time, COUNT(DISTINCT time) as timestamp_count '
-                      'FROM `isdata-usmcom.usm_com.$tableName` '
-                      'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
-    final diagUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=${Uri.encodeQueryComponent(diagQuery)}';
-
-    final diagResponse = await _dio.get(diagUrl);
-    if (diagResponse.statusCode == 200 && diagResponse.data != null) {
-      final diagData = diagResponse.data as List<dynamic>;
-      if (diagData.isNotEmpty) {
-        final result = diagData[0] as Map<String, dynamic>;
-
-      }
-    }
-  } catch (e) {
-
-  }
-
-  // Build the query with time filter and optional depth filter
-  var whereClause = '';
-  
+  // If targetTime is provided, just fetch that single point
   if (targetTime != null) {
-    // Exact timestamp match for Data Step
-    final timeUtc = targetTime.toUtc().toIso8601String();
-    whereClause = 'WHERE time = TIMESTAMP(\'$timeUtc\')';
-  } else {
-    // Range match for Metadata Step (or legacy calls)
-    whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
-  }
-
-  // Add depth filter if provided
-  if (depth != null) {
-    whereClause += ' AND depth = $depth';
-
-  }
-
-  // CRITICAL STRATEGY: Sample data across MULTIPLE timestamps for animation
-  // Instead of getting 10K records from early timestamps, we use a sampling approach:
-  // 1. Get distinct timestamps first (if we knew them)
-  // 2. Since BigQuery doesn't easily support "N records per timestamp", we use a workaround:
-  //    - Select a subset of records that are spread across time
-  //    - Use MOD on row numbers to downsample spatial resolution, keeping temporal depth
-  //
-  // Target: Capture ALL available timestamps with ~385 spatial points per timestamp
-  // Strategy: MOD 200 = every 200th spatial point (minimal spatial resolution, maximum temporal coverage)
-  // Math: 20 timestamps × 385 points = 7,700 records (well within 10K limit)
-  final query = 'WITH numbered_data AS ('
-                '  SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms, '
-                '         ROW_NUMBER() OVER (PARTITION BY time ORDER BY lat, lon) as rn '
-                '  FROM `isdata-usmcom.usm_com.$tableName` '
-                '  $whereClause'
-                ') '
-                'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
-                'FROM numbered_data '
-                '${targetTime != null ? '' : 'WHERE MOD(rn, 200) = 0 '} '  // Only downsample if fetching range
-                'ORDER BY time ASC '
-                'LIMIT ${targetTime != null ? 2000 : 10000}';
-
-  // URL encode the query - use %20 for spaces, proper encoding for special chars
-  final encodedQuery = Uri.encodeQueryComponent(query);
-
-  // Build the full URL manually to prevent Dio from re-encoding
-  final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
-
-
-
-  try {
-    // Pass the full URL without queryParameters to prevent double-encoding
-    final response = await _dio.get(
-      fullUrl,
-      options: Options(
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_apiConfig.token}',
-        },
-        receiveTimeout: _apiConfig.timeout,
-        validateStatus: (status) => true, // Accept all status codes to see response
-      ),
+    final result = await _fetchBatch(
+      tableName: tableName,
+      selectedArea: selectedArea,
+      targetTime: targetTime,
+      depth: depth,
     );
-
-    // Log response details
-
-
-    if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-      final apiData = response.data as List;
-
-
-
-      final allData = apiData.map((row) {
-        final dataMap = row as Map<String, dynamic>;
-        return {
-          ...dataMap,
-          'model': 'NGOFS2',
-          'area': selectedArea,
-          '_source_file': 'API_$selectedArea',
-          '_loaded_at': DateTime.now().toIso8601String(),
-        };
-      }).toList();
-
-      // Log sample data for verification
-      if (allData.isNotEmpty) {
-        final firstRecord = allData.first;
-
-      }
-
-      // Log coordinate bounds
-      final lats = allData.where((r) => r['lat'] != null).map((r) => (r['lat'] as num).toDouble()).toList();
-      final lons = allData.where((r) => r['lon'] != null).map((r) => (r['lon'] as num).toDouble()).toList();
-      if (lats.isNotEmpty && lons.isNotEmpty) {
-
-      }
-
-      _cachedData = allData;
-
-      // Analyze temporal distribution for animation readiness
-      final uniqueTimestamps = <String>{};
-      for (final record in allData) {
-        final timestamp = record['time']?.toString();
-        if (timestamp != null) {
-          uniqueTimestamps.add(timestamp);
-        }
-      }
-
-
-
-      // Log the actual timestamps for diagnosis
-      if (uniqueTimestamps.isNotEmpty) {
-        final timestampList = uniqueTimestamps.toList()..sort();
-        if (timestampList.length <= 5) {
-
-        } else {
-
-        }
-      }
-
-      if (uniqueTimestamps.length < 10) {
-
-      } else if (uniqueTimestamps.length >= 50) {
-
-      } else {
-
-      }
-
-      return {'allData': allData};
-    } else {
-
-      throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
-    }
-  } catch (error) {
-
-    return {'allData': []};
+    return {'allData': result};
   }
+
+  // Otherwise, fetch in daily batches
+  final List<Future<List<dynamic>>> futures = [];
+  
+  // Calculate days to fetch
+  // We iterate day by day to ensure we don't hit the 10k limit per request
+  // and to ensure we get data for the full range.
+  DateTime current = startDate!;
+  final end = endDate!;
+  
+  // Ensure we cover the entire range, including the end date
+  final daysDifference = end.difference(current).inDays;
+  // Add 1 to include the partial last day or if start/end are same day
+  final daysToFetch = daysDifference < 0 ? 1 : daysDifference + 1;
+
+  debugPrint('*** BATCH FETCHING ***');
+  debugPrint('Splitting range into $daysToFetch daily batches');
+
+  for (int i = 0; i < daysToFetch; i++) {
+    final batchStart = current.add(Duration(days: i));
+    // For the batch end, we want the end of this specific day
+    // _fetchBatch handles the "end of day" adjustment if we pass the same date
+    // So we just pass the date itself as both start and end for that batch
+    // This ensures we query 00:00:00 to 23:59:59 for that day
+    
+    futures.add(_fetchBatch(
+      tableName: tableName,
+      selectedArea: selectedArea,
+      startDate: batchStart,
+      endDate: batchStart, // Pass same day, _fetchBatch will adjust to end of day
+      depth: depth,
+    ));
+  }
+
+  // Execute batches in parallel
+  final results = await Future.wait(futures);
+  
+  // Aggregate results
+  final allData = results.expand((x) => x).toList();
+  
+  debugPrint('*** BATCH FETCH COMPLETE ***');
+  debugPrint('Total records fetched: ${allData.length}');
+  
+  // Log unique timestamps from aggregated data
+  final uniqueTimestamps = <String>{};
+  for (final record in allData) {
+    final timestamp = record['time']?.toString();
+    if (timestamp != null) {
+      uniqueTimestamps.add(timestamp);
+    }
+  }
+  debugPrint('Total unique timestamps: ${uniqueTimestamps.length}');
+
+  return {'allData': allData};
 }
+
+  Future<List<dynamic>> _fetchBatch({
+    required String tableName,
+    required String selectedArea,
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime? targetTime,
+    double? depth,
+  }) async {
+    // Convert to UTC to ensure .000Z suffix format
+    final startUtc = startDate?.toUtc().toIso8601String();
+    
+    // Adjust endDate to end of day (23:59:59.999) to include all data for the entire day
+    // Without this, a date like 2025-08-02 defaults to 00:00:00, excluding most of that day's data
+    DateTime? endDateAdjusted;
+    if (endDate != null) {
+      endDateAdjusted = DateTime(
+        endDate.year,
+        endDate.month,
+        endDate.day,
+        23,
+        59,
+        59,
+        999,
+      );
+    }
+    final endUtc = endDateAdjusted?.toUtc().toIso8601String();
+
+    debugPrint('*** API REQUEST (BATCH) ***');
+    if (targetTime != null) {
+      debugPrint('Target Time: ${targetTime.toUtc().toIso8601String()}');
+    } else {
+      debugPrint('Range: $startUtc to $endUtc');
+    }
+
+    // Build the query with time filter and optional depth filter
+    var whereClause = '';
+    
+    if (targetTime != null) {
+      // Exact timestamp match for Data Step
+      final timeUtc = targetTime.toUtc().toIso8601String();
+      whereClause = 'WHERE time = TIMESTAMP(\'$timeUtc\')';
+    } else {
+      // Range match for Metadata Step (or legacy calls)
+      whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
+    }
+
+    // Add depth filter if provided
+    if (depth != null) {
+      whereClause += ' AND depth = $depth';
+    }
+
+    // CRITICAL STRATEGY: Sample data across MULTIPLE timestamps for animation
+    // Instead of getting 10K records from early timestamps, we use a sampling approach:
+    // 1. Get distinct timestamps first (if we knew them)
+    // 2. Since BigQuery doesn't easily support "N records per timestamp", we use a workaround:
+    //    - Select a subset of records that are spread across time
+    //    - Use MOD on row numbers to downsample spatial resolution, keeping temporal depth
+    //
+    // Target: Capture ALL available timestamps with ~385 spatial points per timestamp
+    // Strategy: MOD 200 = every 200th spatial point (minimal spatial resolution, maximum temporal coverage)
+    // Math: 20 timestamps × 385 points = 7,700 records (well within 10K limit)
+    final query = 'WITH numbered_data AS ('
+                  '  SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms, '
+                  '         ROW_NUMBER() OVER (PARTITION BY time ORDER BY lat, lon) as rn '
+                  '  FROM `isdata-usmcom.usm_com.$tableName` '
+                  '  $whereClause'
+                  ') '
+                  'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
+                  'FROM numbered_data '
+                  '${targetTime != null ? '' : 'WHERE MOD(rn, 200) = 0 '} '  // Only downsample if fetching range
+                  'ORDER BY time ASC '
+                  'LIMIT ${targetTime != null ? 2000 : 10000}';
+
+    // URL encode the query - use %20 for spaces, proper encoding for special chars
+    final encodedQuery = Uri.encodeQueryComponent(query);
+
+    // Build the full URL manually to prevent Dio from re-encoding
+    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
+
+    try {
+      // Pass the full URL without queryParameters to prevent double-encoding
+      final response = await _dio.get(
+        fullUrl,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_apiConfig.token}',
+          },
+          receiveTimeout: _apiConfig.timeout,
+          validateStatus: (status) => true, // Accept all status codes to see response
+        ),
+      );
+
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+        final apiData = response.data as List;
+
+        final allData = apiData.map((row) {
+          final dataMap = row as Map<String, dynamic>;
+          return {
+            ...dataMap,
+            'model': 'NGOFS2',
+            'area': selectedArea,
+            '_source_file': 'API_$selectedArea',
+            '_loaded_at': DateTime.now().toIso8601String(),
+          };
+        }).toList();
+
+        debugPrint('Batch received ${allData.length} records');
+        return allData;
+      } else {
+        debugPrint('Batch failed: ${response.statusCode}');
+        // throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
+        // Return empty list on failure to allow other batches to succeed? 
+        // Or throw? Let's return empty for now to be robust.
+        return [];
+      }
+    } catch (error) {
+      debugPrint('Batch error: $error');
+      return [];
+    }
+  }
   
   /// Processes raw data into a format suitable for time series charts.
   /// @param rawData - The raw data from the API.

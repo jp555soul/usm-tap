@@ -543,6 +543,9 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                             context.read<time.TimeManagementBloc>().add(
                                                   time.HandleDateRangeChangeEvent(startDate, endDate),
                                                 );
+                                            context.read<OceanDataBloc>().add(
+                                                  SetDateRangeEvent(startDate, endDate),
+                                                );
                                           },
                                           onTimeZoneChange: (timeZone) {
                                             context.read<time.TimeManagementBloc>().add(
