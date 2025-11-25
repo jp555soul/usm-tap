@@ -28,9 +28,6 @@ class DownloadService {
   /// Downloads the installer for a specific operating system
   static Future<DownloadResult> downloadInstallerForOS(
       OperatingSystem os) async {
-    if (kDebugMode) {
-      print('Download requested for OS: ${PlatformDetector.getOSDisplayName(os)}');
-    }
 
     // Handle iOS separately - redirect to App Store or show message
     if (os == OperatingSystem.ios) {
@@ -71,9 +68,6 @@ class DownloadService {
         message: 'Download started for ${PlatformDetector.getOSDisplayName(os)}',
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('Error downloading installer: $e');
-      }
       return DownloadResult(
         success: false,
         errorMessage:

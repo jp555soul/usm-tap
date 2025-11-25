@@ -31,9 +31,6 @@ class DownloadService {
   /// Returns failure on non-web platforms
   static Future<DownloadResult> downloadInstallerForOS(
       OperatingSystem os) async {
-    if (kDebugMode) {
-      print('Download not supported on non-web platforms');
-    }
 
     return DownloadResult(
       success: false,

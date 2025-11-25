@@ -1585,15 +1585,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
 
 
         if (rawDataList == null || rawDataList.isEmpty) {
-
-          if (kDebugMode) {
-            print('📅 DATE RANGE CHANGE - NO DATA:');
-            print('  Date range: ${event.startDate} to ${event.endDate}');
-            print('  rawDataList is null: ${rawDataList == null}');
-            print('  rawDataList is empty: ${rawDataList?.isEmpty ?? "null"}');
-            print('  Emitting empty state...');
-          }
-
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
             startDate: event.startDate,
@@ -1607,10 +1598,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             windVelocityGeoJSON: {'type': 'FeatureCollection', 'features': []},
             timeSeriesData: [],
           ));
-          
-          if (kDebugMode) {
-            print('  ✅ Empty state emitted');
-          }
           return;
         }
 

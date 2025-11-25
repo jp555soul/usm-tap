@@ -246,7 +246,7 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
               const SizedBox(height: 16),
               // Second row: HoloOcean Video (50%) | HoloOcean Viz (25%) | Environmental Data (25%)
               SizedBox(
-                height: 450,
+                height: 550,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -351,6 +351,8 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
               childAspectRatio: 1.5,
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
               children: [
                 _buildMetricCard(
                   'Temperature',
