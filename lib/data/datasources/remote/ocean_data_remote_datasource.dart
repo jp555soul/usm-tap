@@ -8,6 +8,7 @@ import 'package:usm_tap/core/errors/exceptions.dart';
 import 'package:usm_tap/domain/entities/station_data_entity.dart';
 import 'package:usm_tap/domain/entities/ocean_data_entity.dart';
 import 'package:usm_tap/domain/entities/env_data_entity.dart';
+import 'package:usm_tap/core/utils/api_logger.dart';
 
 abstract class OceanDataRemoteDataSource {
   String getTableNameForArea(String areaName);
@@ -270,8 +271,8 @@ Future<Map<String, dynamic>> loadAllData({
   // Add 1 to include the partial last day or if start/end are same day
   final daysToFetch = daysDifference < 0 ? 1 : daysDifference + 1;
 
-  debugPrint('*** BATCH FETCHING ***');
-  debugPrint('Splitting range into $daysToFetch daily batches');
+  // debugPrint('*** BATCH FETCHING ***');
+  // debugPrint('Splitting range into $daysToFetch daily batches');
 
   for (int i = 0; i < daysToFetch; i++) {
     final batchStart = current.add(Duration(days: i));
@@ -295,8 +296,8 @@ Future<Map<String, dynamic>> loadAllData({
   // Aggregate results
   final allData = results.expand((x) => x).toList();
   
-  debugPrint('*** BATCH FETCH COMPLETE ***');
-  debugPrint('Total records fetched: ${allData.length}');
+  // debugPrint('*** BATCH FETCH COMPLETE ***');
+  // debugPrint('Total records fetched: ${allData.length}');
   
   // Log unique timestamps from aggregated data
   final uniqueTimestamps = <String>{};
@@ -306,7 +307,7 @@ Future<Map<String, dynamic>> loadAllData({
       uniqueTimestamps.add(timestamp);
     }
   }
-  debugPrint('Total unique timestamps: ${uniqueTimestamps.length}');
+  // debugPrint('Total unique timestamps: ${uniqueTimestamps.length}');
 
   return {'allData': allData};
 }
@@ -338,11 +339,11 @@ Future<Map<String, dynamic>> loadAllData({
     }
     final endUtc = endDateAdjusted?.toUtc().toIso8601String();
 
-    debugPrint('*** API REQUEST (BATCH) ***');
+    // debugPrint('*** API REQUEST (BATCH) ***');
     if (targetTime != null) {
-      debugPrint('Target Time: ${targetTime.toUtc().toIso8601String()}');
+      // debugPrint('Target Time: ${targetTime.toUtc().toIso8601String()}');
     } else {
-      debugPrint('Range: $startUtc to $endUtc');
+      // debugPrint('Range: $startUtc to $endUtc');
     }
 
     // Build the query with time filter and optional depth filter
@@ -392,6 +393,9 @@ Future<Map<String, dynamic>> loadAllData({
 
     try {
       // Pass the full URL without queryParameters to prevent double-encoding
+      // Log the query
+      ApiLogger().logQuery(fullUrl);
+
       final response = await _dio.get(
         fullUrl,
         options: Options(
@@ -418,17 +422,17 @@ Future<Map<String, dynamic>> loadAllData({
           };
         }).toList();
 
-        debugPrint('Batch received ${allData.length} records');
+        // debugPrint('Batch received ${allData.length} records');
         return allData;
       } else {
-        debugPrint('Batch failed: ${response.statusCode}');
+        // debugPrint('Batch failed: ${response.statusCode}');
         // throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}\nResponse: ${response.data}');
         // Return empty list on failure to allow other batches to succeed? 
         // Or throw? Let's return empty for now to be robust.
         return [];
       }
     } catch (error) {
-      debugPrint('Batch error: $error');
+      // debugPrint('Batch error: $error');
       return [];
     }
   }
@@ -445,20 +449,15 @@ Future<Map<String, dynamic>> loadAllData({
     int? maxDataPoints,
   }) {
     if (rawData.isEmpty) {
-
       return [];
     }
     
+    // Don't filter by nspeed - not all depth levels have current speed data,
+    // but they DO have temperature, sound speed, and other metrics
     var filteredData = rawData.where((row) {
       final data = row as Map<String, dynamic>;
-      if (data['nspeed'] == null || data['nspeed'] == '') {
-        return false;
-      }
-      if (data['depth'] != null && selectedDepth != null) {
-        final depthDiff = ((data['depth'] as num) - selectedDepth).abs();
-        return depthDiff <= 5;
-      }
-      return true;
+      // Just ensure we have basic required fields
+      return data['lat'] != null && data['lon'] != null && data['time'] != null;
     }).toList();
     
     filteredData.sort((a, b) {

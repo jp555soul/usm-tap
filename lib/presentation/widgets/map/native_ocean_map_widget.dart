@@ -227,6 +227,39 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
       _selectedVector = null;
     }
 
+    // ===== FIX: Clear all caches when data becomes empty =====
+    // This ensures the map properly clears when receiving empty data responses
+    final oldHasData = oldWidget.rawData.isNotEmpty || 
+                       ((oldWidget.currentsGeoJSON['features'] as List?)?.isNotEmpty ?? false) ||
+                       ((oldWidget.windVelocityGeoJSON['features'] as List?)?.isNotEmpty ?? false);
+    final newHasData = widget.rawData.isNotEmpty || 
+                       ((widget.currentsGeoJSON['features'] as List?)?.isNotEmpty ?? false) ||
+                       ((widget.windVelocityGeoJSON['features'] as List?)?.isNotEmpty ?? false);
+    
+    // DEBUG: Log data state changes
+    if (kDebugMode) {
+      print('🗺️ MAP WIDGET UPDATE:');
+      print('  Old rawData: ${oldWidget.rawData.length} records');
+      print('  New rawData: ${widget.rawData.length} records');
+      print('  Old currents features: ${(oldWidget.currentsGeoJSON['features'] as List?)?.length ?? 0}');
+      print('  New currents features: ${(widget.currentsGeoJSON['features'] as List?)?.length ?? 0}');
+      print('  Old wind features: ${(oldWidget.windVelocityGeoJSON['features'] as List?)?.length ?? 0}');
+      print('  New wind features: ${(widget.windVelocityGeoJSON['features'] as List?)?.length ?? 0}');
+      print('  oldHasData: $oldHasData, newHasData: $newHasData');
+    }
+    
+    // If transitioning from having data to empty data, clear all caches
+    if (oldHasData && !newHasData) {
+      if (kDebugMode) {
+        print('🧹 CLEARING ALL MAP CACHES - Data became empty!');
+      }
+      _cachedCurrentsMarkers = null;
+      _lastCurrentsGeoJSON = null;
+      _hoveredDataPoint = null;
+      _selectedVector = null;
+      _frameDataCache.clear();
+    }
+
     // ===== COMPREHENSIVE LOGGING: Map Data Updates =====
     if (oldWidget.selectedArea != widget.selectedArea) {
 
@@ -493,7 +526,18 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   List<Marker> _buildCurrentsVectorMarkers() {
     final showCurrents = widget.mapLayerVisibility['oceanCurrents'] ?? false;
 
+    if (kDebugMode) {
+      print('🎯 _buildCurrentsVectorMarkers called:');
+      print('  showCurrents: $showCurrents');
+      print('  currentsGeoJSON.isEmpty: ${widget.currentsGeoJSON.isEmpty}');
+      print('  rawData.length: ${widget.rawData.length}');
+      print('  _cachedCurrentsMarkers != null: ${_cachedCurrentsMarkers != null}');
+    }
+
     if (!showCurrents || widget.currentsGeoJSON.isEmpty) {
+      if (kDebugMode) {
+        print('  ↩️ Returning empty list (showCurrents=$showCurrents, isEmpty=${widget.currentsGeoJSON.isEmpty})');
+      }
       return [];
     }
 
@@ -501,10 +545,16 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
   if (_cachedCurrentsMarkers != null) {
     // If using GeoJSON, check if it changed
     if (widget.rawData.isEmpty && identical(_lastCurrentsGeoJSON, widget.currentsGeoJSON)) {
+      if (kDebugMode) {
+        print('  ♻️ Returning cached markers (${_cachedCurrentsMarkers!.length} markers)');
+      }
       return _cachedCurrentsMarkers!;
     }
     // If using rawData, didUpdateWidget clears cache when it changes, so non-null cache is valid
     if (widget.rawData.isNotEmpty) {
+      if (kDebugMode) {
+        print('  ♻️ Returning cached markers from rawData (${_cachedCurrentsMarkers!.length} markers)');
+      }
       return _cachedCurrentsMarkers!;
     }
   }
@@ -730,6 +780,10 @@ class _NativeOceanMapWidgetState extends State<NativeOceanMapWidget> {
     // Cache results
     _cachedCurrentsMarkers = vectors;
     _lastCurrentsGeoJSON = widget.currentsGeoJSON;
+
+    if (kDebugMode) {
+      print('  ✅ Built and cached ${vectors.length} current vector markers');
+    }
 
     return vectors;
   }

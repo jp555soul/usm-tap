@@ -744,20 +744,65 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
                   ),
                 ],
               ),
-              DropdownButton<int>(
-                value: _chartTimeRange,
-                dropdownColor: Colors.grey.shade700,
-                style: const TextStyle(fontSize: 12, color: Colors.white),
-                onChanged: (value) {
-                  setState(() {
-                    _chartTimeRange = value ?? 24;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(value: 12, child: Text('12h')),
-                  DropdownMenuItem(value: 24, child: Text('24h')),
-                  DropdownMenuItem(value: 48, child: Text('48h')),
-                  DropdownMenuItem(value: -1, child: Text('All')),
+              Row(
+                children: [
+                  // Depth dropdown
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: DropdownButton<double>(
+                      value: widget.selectedDepth,
+                      dropdownColor: Colors.grey.shade700,
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down, size: 20, color: Colors.white70),
+                      onChanged: widget.availableDepths.isNotEmpty
+                          ? (value) {
+                              if (value != null) {
+                                widget.onDepthChange?.call(value);
+                              }
+                            }
+                          : null,
+                      items: widget.availableDepths.isEmpty
+                          ? [const DropdownMenuItem(value: 0, child: Text('0m'))]
+                          : widget.availableDepths.map((depth) {
+                              return DropdownMenuItem<double>(
+                                value: depth,
+                                child: Text('${depth.toInt()}m'),
+                              );
+                            }).toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Time range dropdown
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: DropdownButton<int>(
+                      value: _chartTimeRange,
+                      dropdownColor: Colors.grey.shade700,
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down, size: 20, color: Colors.white70),
+                      onChanged: (value) {
+                        setState(() {
+                          _chartTimeRange = value ?? 24;
+                        });
+                      },
+                      items: const [
+                        DropdownMenuItem(value: 12, child: Text('12h')),
+                        DropdownMenuItem(value: 24, child: Text('24h')),
+                        DropdownMenuItem(value: 48, child: Text('48h')),
+                        DropdownMenuItem(value: -1, child: Text('All')),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],

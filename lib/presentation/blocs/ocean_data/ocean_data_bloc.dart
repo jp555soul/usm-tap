@@ -15,6 +15,7 @@ import '../../../domain/usecases/ocean_data/get_ocean_data_usecase.dart';
 import '../../../domain/usecases/ocean_data/update_time_range_usecase.dart';
 import '../../../domain/usecases/animation/control_animation_usecase.dart';
 import '../../../domain/usecases/holoocean/connect_holoocean_usecase.dart';
+import '../../../core/utils/api_logger.dart';
 
 /// Generates currents GeoJSON in a background isolate
 /// This is a top-level function so it can be used with compute()
@@ -597,6 +598,10 @@ class SelectTimeIndexEvent extends OceanDataEvent {
   List<Object?> get props => [index];
 }
 
+class ExportApiLogsEvent extends OceanDataEvent {
+  const ExportApiLogsEvent();
+}
+
 // STATES
 abstract class OceanDataState extends Equatable {
   const OceanDataState();
@@ -885,6 +890,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     on<ResetApiMetricsEvent>(_onResetApiMetrics);
     on<FetchAvailableTimestampsEvent>(_onFetchAvailableTimestamps);
     on<SelectTimeIndexEvent>(_onSelectTimeIndex);
+    on<ExportApiLogsEvent>(_onExportApiLogs);
     add(const LoadInitialDataEvent());
   }
   
@@ -951,7 +957,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           endDate: endDate,
         );
       } catch (e) {
-        debugPrint('Failed to fetch timestamps: $e');
+      } catch (e) {
+        // debugPrint('Failed to fetch timestamps: $e');
       }
 
       DateTime? targetTime;
@@ -1138,10 +1145,10 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           if (timeSeriesData.isNotEmpty) {
              final firstDate = timeSeriesData.first['time'];
              final lastDate = timeSeriesData.last['time'];
-             debugPrint('*** TIME SERIES DATA RANGE ***');
-             debugPrint('Start: $firstDate');
-             debugPrint('End: $lastDate');
-             debugPrint('Total Points: ${timeSeriesData.length}');
+             // debugPrint('*** TIME SERIES DATA RANGE ***');
+             // debugPrint('Start: $firstDate');
+             // debugPrint('End: $lastDate');
+             // debugPrint('Total Points: ${timeSeriesData.length}');
           }
 
           // Generate currents GeoJSON in background isolate to avoid blocking UI
@@ -1449,6 +1456,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     if (state is OceanDataLoadedState) {
       final currentState = state as OceanDataLoadedState;
 
+      // Set loading state while fetching data with new depth (matches date range pattern)
+      emit(currentState.copyWith(
+        selectedDepth: event.depth,
+        isLoading: true,
+      ));
+
       try {
         // Fetch new data with depth filter
         final rawDataResult = await _remoteDataSource.loadAllData(
@@ -1463,7 +1476,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final rawDataList = rawDataResult['allData'] as List?;
 
         if (rawDataList == null || rawDataList.isEmpty) {
-
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
             selectedDepth: event.depth,
@@ -1482,16 +1494,12 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
         final rawData = rawDataList.cast<Map<String, dynamic>>();
 
         // Generate currents GeoJSON in background isolate
-
         final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
         final currentsFeatureCount = (currentsGeoJSON['features'] as List?)?.length ?? 0;
 
-
         // Generate wind velocity GeoJSON in background isolate
-
         final windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
         final windFeatureCount = (windVelocityGeoJSON['features'] as List?)?.length ?? 0;
-
 
         // Process ocean data
         final result = await _getOceanDataUseCase(GetOceanDataParams(
@@ -1502,10 +1510,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
 
         final oceanData = result.getOrElse(() => []);
 
-
         // Fetch environmental data if we have ocean data
         EnvDataEntity? envData;
-        List<Map<String, dynamic>> timeSeriesData = const [];
+        List<Map<String, dynamic>> timeSeriesData = [];
 
         if (oceanData.isNotEmpty && rawData.isNotEmpty) {
           try {
@@ -1517,19 +1524,16 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               longitude: firstDataPoint.longitude,
             );
 
-
             timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
 
           } catch (e) {
-
+            // Handle error silently
           }
         }
 
         final dataQuality = _calculateDataQuality(oceanData);
 
         // Emit new state with updated data
-
-
         emit(currentState.copyWith(
           selectedDepth: event.depth,
           isLoading: false,
@@ -1582,6 +1586,13 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
 
         if (rawDataList == null || rawDataList.isEmpty) {
 
+          if (kDebugMode) {
+            print('📅 DATE RANGE CHANGE - NO DATA:');
+            print('  Date range: ${event.startDate} to ${event.endDate}');
+            print('  rawDataList is null: ${rawDataList == null}');
+            print('  rawDataList is empty: ${rawDataList?.isEmpty ?? "null"}');
+            print('  Emitting empty state...');
+          }
 
           // Clear all cached GeoJSON and data when no results are returned
           emit(currentState.copyWith(
@@ -1596,6 +1607,10 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
             windVelocityGeoJSON: {'type': 'FeatureCollection', 'features': []},
             timeSeriesData: [],
           ));
+          
+          if (kDebugMode) {
+            print('  ✅ Empty state emitted');
+          }
           return;
         }
 
@@ -1925,5 +1940,15 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     if (state is OceanDataLoadedState) {
       emit((state as OceanDataLoadedState).copyWith(connectionDetails: const {}));
     }
+  }
+
+  Future<void> _onExportApiLogs(ExportApiLogsEvent event, Emitter<OceanDataState> emit) async {
+    final path = await ApiLogger().saveLogsToFile();
+    add(AddChatMessageEvent(ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: 'API Logs exported to: $path',
+      isUser: false,
+      timestamp: DateTime.now(),
+    )));
   }
 }

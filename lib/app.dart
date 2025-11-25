@@ -583,6 +583,11 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                   );
                                             }
                                           },
+                                          onExportLogs: () {
+                                            context.read<OceanDataBloc>().add(
+                                                  const ExportApiLogsEvent(),
+                                                );
+                                          },
                                       onLayerToggle: (layer) {
                                         context.read<OceanDataBloc>().add(
                                               ToggleMapLayerEvent(layer),
@@ -625,15 +630,21 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                       }
 
                                       // Get the current frame's data from TimeManagementBloc
+                                      // CRITICAL: If oceanState.rawData is empty, respect that and don't use cached frames
                                       List<Map<String, dynamic>> currentFrameData = oceanState.rawData;
-                                      final timeBloc = context.read<time.TimeManagementBloc>();
-                                      if (timeBloc.state is time.TimeManagementLoadedState) {
-                                        final timeState = timeBloc.state as time.TimeManagementLoadedState;
-                                        if (timeState.processedFrames.isNotEmpty) {
-                                          final safeFrameIndex = currentFrame.clamp(0, timeState.processedFrames.length - 1);
-                                          currentFrameData = timeState.processedFrames[safeFrameIndex];
+                                      
+                                      // Only use TimeManagementBloc frames if we have data to work with
+                                      if (oceanState.rawData.isNotEmpty) {
+                                        final timeBloc = context.read<time.TimeManagementBloc>();
+                                        if (timeBloc.state is time.TimeManagementLoadedState) {
+                                          final timeState = timeBloc.state as time.TimeManagementLoadedState;
+                                          if (timeState.processedFrames.isNotEmpty) {
+                                            final safeFrameIndex = currentFrame.clamp(0, timeState.processedFrames.length - 1);
+                                            currentFrameData = timeState.processedFrames[safeFrameIndex];
+                                          }
                                         }
                                       }
+
 
                                       return SizedBox(
                                         height: MediaQuery.of(context).size.height * 0.8,
