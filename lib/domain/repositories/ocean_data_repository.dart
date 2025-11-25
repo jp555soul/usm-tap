@@ -11,6 +11,13 @@ abstract class OceanDataRepository {
     String? stationId,
     double? depth,
     String? model,
+    DateTime? targetTime,
+  });
+
+  Future<Either<Failure, List<DateTime>>> fetchAvailableTimestamps({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? area,
   });
 
   Future<Either<Failure, List<StationDataEntity>>> getStations();

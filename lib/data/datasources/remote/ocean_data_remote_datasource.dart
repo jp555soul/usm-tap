@@ -19,6 +19,13 @@ abstract class OceanDataRemoteDataSource {
     String? stationId,
     double? depth,
     String? model,
+    DateTime? targetTime,
+  });
+
+  Future<List<DateTime>> fetchAvailableTimestamps({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? area,
   });
 
   List<Map<String, dynamic>> processAPIData(
@@ -127,6 +134,7 @@ abstract class OceanDataRemoteDataSource {
     String? stationId,
     double? depth,
     String? model,
+    DateTime? targetTime,
   });
   Future<List<dynamic>> getStations();
   Future<EnvDataEntity> getEnvironmentalData({DateTime? timestamp, double? depth, double? latitude, double? longitude});
@@ -221,18 +229,19 @@ Future<Map<String, dynamic>> loadAllData({
   String? stationId,
   double? depth,
   String? model,
+  DateTime? targetTime,
 }) async {
   // Require startDate and endDate - no defaults
-  if (startDate == null || endDate == null) {
-    throw ArgumentError('startDate and endDate are required');
+  if (targetTime == null && (startDate == null || endDate == null)) {
+    throw ArgumentError('Either targetTime OR (startDate and endDate) are required');
   }
 
   final selectedArea = area ?? 'USM';
   _currentArea = selectedArea; // Track current area for depth queries
 
   // Track current date range for depth queries
-  _currentStartDate = startDate;
-  _currentEndDate = endDate;
+  if (startDate != null) _currentStartDate = startDate;
+  if (endDate != null) _currentEndDate = endDate;
 
   final tableName = getTableNameForArea(selectedArea);
 
@@ -240,8 +249,23 @@ Future<Map<String, dynamic>> loadAllData({
 
 
   // Convert to UTC to ensure .000Z suffix format
-  final startUtc = startDate.toUtc().toIso8601String();
-  final endUtc = endDate.toUtc().toIso8601String();
+  final startUtc = startDate?.toUtc().toIso8601String();
+  
+  // Adjust endDate to end of day (23:59:59.999) to include all data for the entire day
+  // Without this, a date like 2025-08-02 defaults to 00:00:00, excluding most of that day's data
+  DateTime? endDateAdjusted;
+  if (endDate != null) {
+    endDateAdjusted = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
+  final endUtc = endDateAdjusted?.toUtc().toIso8601String();
 
   // DIAGNOSTIC: Check what timestamps actually exist in the database
   try {
@@ -263,7 +287,16 @@ Future<Map<String, dynamic>> loadAllData({
   }
 
   // Build the query with time filter and optional depth filter
-  var whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
+  var whereClause = '';
+  
+  if (targetTime != null) {
+    // Exact timestamp match for Data Step
+    final timeUtc = targetTime.toUtc().toIso8601String();
+    whereClause = 'WHERE time = TIMESTAMP(\'$timeUtc\')';
+  } else {
+    // Range match for Metadata Step (or legacy calls)
+    whereClause = 'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\')';
+  }
 
   // Add depth filter if provided
   if (depth != null) {
@@ -289,9 +322,9 @@ Future<Map<String, dynamic>> loadAllData({
                 ') '
                 'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
                 'FROM numbered_data '
-                'WHERE MOD(rn, 200) = 0 '  // Take every 200th spatial point per timestamp
+                '${targetTime != null ? '' : 'WHERE MOD(rn, 200) = 0 '} '  // Only downsample if fetching range
                 'ORDER BY time ASC '
-                'LIMIT 10000';
+                'LIMIT ${targetTime != null ? 2000 : 10000}';
 
   // URL encode the query - use %20 for spaces, proper encoding for special chars
   final encodedQuery = Uri.encodeQueryComponent(query);
@@ -1401,12 +1434,69 @@ Future<Map<String, dynamic>> loadAllData({
   }
 
   @override
+  Future<List<DateTime>> fetchAvailableTimestamps({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? area,
+  }) async {
+    final selectedArea = area ?? 'USM';
+    final tableName = getTableNameForArea(selectedArea);
+    
+    final startUtc = startDate.toUtc().toIso8601String();
+    final endDateAdjusted = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+    final endUtc = endDateAdjusted.toUtc().toIso8601String();
+
+    final query = 'SELECT DISTINCT time '
+                  'FROM `isdata-usmcom.usm_com.$tableName` '
+                  'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\') '
+                  'ORDER BY time DESC';
+
+    final encodedQuery = Uri.encodeQueryComponent(query);
+    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
+
+    try {
+      final response = await _dio.get(
+        fullUrl,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_apiConfig.token}',
+          },
+          receiveTimeout: _apiConfig.timeout,
+          validateStatus: (status) => true,
+        ),
+      );
+
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+        final apiData = response.data as List;
+        return apiData.map((row) {
+          final data = row as Map<String, dynamic>;
+          return data['time'] != null ? DateTime.parse(data['time']) : DateTime.now();
+        }).toList();
+      } else {
+        throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}');
+      }
+    } catch (e) {
+      throw ServerException('Failed to fetch timestamps: $e');
+    }
+  }
+
+  @override
   Future<List<OceanDataEntity>> getOceanData({
     DateTime? startDate,
     required String endDate,
     String? stationId,
     double? depth,
     String? model,
+    DateTime? targetTime,
   }) async {
     try {
 
@@ -1417,6 +1507,7 @@ Future<Map<String, dynamic>> loadAllData({
         stationId: stationId,
         depth: depth,
         model: model,
+        targetTime: targetTime,
       );
       
       final rawData = result['allData'] as List? ?? [];

@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 
 import '../../../core/constants/app_constants.dart';
@@ -585,6 +585,18 @@ class ResetApiMetricsEvent extends OceanDataEvent {
   const ResetApiMetricsEvent();
 }
 
+class FetchAvailableTimestampsEvent extends OceanDataEvent {
+  const FetchAvailableTimestampsEvent();
+}
+
+class SelectTimeIndexEvent extends OceanDataEvent {
+  final int index;
+  const SelectTimeIndexEvent(this.index);
+  
+  @override
+  List<Object?> get props => [index];
+}
+
 // STATES
 abstract class OceanDataState extends Equatable {
   const OceanDataState();
@@ -640,6 +652,8 @@ class OceanDataLoadedState extends OceanDataState {
   final List<double> availableDepths;
   final List<DateTime> availableDates;
   final List<String> availableTimes;
+  final List<DateTime> availableTimestamps; // NEW
+  final int selectedTimeIndex; // NEW
   final int currentFrame;
   final int totalFrames;
   final bool isPlaying;
@@ -688,6 +702,8 @@ class OceanDataLoadedState extends OceanDataState {
     required this.availableDepths,
     required this.availableDates,
     required this.availableTimes,
+    required this.availableTimestamps,
+    required this.selectedTimeIndex,
     required this.currentFrame,
     required this.totalFrames,
     required this.isPlaying,
@@ -715,7 +731,7 @@ class OceanDataLoadedState extends OceanDataState {
     dataLoaded, isLoading, loadingArea, hasError, errorMessage, data, stationData, timeSeriesData,
     rawData, currentsGeoJSON, windVelocityGeoJSON, envData, selectedArea, selectedModel, selectedDepth,
     dataSource, timeZone, startDate, endDate, currentDate, currentTime, selectedStation,
-    availableModels, availableDepths, availableDates, availableTimes, currentFrame,
+    availableModels, availableDepths, availableDates, availableTimes, availableTimestamps, selectedTimeIndex, currentFrame,
     totalFrames, isPlaying, playbackSpeed, loopMode, mapLayerVisibility, isSstHeatmapVisible,
     currentsVectorScale, currentsColorBy, heatmapScale, windVelocityParticleCount,
     windVelocityParticleOpacity, windVelocityParticleSpeed, holoOceanPOV, holoOcean,
@@ -732,6 +748,7 @@ class OceanDataLoadedState extends OceanDataState {
     DateTime? startDate, DateTime? endDate, DateTime? currentDate, String? currentTime,
     StationDataEntity? selectedStation, List<String>? availableModels,
     List<double>? availableDepths, List<DateTime>? availableDates, List<String>? availableTimes,
+    List<DateTime>? availableTimestamps, int? selectedTimeIndex,
     int? currentFrame, int? totalFrames, bool? isPlaying, double? playbackSpeed,
     bool? loopMode, Map<String, bool>? mapLayerVisibility, bool? isSstHeatmapVisible,
     double? currentsVectorScale, String? currentsColorBy, Map<String, dynamic>? heatmapScale,
@@ -769,6 +786,8 @@ class OceanDataLoadedState extends OceanDataState {
       availableDepths: availableDepths ?? this.availableDepths,
       availableDates: availableDates ?? this.availableDates,
       availableTimes: availableTimes ?? this.availableTimes,
+      availableTimestamps: availableTimestamps ?? this.availableTimestamps,
+      selectedTimeIndex: selectedTimeIndex ?? this.selectedTimeIndex,
       currentFrame: currentFrame ?? this.currentFrame,
       totalFrames: totalFrames ?? this.totalFrames,
       isPlaying: isPlaying ?? this.isPlaying,
@@ -864,6 +883,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     on<SetWindVelocityParticleSpeedEvent>(_onSetWindVelocityParticleSpeed);
     on<AddChatMessageEvent>(_onAddChatMessage);
     on<ResetApiMetricsEvent>(_onResetApiMetrics);
+    on<FetchAvailableTimestampsEvent>(_onFetchAvailableTimestamps);
+    on<SelectTimeIndexEvent>(_onSelectTimeIndex);
     add(const LoadInitialDataEvent());
   }
   
@@ -922,9 +943,28 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final startDate = DateTime.parse('2025-08-01T00:00:00Z');
       final endDate = DateTime.parse('2025-08-08T23:59:59Z');
       
+      // Step 1: Metadata Step - Fetch available timestamps
+      List<DateTime> availableTimestamps = [];
+      try {
+        availableTimestamps = await _remoteDataSource.fetchAvailableTimestamps(
+          startDate: startDate,
+          endDate: endDate,
+        );
+      } catch (e) {
+        debugPrint('Failed to fetch timestamps: $e');
+      }
+
+      DateTime? targetTime;
+      int selectedTimeIndex = 0;
+      if (availableTimestamps.isNotEmpty) {
+        targetTime = availableTimestamps.first;
+      }
+
+      // Step 2: Data Step - Fetch data for targetTime
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: startDate,
         endDate: endDate,
+        targetTime: targetTime,
       ));
       
       if (result.isRight()) {
@@ -946,6 +986,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               startDate: startDate,
               endDate: endDate,
               depth: defaultDepth,
+              targetTime: targetTime,
             );
             final rawDataList = rawDataResult['allData'] as List?;
 
@@ -1008,7 +1049,9 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
           availableDepths: availableDepths,
-          availableDates: const [], availableTimes: const [], currentFrame: 0,
+          availableDates: const [], availableTimes: const [], 
+          availableTimestamps: availableTimestamps, selectedTimeIndex: selectedTimeIndex,
+          currentFrame: 0,
           totalFrames: 100, isPlaying: false, playbackSpeed: 1.0, loopMode: false,
           mapLayerVisibility: const {
             'temperature': true,
@@ -1729,6 +1772,129 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   void _onSetWindVelocityParticleOpacity(SetWindVelocityParticleOpacityEvent event, Emitter<OceanDataState> emit) {
     if (state is OceanDataLoadedState) {
       emit((state as OceanDataLoadedState).copyWith(windVelocityParticleOpacity: event.opacity));
+    }
+  }
+
+  Future<void> _onFetchAvailableTimestamps(
+    FetchAvailableTimestampsEvent event,
+    Emitter<OceanDataState> emit,
+  ) async {
+    if (state is! OceanDataLoadedState) return;
+    final currentState = state as OceanDataLoadedState;
+
+    try {
+      final timestamps = await _remoteDataSource.fetchAvailableTimestamps(
+        startDate: currentState.startDate,
+        endDate: currentState.endDate,
+        area: currentState.selectedArea,
+      );
+
+      emit(currentState.copyWith(
+        availableTimestamps: timestamps,
+        selectedTimeIndex: 0, // Reset to latest
+      ));
+      
+      // Trigger data load for the new latest timestamp
+      if (timestamps.isNotEmpty) {
+        add(SelectTimeIndexEvent(0));
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> _onSelectTimeIndex(
+    SelectTimeIndexEvent event,
+    Emitter<OceanDataState> emit,
+  ) async {
+    if (state is! OceanDataLoadedState) return;
+    final currentState = state as OceanDataLoadedState;
+    
+    if (event.index < 0 || event.index >= currentState.availableTimestamps.length) return;
+
+    final targetTime = currentState.availableTimestamps[event.index];
+
+    emit(currentState.copyWith(
+      isLoading: true,
+      selectedTimeIndex: event.index,
+    ));
+
+    try {
+      final result = await _getOceanDataUseCase(GetOceanDataParams(
+        startDate: currentState.startDate,
+        endDate: currentState.endDate,
+        targetTime: targetTime,
+        depth: currentState.selectedDepth,
+        model: currentState.selectedModel,
+        stationId: currentState.selectedStation?.id,
+      ));
+
+      if (result.isRight()) {
+        final oceanData = result.getOrElse(() => []);
+        
+        // Process raw data again for the new time
+        List<Map<String, dynamic>> rawData = [];
+        List<Map<String, dynamic>> timeSeriesData = [];
+        EnvDataEntity? envData;
+        Map<String, dynamic> currentsGeoJSON = const {'type': 'FeatureCollection', 'features': []};
+        Map<String, dynamic> windVelocityGeoJSON = const {'type': 'FeatureCollection', 'features': []};
+
+        if (oceanData.isNotEmpty) {
+           final rawDataResult = await _remoteDataSource.loadAllData(
+              startDate: currentState.startDate,
+              endDate: currentState.endDate,
+              depth: currentState.selectedDepth,
+              targetTime: targetTime,
+              model: currentState.selectedModel,
+            );
+            final rawDataList = rawDataResult['allData'] as List?;
+            
+            if (rawDataList != null) {
+              rawData = rawDataList.cast<Map<String, dynamic>>();
+              timeSeriesData = _remoteDataSource.processAPIData(rawDataList);
+              
+              if (oceanData.isNotEmpty) {
+                 final firstDataPoint = oceanData.first;
+                 envData = await _remoteDataSource.getEnvironmentalData(
+                  timestamp: firstDataPoint.timestamp,
+                  depth: currentState.selectedDepth,
+                  latitude: firstDataPoint.latitude,
+                  longitude: firstDataPoint.longitude,
+                );
+              }
+              
+              currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
+              windVelocityGeoJSON = await compute(_generateWindVelocityInIsolate, rawData);
+            }
+        }
+
+        emit(currentState.copyWith(
+          isLoading: false,
+          data: oceanData,
+          rawData: rawData,
+          timeSeriesData: timeSeriesData,
+          envData: envData,
+          currentsGeoJSON: currentsGeoJSON,
+          windVelocityGeoJSON: windVelocityGeoJSON,
+          currentDate: targetTime,
+          currentTime: _remoteDataSource.formatTimeForDisplay(targetTime),
+          selectedTimeIndex: event.index, // Fix: Ensure index is preserved
+        ));
+      } else {
+        emit(currentState.copyWith(
+          isLoading: false,
+          hasError: true,
+          errorMessage: 'Failed to load data for selected time',
+          selectedTimeIndex: event.index, // Fix: Ensure index is preserved
+        ));
+      }
+    } catch (e) {
+      emit(currentState.copyWith(
+        isLoading: false,
+        hasError: true,
+        errorMessage: e.toString(),
+        selectedTimeIndex: event.index, // Fix: Ensure index is preserved
+      ));
     }
   }
   

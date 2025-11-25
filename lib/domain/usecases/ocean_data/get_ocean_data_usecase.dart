@@ -9,6 +9,7 @@ class GetOceanDataParams {
   final String? stationId;
   final double? depth;
   final String? model;
+  final DateTime? targetTime;
 
   const GetOceanDataParams({
     required this.startDate,
@@ -16,6 +17,7 @@ class GetOceanDataParams {
     this.stationId,
     this.depth,
     this.model,
+    this.targetTime,
   });
 }
 
@@ -33,6 +35,7 @@ class GetOceanDataUseCase {
       stationId: params.stationId,
       depth: params.depth,
       model: params.model,
+      targetTime: params.targetTime,
     );
   }
 }

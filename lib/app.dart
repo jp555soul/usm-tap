@@ -495,6 +495,8 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                           isLoading: oceanState.isLoading,
                                           availableModels: oceanState.availableModels,
                                           availableDepths: oceanState.availableDepths,
+                                          availableTimestamps: oceanState.availableTimestamps,
+                                          selectedTimeIndex: oceanState.selectedTimeIndex,
                                           dataLoaded: oceanState.dataLoaded,
                                           selectedArea: oceanState.selectedArea,
                                           selectedModel: oceanState.selectedModel,
@@ -530,6 +532,11 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                       onDepthChange: (depth) {
                                         context.read<OceanDataBloc>().add(
                                               SetSelectedDepthEvent(depth),
+                                            );
+                                      },
+                                      onTimeIndexChange: (index) {
+                                        context.read<OceanDataBloc>().add(
+                                              SelectTimeIndexEvent(index),
                                             );
                                       },
                                           onDateRangeChange: (startDate, endDate) {
@@ -799,6 +806,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                 SetSelectedDepthEvent(depth),
                                               );
                                         },
+
                                         onPOVChange: (pov) {
                                           context.read<OceanDataBloc>().add(
                                                 SetHoloOceanPOVEvent(pov),

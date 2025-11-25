@@ -45,6 +45,8 @@ class ControlPanelWidget extends StatefulWidget {
   final List<String> availableModels;
   final List<double> availableDepths;
   final int totalFrames;
+  final List<DateTime> availableTimestamps; // NEW
+  final int selectedTimeIndex; // NEW
   final List<dynamic> data;
   final bool dataLoaded;
   final double heatmapScale;
@@ -65,6 +67,7 @@ class ControlPanelWidget extends StatefulWidget {
   final ValueChanged<double>? onCurrentsScaleChange;
   final ValueChanged<String>? onCurrentsColorChange;
   final ValueChanged<double>? onHeatmapScaleChange;
+  final ValueChanged<int>? onTimeIndexChange; // NEW
   final VoidCallback? togglePlay;
 
   const ControlPanelWidget({
@@ -87,6 +90,8 @@ class ControlPanelWidget extends StatefulWidget {
     this.availableModels = const [],
     this.availableDepths = const [],
     this.totalFrames = 24,
+    this.availableTimestamps = const [],
+    this.selectedTimeIndex = 0,
     this.data = const [],
     this.dataLoaded = false,
     this.heatmapScale = 1,
@@ -105,6 +110,7 @@ class ControlPanelWidget extends StatefulWidget {
     this.onCurrentsScaleChange,
     this.onCurrentsColorChange,
     this.onHeatmapScaleChange,
+    this.onTimeIndexChange,
     this.togglePlay,
   }) : super(key: key);
 
@@ -340,6 +346,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             _buildAreaSelector(isSmall, isLarge),
             _buildModelSelector(isSmall, isLarge),
             _buildDateSelector(isSmall, isLarge),
+            _buildTimeSelector(isSmall, isLarge), // NEW
             _buildDepthSelector(isSmall, isLarge),
           ],
         );
@@ -529,6 +536,88 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                           widget.onDepthChange?.call(value ?? 0);
                         }
                       : null,
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeSelector(bool isSmall, bool isLarge) {
+    return SizedBox(
+      width: isLarge ? 200 : (isSmall ? double.infinity : 180),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.access_time_rounded, size: 12, color: const Color(0xFF94A3B8)),
+              const SizedBox(width: 4),
+              Text('Time Step', style: TextStyle(fontSize: 12, color: const Color(0xFF94A3B8))),
+            ],
+          ),
+          const SizedBox(height: 4),
+          widget.availableTimestamps.isEmpty
+              ? Container(
+                  padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF475569)),
+                    borderRadius: BorderRadius.circular(4),
+                    color: const Color(0xFF334155),
+                  ),
+                  child: Text(
+                    'No times available',
+                    style: TextStyle(fontSize: isSmall ? 12 : 14, color: const Color(0xFF94A3B8)),
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                     color: const Color(0xFF334155),
+                     borderRadius: BorderRadius.circular(4),
+                     border: Border.all(color: const Color(0xFF475569)),
+                  ),
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: Colors.pink[500],
+                      inactiveTrackColor: const Color(0xFF475569),
+                      thumbColor: Colors.pink[500],
+                      overlayColor: Colors.pink[500]!.withOpacity(0.2),
+                      trackHeight: 4.0,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                widget.availableTimestamps.isNotEmpty
+                                    ? DateFormat('HH:mm').format(widget.availableTimestamps[widget.selectedTimeIndex])
+                                    : '--:--',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '${widget.selectedTimeIndex + 1}/${widget.availableTimestamps.length}',
+                                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Slider(
+                          value: widget.selectedTimeIndex.toDouble(),
+                          min: 0,
+                          max: (widget.availableTimestamps.length - 1).toDouble(),
+                          divisions: widget.availableTimestamps.length > 1 ? widget.availableTimestamps.length - 1 : 1,
+                          onChanged: widget.availableTimestamps.isNotEmpty && !widget.isLoading
+                              ? (value) {
+                                  widget.onTimeIndexChange?.call(value.toInt());
+                                }
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
         ],
       ),

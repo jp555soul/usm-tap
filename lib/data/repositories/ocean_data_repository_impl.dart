@@ -20,6 +20,7 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
     String? stationId,
     double? depth,
     String? model,
+    DateTime? targetTime,
   }) async {
     try {
       final data = await remoteDataSource.getOceanData(
@@ -28,8 +29,31 @@ class OceanDataRepositoryImpl implements OceanDataRepository {
         stationId: stationId,
         depth: depth,
         model: model,
+        targetTime: targetTime,
       );
       return Right(data);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure('Unexpected error: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<DateTime>>> fetchAvailableTimestamps({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? area,
+  }) async {
+    try {
+      final timestamps = await remoteDataSource.fetchAvailableTimestamps(
+        startDate: startDate,
+        endDate: endDate,
+        area: area,
+      );
+      return Right(timestamps);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } on NetworkException catch (e) {
