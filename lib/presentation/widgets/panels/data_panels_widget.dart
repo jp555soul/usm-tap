@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:video_player/video_player.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
 import '../../../domain/entities/env_data_entity.dart';
 
 
@@ -246,7 +247,7 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
               const SizedBox(height: 16),
               // Second row: HoloOcean Video (50%) | HoloOcean Viz (25%) | Environmental Data (25%)
               SizedBox(
-                height: 550,
+                height: 700,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -322,25 +323,33 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: dataQuality['color'],
-                      shape: BoxShape.circle,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    dataQuality['level'],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: dataQuality['color'],
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Historical',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -348,41 +357,52 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.5,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.3,
+              padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
               children: [
-                _buildMetricCard(
-                  'Temperature',
-                  formatValue(widget.envData?.temperature ?? getCurrentValue('Temperature'), 'temperature'),
-                  Icons.thermostat,
-                  Colors.red.shade400,
+                _buildNewMetricCard(
+                  title: 'Temperature',
+                  value: widget.envData?.temperature ?? getCurrentValue('Temperature'),
+                  unit: '°F',
+                  icon: Icons.thermostat,
+                  color: const Color(0xFFEF5350), // Red
+                  type: 'temperature',
                 ),
-                _buildMetricCard(
-                  'Salinity',
-                  formatValue(widget.envData?.salinity ?? getCurrentValue('Salinity'), 'salinity'),
-                  Icons.water_drop,
-                  Colors.blue.shade400,
+                _buildNewMetricCard(
+                  title: 'Salinity',
+                  value: widget.envData?.salinity ?? getCurrentValue('Salinity'),
+                  unit: 'PSU',
+                  icon: Icons.water_drop,
+                  color: const Color(0xFF42A5F5), // Blue
+                  type: 'salinity',
                 ),
-                _buildMetricCard(
-                  'Current Dir',
-                  formatValue(widget.envData?.currentDirection ?? getCurrentValue('Current Direction'), 'direction'),
-                  Icons.navigation,
-                  Colors.cyan.shade400,
+                _buildNewMetricCard(
+                  title: 'Current Dir',
+                  value: widget.envData?.currentDirection ?? getCurrentValue('Current Direction'),
+                  unit: '°',
+                  icon: Icons.navigation,
+                  color: const Color(0xFF26A69A), // Teal
+                  type: 'direction',
+                  isCompass: true,
                 ),
-                _buildMetricCard(
-                  'Wind Speed',
-                  formatValue(widget.envData?.currentSpeed ?? getCurrentValue('Wind Speed'), 'speed'),
-                  Icons.air,
-                  Colors.amber.shade400,
+                _buildNewMetricCard(
+                  title: 'Wind Speed',
+                  value: widget.envData?.currentSpeed ?? getCurrentValue('Wind Speed'),
+                  unit: 'm/s',
+                  icon: Icons.air,
+                  color: const Color(0xFFFFCA28), // Amber/Yellow
+                  type: 'speed',
                 ),
-                _buildMetricCard(
-                  'Pressure',
-                  formatValue(widget.envData?.pressure ?? getCurrentValue('Pressure'), 'pressure'),
-                  Icons.compress,
-                  Colors.purple.shade400,
+                _buildNewMetricCard(
+                  title: 'Pressure',
+                  value: widget.envData?.pressure ?? getCurrentValue('Pressure'),
+                  unit: 'hPa',
+                  icon: Icons.compress,
+                  color: const Color(0xFFAB47BC), // Purple
+                  type: 'pressure',
                 ),
               ],
             ),
@@ -392,41 +412,155 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  Widget _buildNewMetricCard({
+    required String title,
+    required dynamic value,
+    required String unit,
+    required IconData icon,
+    required Color color,
+    required String type,
+    bool isCompass = false,
+  }) {
+    final numValue = value is num ? value : double.tryParse(value.toString()) ?? 0.0;
+    final displayValue = numValue.toStringAsFixed(type == 'pressure' ? 0 : 2); // Pressure usually integer-like
+    
+    // Get historical data for sparkline
+    final sparklineData = getChartData(title, 24); // Last 24 points
+
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade700.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF2A2D3E), // Dark card background
+        borderRadius: BorderRadius.circular(12),
       ),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Header
           Row(
             children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 12, color: Colors.white60),
-                  overflow: TextOverflow.ellipsis,
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color.withOpacity(0.8),
+          
+          // Gauge Area
+          Expanded(
+            flex: 3,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(120, 60),
+                  painter: isCompass 
+                      ? _CompassGaugePainter(color: color, degrees: numValue.toDouble())
+                      : _RadialGaugePainter(
+                          color: color, 
+                          percent: _calculatePercent(type, numValue.toDouble()),
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayValue,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        unit,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Footer (Value + Sparkline)
+          Expanded(
+            flex: 1,
+            child: Row(
+              children: [
+                Text(
+                  '$displayValue $unit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: LineChart(
+                    LineChartData(
+                      gridData: const FlGridData(show: false),
+                      titlesData: const FlTitlesData(show: false),
+                      borderData: FlBorderData(show: false),
+                      minX: sparklineData.isNotEmpty ? sparklineData.first.x : 0,
+                      maxX: sparklineData.isNotEmpty ? sparklineData.last.x : 0,
+                      minY: sparklineData.isNotEmpty 
+                          ? sparklineData.map((e) => e.y).reduce(math.min) 
+                          : 0.0,
+                      maxY: sparklineData.isNotEmpty 
+                          ? sparklineData.map((e) => e.y).reduce(math.max) 
+                          : 1.0,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: sparklineData,
+                          isCurved: true,
+                          color: color,
+                          barWidth: 2,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color: color.withOpacity(0.1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  double _calculatePercent(String type, double value) {
+    // Approximate ranges for visualization
+    switch (type) {
+      case 'temperature': // 0 - 100 F
+        return (value / 100).clamp(0.0, 1.0);
+      case 'salinity': // 0 - 40 PSU
+        return (value / 40).clamp(0.0, 1.0);
+      case 'speed': // 0 - 20 m/s
+        return (value / 20).clamp(0.0, 1.0);
+      case 'pressure': // 950 - 1050 hPa (normalized)
+        return ((value - 950) / 100).clamp(0.0, 1.0);
+      default:
+        return 0.5;
+    }
   }
 
   Widget _buildHoloOceanPanel() {
@@ -970,5 +1104,130 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
         ],
       ),
     );
+  }
+}
+
+class _RadialGaugePainter extends CustomPainter {
+  final Color color;
+  final double percent;
+
+  _RadialGaugePainter({required this.color, required this.percent});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height);
+    final radius = math.min(size.width / 2, size.height);
+    final strokeWidth = 12.0;
+
+    // Background Arc
+    final bgPaint = Paint()
+      ..color = Colors.grey.shade800
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+      math.pi,
+      math.pi,
+      false,
+      bgPaint,
+    );
+
+    // Foreground Arc
+    final fgPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+      math.pi,
+      math.pi * percent,
+      false,
+      fgPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadialGaugePainter oldDelegate) {
+    return oldDelegate.percent != percent || oldDelegate.color != color;
+  }
+}
+
+class _CompassGaugePainter extends CustomPainter {
+  final Color color;
+  final double degrees;
+
+  _CompassGaugePainter({required this.color, required this.degrees});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2 + 10); // Adjust center
+    final radius = math.min(size.width / 2, size.height / 2) - 5;
+
+    // Compass Circle
+    final circlePaint = Paint()
+      ..color = Colors.grey.shade800
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawCircle(center, radius, circlePaint);
+
+    // Ticks
+    final tickPaint = Paint()
+      ..color = Colors.grey.shade600
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 360; i += 45) {
+      final angle = i * math.pi / 180;
+      final p1 = Offset(
+        center.dx + (radius - 5) * math.cos(angle),
+        center.dy + (radius - 5) * math.sin(angle),
+      );
+      final p2 = Offset(
+        center.dx + radius * math.cos(angle),
+        center.dy + radius * math.sin(angle),
+      );
+      canvas.drawLine(p1, p2, tickPaint);
+    }
+
+    // Arrow
+    final angle = (degrees - 90) * math.pi / 180; // -90 to point 0 degrees North (up)
+    final arrowLength = radius - 10;
+    
+    final arrowPath = Path();
+    final tip = Offset(
+      center.dx + arrowLength * math.cos(angle),
+      center.dy + arrowLength * math.sin(angle),
+    );
+    final base1 = Offset(
+      center.dx + 6 * math.cos(angle + 2.5), // ~140 degrees
+      center.dy + 6 * math.sin(angle + 2.5),
+    );
+    final base2 = Offset(
+      center.dx + 6 * math.cos(angle - 2.5),
+      center.dy + 6 * math.sin(angle - 2.5),
+    );
+
+    arrowPath.moveTo(tip.dx, tip.dy);
+    arrowPath.lineTo(base1.dx, base1.dy);
+    arrowPath.lineTo(base2.dx, base2.dy);
+    arrowPath.close();
+
+    final arrowPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(arrowPath, arrowPaint);
+    
+    // Center Dot
+    canvas.drawCircle(center, 3, arrowPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CompassGaugePainter oldDelegate) {
+    return oldDelegate.degrees != degrees || oldDelegate.color != color;
   }
 }
