@@ -743,6 +743,7 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
           Container(
             padding: const EdgeInsets.all(8),
             child: MarkdownBody(
+              selectable: true,
               data: response.content,
               extensionSet: md.ExtensionSet.gitHubFlavored,
               styleSheet: MarkdownStyleSheet(

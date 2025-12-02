@@ -1052,7 +1052,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
           stationData: const [], timeSeriesData: timeSeriesData, rawData: rawData,
           currentsGeoJSON: currentsGeoJSON, windVelocityGeoJSON: windVelocityGeoJSON,
           envData: envData, selectedArea: 'USM', selectedModel: 'NGOFS2',
-          selectedDepth: initialDepth, dataSource: 'API Stream', timeZone: 'UTC',
+          selectedDepth: initialDepth, dataSource: 'api', timeZone: 'UTC',
           startDate: startDate, endDate: endDate, currentDate: DateTime.now(), currentTime: '00:00',
           availableModels: const ['NGOFS2', 'RTOFS'],
           availableDepths: availableDepths,

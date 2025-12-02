@@ -50,8 +50,12 @@ class HeaderWidget extends StatefulWidget {
 class _HeaderWidgetState extends State<HeaderWidget> {
   DateTime _currentTime = DateTime.now();
   Timer? _timer;
-  bool _showSettings = false;
-  bool _showHoloOceanPanel = false;
+  
+  final LayerLink _settingsLayerLink = LayerLink();
+  final LayerLink _holoOceanLayerLink = LayerLink();
+  OverlayEntry? _settingsOverlay;
+  OverlayEntry? _holoOceanOverlay;
+  
   late final EncryptedStorageService _storage;
   bool _hasSeenTutorial = false;
 
@@ -85,7 +89,19 @@ class _HeaderWidgetState extends State<HeaderWidget> {
   @override
   void dispose() {
     _timer?.cancel();
+    _removeSettingsOverlay();
+    _removeHoloOceanOverlay();
     super.dispose();
+  }
+
+  void _removeSettingsOverlay() {
+    _settingsOverlay?.remove();
+    _settingsOverlay = null;
+  }
+
+  void _removeHoloOceanOverlay() {
+    _holoOceanOverlay?.remove();
+    _holoOceanOverlay = null;
   }
 
   void _startTimer() {
@@ -178,6 +194,102 @@ class _HeaderWidgetState extends State<HeaderWidget> {
     }
   }
 
+  void _toggleSettings() {
+    if (_settingsOverlay != null) {
+      _removeSettingsOverlay();
+      setState(() {});
+    } else {
+      _removeHoloOceanOverlay(); // Close other dropdowns
+      _settingsOverlay = _createSettingsOverlay();
+      Overlay.of(context).insert(_settingsOverlay!);
+      setState(() {});
+    }
+  }
+
+  void _toggleHoloOceanPanel() {
+    if (_holoOceanOverlay != null) {
+      _removeHoloOceanOverlay();
+      setState(() {});
+    } else {
+      _removeSettingsOverlay(); // Close other dropdowns
+      _holoOceanOverlay = _createHoloOceanOverlay();
+      Overlay.of(context).insert(_holoOceanOverlay!);
+      setState(() {});
+    }
+  }
+
+  OverlayEntry _createSettingsOverlay() {
+    RenderBox renderBox = context.findRenderObject() as RenderBox;
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        width: 256,
+        child: CompositedTransformFollower(
+          link: _settingsLayerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(-216, 40), // Align right edge
+          child: TapRegion(
+            groupId: 'settings',
+            onTapOutside: (event) {
+              _removeSettingsOverlay();
+              setState(() {});
+            },
+            child: Material(
+              elevation: 8,
+              color: Colors.transparent,
+              child: _buildSettingsDropdown(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  OverlayEntry _createHoloOceanOverlay() {
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        width: 384,
+        child: CompositedTransformFollower(
+          link: _holoOceanLayerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(-344, 40), // Align right edge
+          child: TapRegion(
+            groupId: 'holoOcean',
+            onTapOutside: (event) {
+              _removeHoloOceanOverlay();
+              setState(() {});
+            },
+            child: Material(
+              elevation: 8,
+              color: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width - 16,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  border: Border.all(color: const Color(0xFF475569)),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: HoloOceanPanelWidget(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dataSourceInfo = _getDataSourceDisplay();
@@ -234,19 +346,6 @@ class _HeaderWidgetState extends State<HeaderWidget> {
             ],
           ),
 
-          // Overlay for closing dropdowns
-          if (_showSettings || _showHoloOceanPanel)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showSettings = false;
-                    _showHoloOceanPanel = false;
-                  });
-                },
-                child: Container(color: Colors.transparent),
-              ),
-            ),
         ],
       ),
     );
@@ -413,7 +512,8 @@ class _HeaderWidgetState extends State<HeaderWidget> {
             size: isSmall ? 12 : 16, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 8),
         Container(
-          padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 4),
+          height: 48,
+          padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8),
           decoration: BoxDecoration(
             color: const Color(0xFF334155),
             border: Border.all(color: const Color(0xFF475569)),
@@ -467,49 +567,23 @@ class _HeaderWidgetState extends State<HeaderWidget> {
   }
 
   Widget _buildHoloOceanButton(bool isSmall) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
-          onPressed: () => setState(() => _showHoloOceanPanel = !_showHoloOceanPanel),
+    return CompositedTransformTarget(
+      link: _holoOceanLayerLink,
+      child: TapRegion(
+        groupId: 'holoOcean',
+        child: IconButton(
+          onPressed: _toggleHoloOceanPanel,
           icon: Icon(Icons.explore_rounded, size: isSmall ? 16 : 20),
-          color: _showHoloOceanPanel ? Colors.white : const Color(0xFFCBD5E1),
+          color: _holoOceanOverlay != null ? Colors.white : const Color(0xFFCBD5E1),
           style: IconButton.styleFrom(
-            backgroundColor: _showHoloOceanPanel
+            backgroundColor: _holoOceanOverlay != null
                 ? Colors.green[600]
                 : const Color(0xFF334155),
             padding: EdgeInsets.all(isSmall ? 4 : 8),
           ),
           tooltip: 'HoloOcean Agent Control Panel',
         ),
-        if (_showHoloOceanPanel)
-          Positioned(
-            top: 50,
-            right: 0,
-            child: Container(
-              width: 384,
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width - 16,
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                border: Border.all(color: const Color(0xFF475569)),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                child: HoloOceanPanelWidget(),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
@@ -569,12 +643,13 @@ class _HeaderWidgetState extends State<HeaderWidget> {
   }
 
   Widget _buildSettingsButton(bool isSmall) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
+    return CompositedTransformTarget(
+      link: _settingsLayerLink,
+      child: TapRegion(
+        groupId: 'settings',
+        child: IconButton(
           onPressed: () {
-            setState(() => _showSettings = !_showSettings);
+            _toggleSettings();
             if (widget.onSettingsClick != null) {
               widget.onSettingsClick!();
             }
@@ -587,13 +662,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
           ),
           tooltip: 'Settings',
         ),
-        if (_showSettings)
-          Positioned(
-            top: 50,
-            right: 0,
-            child: _buildSettingsDropdown(),
-          ),
-      ],
+      ),
     );
   }
 
@@ -603,7 +672,7 @@ class _HeaderWidgetState extends State<HeaderWidget> {
     return Container(
       width: 256,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF0F172A),
         border: Border.all(color: const Color(0xFF475569)),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
@@ -665,12 +734,9 @@ class _HeaderWidgetState extends State<HeaderWidget> {
           const SizedBox(height: 12),
           _buildQuickAction(
             Icons.explore_rounded,
-            _showHoloOceanPanel ? 'Hide HoloOcean Control' : 'Show HoloOcean Control',
+            _holoOceanOverlay != null ? 'Hide HoloOcean Control' : 'Show HoloOcean Control',
             () {
-              setState(() {
-                _showHoloOceanPanel = !_showHoloOceanPanel;
-                _showSettings = false;
-              });
+              _toggleHoloOceanPanel();
             },
           ),
           _buildQuickAction(
@@ -680,7 +746,8 @@ class _HeaderWidgetState extends State<HeaderWidget> {
               if (widget.onTutorialToggle != null) {
                 widget.onTutorialToggle!(true);
               }
-              setState(() => _showSettings = false);
+              _removeSettingsOverlay();
+              setState(() {});
             },
           ),
           _buildQuickAction(

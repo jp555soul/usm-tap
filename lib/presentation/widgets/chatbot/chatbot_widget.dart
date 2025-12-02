@@ -248,9 +248,6 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                     _chatOpen = false;
                   });
                 },
-                child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                ),
               ),
             ),
 
@@ -491,72 +488,74 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
                                   final msg = messages[index];
                                   final sourceInfo = _getSourceIndicator(msg);
 
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: msg.isUser
-                                          ? Colors.blue.shade600.withOpacity(0.2)
-                                          : Colors.grey.shade700.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: !msg.isUser
-                                          ? Border(
-                                              left: BorderSide(
-                                                color: Colors.green.shade400,
-                                                width: 2,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        if (!msg.isUser)
-                                          Icon(
-                                            sourceInfo.icon,
-                                            size: 12,
-                                            color: sourceInfo.color,
-                                          ),
-                                        if (!msg.isUser) const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                msg.content,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: msg.isUser
-                                                      ? Colors.blue.shade100
-                                                      : Colors.grey.shade200,
+                                  return SelectionArea(
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: msg.isUser
+                                            ? Colors.blue.shade600.withOpacity(0.2)
+                                            : Colors.grey.shade700.withOpacity(0.5),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: !msg.isUser
+                                            ? Border(
+                                                left: BorderSide(
+                                                  color: Colors.green.shade400,
+                                                  width: 2,
                                                 ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    TimeOfDay.fromDateTime(msg.timestamp)
-                                                        .format(context),
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      color: Colors.grey.shade400,
-                                                    ),
+                                              )
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (!msg.isUser)
+                                            Icon(
+                                              sourceInfo.icon,
+                                              size: 12,
+                                              color: sourceInfo.color,
+                                            ),
+                                          if (!msg.isUser) const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  msg.content,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: msg.isUser
+                                                        ? Colors.blue.shade100
+                                                        : Colors.grey.shade200,
                                                   ),
-                                                  if (!msg.isUser)
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
                                                     Text(
-                                                      sourceInfo.label,
+                                                      TimeOfDay.fromDateTime(msg.timestamp)
+                                                          .format(context),
                                                       style: TextStyle(
                                                         fontSize: 10,
-                                                        color: sourceInfo.color,
+                                                        color: Colors.grey.shade400,
                                                       ),
                                                     ),
-                                                ],
-                                              ),
-                                            ],
+                                                    if (!msg.isUser)
+                                                      Text(
+                                                        sourceInfo.label,
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: sourceInfo.color,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },

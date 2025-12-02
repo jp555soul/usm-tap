@@ -338,21 +338,35 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
   }
 
   Widget _buildMainControls(bool isSmall) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isLarge = constraints.maxWidth >= 1024;
-        return Wrap(
-          spacing: isSmall ? 8 : 16,
-          runSpacing: isSmall ? 8 : 16,
-          children: [
-            _buildAreaSelector(isSmall, isLarge),
-            _buildModelSelector(isSmall, isLarge),
-            _buildDateSelector(isSmall, isLarge),
-            _buildTimeSelector(isSmall, isLarge), // NEW
-            _buildDepthSelector(isSmall, isLarge),
-          ],
-        );
-      },
+    if (isSmall) {
+      return Column(
+        children: [
+          _buildAreaSelector(isSmall, false),
+          const SizedBox(height: 8),
+          _buildModelSelector(isSmall, false),
+          const SizedBox(height: 8),
+          _buildDateSelector(isSmall, false),
+          const SizedBox(height: 8),
+          _buildTimeSelector(isSmall, false),
+          const SizedBox(height: 8),
+          _buildDepthSelector(isSmall, false),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildAreaSelector(isSmall, true)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildModelSelector(isSmall, true)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildDateSelector(isSmall, true)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildTimeSelector(isSmall, true)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildDepthSelector(isSmall, true)),
+      ],
     );
   }
 
@@ -364,9 +378,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
         ? (widget.selectedArea.isEmpty ? 'USM' : widget.selectedArea)
         : 'USM';
     
-    return SizedBox(
-      width: isLarge ? 200 : (isSmall ? double.infinity : 180),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -397,14 +409,11 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             },
           ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildModelSelector(bool isSmall, bool isLarge) {
-    return SizedBox(
-      width: isLarge ? 200 : (isSmall ? double.infinity : 180),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -439,14 +448,11 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                 : null,
           ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildDateSelector(bool isSmall, bool isLarge) {
-    return SizedBox(
-      width: isLarge ? 250 : (isSmall ? double.infinity : 200),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -462,8 +468,9 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF334155),
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: isSmall ? 8 : 12, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: isSmall ? 8 : 12),
               alignment: Alignment.centerLeft,
+              minimumSize: const Size.fromHeight(48),
             ),
             child: Text(
               widget.startDate != null && widget.endDate != null
@@ -474,14 +481,11 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildDepthSelector(bool isSmall, bool isLarge) {
-    return SizedBox(
-      width: isLarge ? 200 : (isSmall ? double.infinity : 180),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -540,21 +544,28 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                       : null,
                 ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildTimeSelector(bool isSmall, bool isLarge) {
-    return SizedBox(
-      width: isLarge ? 200 : (isSmall ? double.infinity : 180),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.access_time_rounded, size: 12, color: const Color(0xFF94A3B8)),
-              const SizedBox(width: 4),
-              Text('Time Step', style: TextStyle(fontSize: 12, color: const Color(0xFF94A3B8))),
+              Row(
+                children: [
+                  Icon(Icons.access_time_rounded, size: 12, color: const Color(0xFF94A3B8)),
+                  const SizedBox(width: 4),
+                  Text('Time Step', style: TextStyle(fontSize: 12, color: const Color(0xFF94A3B8))),
+                ],
+              ),
+              if (widget.availableTimestamps.isNotEmpty)
+                Text(
+                  '${DateFormat('HH:mm').format(widget.availableTimestamps[widget.selectedTimeIndex])}   ${widget.selectedTimeIndex + 1}/${widget.availableTimestamps.length}',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                ),
             ],
           ),
           const SizedBox(height: 4),
@@ -572,6 +583,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                   ),
                 )
               : Container(
+                  height: 48,
                   decoration: BoxDecoration(
                      color: const Color(0xFF334155),
                      borderRadius: BorderRadius.circular(4),
@@ -586,44 +598,21 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
                       trackHeight: 4.0,
                       thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
                     ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                widget.availableTimestamps.isNotEmpty
-                                    ? DateFormat('HH:mm').format(widget.availableTimestamps[widget.selectedTimeIndex])
-                                    : '--:--',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '${widget.selectedTimeIndex + 1}/${widget.availableTimestamps.length}',
-                                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Slider(
-                          value: widget.selectedTimeIndex.toDouble(),
-                          min: 0,
-                          max: (widget.availableTimestamps.length - 1).toDouble(),
-                          divisions: widget.availableTimestamps.length > 1 ? widget.availableTimestamps.length - 1 : 1,
-                          onChanged: widget.availableTimestamps.isNotEmpty && !widget.isLoading
-                              ? (value) {
-                                  widget.onTimeIndexChange?.call(value.toInt());
-                                }
-                              : null,
-                        ),
-                      ],
+                    child: Slider(
+                      value: widget.selectedTimeIndex.toDouble(),
+                      min: 0,
+                      max: (widget.availableTimestamps.length - 1).toDouble(),
+                      divisions: widget.availableTimestamps.length > 1 ? widget.availableTimestamps.length - 1 : 1,
+                      onChanged: widget.availableTimestamps.isNotEmpty && !widget.isLoading
+                          ? (value) {
+                              widget.onTimeIndexChange?.call(value.toInt());
+                            }
+                          : null,
                     ),
                   ),
                 ),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildLayerControls(bool isSmall) {

@@ -455,43 +455,81 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
           // Gauge Area
           Expanded(
             flex: 3,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CustomPaint(
-                  size: const Size(120, 60),
-                  painter: isCompass 
-                      ? _CompassGaugePainter(color: color, degrees: numValue.toDouble())
-                      : _RadialGaugePainter(
+            child: isCompass
+                ? Row(
+                    children: [
+                      // Left: Value and Unit
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              displayValue,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              unit,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Right: Compass
+                      Expanded(
+                        child: Center(
+                          child: CustomPaint(
+                            size: const Size(100, 100),
+                            painter: _CompassGaugePainter(color: color, degrees: numValue.toDouble()),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: const Size(240, 120),
+                        painter: _RadialGaugePainter(
                           color: color, 
                           percent: _calculatePercent(type, numValue.toDouble()),
                         ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        displayValue,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
                       ),
-                      Text(
-                        unit,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withOpacity(0.5),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              displayValue,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              unit,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
 
           // Footer (Value + Sparkline)
@@ -499,15 +537,17 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
             flex: 1,
             child: Row(
               children: [
-                Text(
-                  '$displayValue $unit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
+                if (!isCompass) ...[
+                  Text(
+                    '$displayValue $unit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: LineChart(
                     LineChartData(
