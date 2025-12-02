@@ -865,6 +865,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                           timeZone: oceanState.timeZone,
                           startDate: oceanState.startDate,
                           endDate: oceanState.endDate,
+                          mapLayerVisibility: oceanState.mapLayerVisibility, // NEW
                           onAddMessage: (message) {
                             final chatMessage = DataModels.ChatMessage(
                               id: message.id,

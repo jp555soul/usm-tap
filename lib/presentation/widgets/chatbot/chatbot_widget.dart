@@ -24,6 +24,7 @@ class ChatbotWidget extends StatefulWidget {
   final DateTime? startDate;
   final DateTime? endDate;
   final Function(ChatMessage)? onAddMessage;
+  final Map<String, bool> mapLayerVisibility; // NEW
 
   const ChatbotWidget({
     Key? key,
@@ -43,6 +44,7 @@ class ChatbotWidget extends StatefulWidget {
     this.startDate,
     this.endDate,
     this.onAddMessage,
+    this.mapLayerVisibility = const {}, // NEW
   }) : super(key: key);
 
   @override
@@ -139,6 +141,7 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       'startDate': widget.startDate?.toIso8601String(),
       'endDate': widget.endDate?.toIso8601String(),
       'envData': widget.envData,
+      'mapLayerVisibility': widget.mapLayerVisibility, // NEW
     };
   }
 

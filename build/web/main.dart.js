@@ -33945,7 +33945,7 @@ Si:function Si(a){this.d=a
 this.c=this.a=null},
 aYn:function aYn(a){this.a=a},
 a25:function a25(a){this.a=a},
-IF:function IF(a,b,c,d,e,f,g,h,i,j,k,l,m){var _=this
+IF:function IF(a,b,c,d,e,f,g,h,i,j,k,l,m,n){var _=this
 _.c=a
 _.d=b
 _.e=c
@@ -33958,7 +33958,8 @@ _.as=i
 _.at=j
 _.ay=k
 _.ch=l
-_.a=m},
+_.cx=m
+_.a=n},
 Qo:function Qo(a,b,c,d){var _=this
 _.d=!1
 _.e=a
@@ -117257,7 +117258,7 @@ h=t.p
 p=A.br(A.a([new A.KE(d,e.ch,new A.aXC(a0),c,b,!0,s,new A.aXD(a,a0),r,a instanceof A.Pw,a1 instanceof A.jL,B.a9O),A.cK(A.aHZ(A.zD(A.br(A.a([A.nA(new A.aXE(e),o,n),A.nA(new A.aXF(q,e),o,n),B.fN,A.co(A.av(g,new A.Jj(m,l,k,j,i,e.fr,new A.aXG(a0),g),B.k,g,g,B.Hd,g,g,B.a9S,g,g,g,g,g),g,g)],h),B.q,B.n,B.o),p,g,B.ae),p,B.dK,8,!0),1)],h),B.q,B.n,B.o)
 c=m==null?g:m.jU()
 if(c==null)c=A.B(t.N,t.z)
-h=A.a([p,A.eq(20,A.co(new A.IF(j,e.f,d,k,e.as,e.at,e.k4,i,l,c,e.CW,e.cx,B.a9N),600,400),g,g,g,20,g,g)],h)
+h=A.a([p,A.eq(20,A.co(new A.IF(j,e.f,d,k,e.as,e.at,e.k4,i,l,c,e.CW,e.cx,e.p1,B.a9N),600,400),g,g,g,20,g,g)],h)
 if(s)h.push(new A.Py(!0,new A.aXH(a0),new A.aXI(a0),a.a,new A.aXJ(a0),g))
 if(s){e=a.a
 h.push(new A.Px(!0,B.VJ.i(0,e),"spotlight",e>0,g))}return A.NJ(g,B.cz,A.eJ(B.aB,h,B.G,B.au,g))},
@@ -123140,9 +123141,9 @@ q.T(new A.aQ_(q))},
 a3j(){var s=this.c
 s.toString
 this.T(new A.aQ2(this,A.cx(s,!1,t.Es).c))},
-KP(){var s,r,q,p,o,n,m,l,k,j,i,h=this,g=h.a.c
-g=g.length!==0?B.b.ga5(g):null
-s=h.a
+KP(){var s,r,q,p,o,n,m,l,k,j,i,h,g=this,f=g.a.c
+f=f.length!==0?B.b.ga5(f):null
+s=g.a
 r=s.c
 q=s.e
 p=s.f
@@ -123151,10 +123152,11 @@ n=s.w
 m=s.z
 l=s.as
 k=s.Q
-s=J.b4(s.d)>0?J.b4(h.a.d):24
-j=h.a.ay.fO()
-i=h.a.ch.fO()
-return A.a4(["currentData",g,"timeSeriesData",r,"dataSource",q,"selectedDepth",p,"selectedModel",o,"selectedParameter","Current Speed","selectedArea",n,"playbackSpeed",m,"holoOceanPOV",l,"currentFrame",k,"totalFrames",s,"startDate",j,"endDate",i,"envData",h.a.at],t.N,t.z)},
+s=J.b4(s.d)>0?J.b4(g.a.d):24
+j=g.a.ay.fO()
+i=g.a.ch.fO()
+h=g.a
+return A.a4(["currentData",f,"timeSeriesData",r,"dataSource",q,"selectedDepth",p,"selectedModel",o,"selectedParameter","Current Speed","selectedArea",n,"playbackSpeed",m,"holoOceanPOV",l,"currentFrame",k,"totalFrames",s,"startDate",j,"endDate",i,"envData",h.at,"mapLayerVisibility",h.cx],t.N,t.z)},
 a1K(){$.am.rx$.push(new A.aQ1(this))},
 a1Z(){var s,r=this,q=r.e,p=q.a.a
 if(B.d.ey(p).length===0)return
