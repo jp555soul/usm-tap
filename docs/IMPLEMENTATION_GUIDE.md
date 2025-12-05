@@ -5,6 +5,7 @@ This guide provides detailed instructions for implementing the performance optim
 ## Overview
 
 The optimizations are designed to:
+
 - Achieve consistent 60fps during animation
 - Reduce API response times by 50-70%
 - Cut state emission rates by 70%
@@ -20,6 +21,7 @@ The optimizations are designed to:
 **Status**: Enhanced with new helper methods
 
 **Key Additions**:
+
 - `startTimer(name)` - Start timing measurement
 - `stopTimer(timerId)` - Stop timer and get elapsed time
 - `logMetric(category, name, value)` - Structured logging
@@ -28,6 +30,7 @@ The optimizations are designed to:
 - `monitorBlocQueue(name, depth)` - BLoC queue monitoring
 
 **Usage Example**:
+
 ```dart
 // In any performance-critical code:
 import '../../core/utils/performance_monitoring.dart';
@@ -53,11 +56,12 @@ void someExpensiveOperation() {
 
 **File**: `lib/presentation/blocs/ocean_data/ocean_data_bloc.dart`
 
-**Implementation**: See `BLOC_OPTIMIZATIONS_SNIPPET.dart` for complete code
+**Implementation**: See [BLOC_OPTIMIZATIONS.md](./BLOC_OPTIMIZATIONS.md) for complete code
 
 **Key Changes**:
 
 #### A. Add Class-Level Fields
+
 ```dart
 class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   // Existing fields...
@@ -81,6 +85,7 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
 ```
 
 #### B. Add onTransition Override
+
 ```dart
 @override
 void onTransition(Transition<OceanDataEvent, OceanDataState> transition) {
@@ -104,6 +109,7 @@ void onTransition(Transition<OceanDataEvent, OceanDataState> transition) {
 ```
 
 #### C. Add onError Override
+
 ```dart
 @override
 void onError(Object error, StackTrace stackTrace) {
@@ -116,7 +122,9 @@ void onError(Object error, StackTrace stackTrace) {
 ```
 
 #### D. Replace _onSetCurrentFrame
+
 Find the current implementation (around line 934) and replace with debounced version:
+
 ```dart
 void _onSetCurrentFrame(SetCurrentFrameEvent event, Emitter<OceanDataState> emit) {
   if (state is! OceanDataLoadedState) return;
@@ -135,7 +143,9 @@ void _onSetCurrentFrame(SetCurrentFrameEvent event, Emitter<OceanDataState> emit
 ```
 
 #### E. Add GeoJSON Caching Methods
+
 Add these methods to the class:
+
 ```dart
 Future<Map<String, dynamic>> _getCachedCurrentsGeoJSON(
   List<Map<String, dynamic>> rawData,
@@ -162,7 +172,9 @@ String _computeRawDataHash(List<Map<String, dynamic>> rawData) {
 ```
 
 #### F. Update Data Loading Handlers
+
 In `_onLoadInitialData` and similar handlers, replace direct compute calls:
+
 ```dart
 // OLD:
 // final currentsGeoJSON = await compute(_generateCurrentsInIsolate, rawData);
@@ -172,6 +184,7 @@ final currentsGeoJSON = await _getCachedCurrentsGeoJSON(rawData);
 ```
 
 #### G. Add Cleanup to close()
+
 ```dart
 @override
 Future<void> close() {
@@ -196,6 +209,7 @@ Future<void> close() {
 **Implementation** (add to class):
 
 #### A. Add Cache Infrastructure
+
 ```dart
 import 'dart:async';
 import 'package:collection/collection.dart';
@@ -231,6 +245,7 @@ class OceanDataRemoteDataSource {
 ```
 
 #### B. Add Caching Wrapper
+
 ```dart
 Future<T> _cachedRequest<T>(
   String cacheKey,
@@ -282,6 +297,7 @@ Future<T> _cachedRequest<T>(
 ```
 
 #### C. Wrap Existing Methods
+
 ```dart
 // Example for getOceanData method:
 Future<List<OceanDataModel>> getOceanData(DateTime start, DateTime end) async {
@@ -295,6 +311,7 @@ Future<List<OceanDataModel>> getOceanData(DateTime start, DateTime end) async {
 ```
 
 #### D. Add Cache Management
+
 ```dart
 void clearCache() {
   _cache.clear();
@@ -328,6 +345,7 @@ void logCacheStats() {
 **Implementation**:
 
 #### A. Add Debounce Infrastructure
+
 ```dart
 import 'dart:async';
 
@@ -350,6 +368,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
 ```
 
 #### B. Debounced Slider Handler
+
 ```dart
 void _onHeatmapScaleChanged(double value) {
   // Update UI immediately for responsiveness
@@ -377,6 +396,7 @@ void _onHeatmapScaleChanged(double value) {
 ```
 
 #### C. Cleanup
+
 ```dart
 @override
 void dispose() {
@@ -387,7 +407,9 @@ void dispose() {
 ```
 
 #### D. Apply to All Sliders
+
 Repeat this pattern for:
+
 - Currents vector scale
 - Wind velocity scale
 - Playback speed
@@ -400,12 +422,14 @@ Repeat this pattern for:
 ### 5. Data Panels & Output Module
 
 **Files**:
+
 - `lib/presentation/widgets/panels/data_panels_widget.dart`
 - `lib/presentation/widgets/panels/output_module_widget.dart`
 
 **Implementation**:
 
 #### A. Add shouldUpdate Check
+
 ```dart
 class DataPanelsWidget extends StatefulWidget {
   // ... existing code ...
@@ -448,6 +472,7 @@ class _DataPanelsWidgetState extends State<DataPanelsWidget> {
 ```
 
 #### B. Wrap Expensive Widgets
+
 ```dart
 @override
 Widget build(BuildContext context) {
@@ -473,6 +498,7 @@ Widget build(BuildContext context) {
 ```
 
 #### C. Use Const Constructors
+
 ```dart
 // For static widgets, use const
 const SizedBox(height: 16),
@@ -487,6 +513,7 @@ const Text('Static Label'),
 ### Performance Testing Checklist
 
 1. **Frame Rate Testing**:
+
    ```dart
    // Add to map widget's build method:
    WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -535,6 +562,7 @@ If performance issues arise:
    - Reverts to immediate event processing
 
 2. **Disable Caching**:
+
    ```dart
    // In remote_datasource.dart
    static const _cacheTtl = Duration.zero; // Disables cache
@@ -548,14 +576,16 @@ If performance issues arise:
 
 ## Performance Targets
 
-### Before Optimizations:
+### Before Optimizations
+
 - Frame rate: 28-35fps
 - Average frame time: 32ms
 - State emissions: ~45/sec
 - API response: 380ms
 - GeoJSON compute: 180ms/frame
 
-### After Optimizations:
+### After Optimizations
+
 - Frame rate: **58-60fps** ✅
 - Average frame time: **16ms** ✅
 - State emissions: **~12/sec** ✅
@@ -578,8 +608,9 @@ If performance issues arise:
 ## Support
 
 For questions or issues:
+
 - Review `PERFORMANCE_OPTIMIZATIONS.md` for detailed analysis
-- Check `BLOC_OPTIMIZATIONS_SNIPPET.dart` for complete BLoC code
+- Check [BLOC_OPTIMIZATIONS.md](./BLOC_OPTIMIZATIONS.md) for complete BLoC code
 - Verify performance_monitoring.dart is properly imported
 - Enable debug logging to diagnose issues
 

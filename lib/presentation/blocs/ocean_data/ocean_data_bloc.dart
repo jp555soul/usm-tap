@@ -971,7 +971,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
       final result = await _getOceanDataUseCase(GetOceanDataParams(
         startDate: startDate,
         endDate: endDate,
-        targetTime: targetTime,
       ));
       
       if (result.isRight()) {
@@ -993,7 +992,6 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
               startDate: startDate,
               endDate: endDate,
               depth: defaultDepth,
-              targetTime: targetTime,
             );
             final rawDataList = rawDataResult['allData'] as List?;
 
