@@ -913,20 +913,6 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.onExportLogs != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: TextButton.icon(
-                  onPressed: widget.onExportLogs,
-                  icon: const Icon(Icons.download_rounded, size: 12, color: Color(0xFF94A3B8)),
-                  label: const Text('Export Logs', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ),
             Icon(Icons.access_time_rounded, size: 12, color: const Color(0xFF94A3B8)),
             const SizedBox(width: 4),
             Text(_getFrameTimeDisplay(), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),

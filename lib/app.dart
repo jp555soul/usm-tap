@@ -22,7 +22,6 @@ import 'presentation/widgets/panels/control_panel_widget.dart';
 import 'presentation/widgets/map/native_ocean_map_widget.dart';
 import 'presentation/widgets/panels/data_panels_widget.dart';
 import 'presentation/widgets/panels/output_module_widget.dart';
-import 'presentation/widgets/chatbot/chatbot_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_widget.dart';
 import 'presentation/widgets/tutorial/tutorial_overlay_widget.dart';
 import 'presentation/screens/auth/login_screen.dart';
@@ -229,6 +228,68 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
     _checkApiStatus();
     _setupApiConfigListener();
     _setupChatListener();
+    _initializeChat();
+  }
+
+  bool _chatInitialized = false;
+
+  void _initializeChat() {
+    // Listen for ocean data to be loaded, then trigger welcome message
+    context.read<OceanDataBloc>().stream.listen((oceanState) {
+      if (!_chatInitialized && oceanState is OceanDataLoadedState) {
+        _chatInitialized = true;
+        _sendWelcomeMessage(oceanState);
+      }
+    });
+    
+    // Also check if data is already loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final oceanState = context.read<OceanDataBloc>().state;
+      if (!_chatInitialized && oceanState is OceanDataLoadedState) {
+        _chatInitialized = true;
+        _sendWelcomeMessage(oceanState);
+      }
+    });
+  }
+
+  void _sendWelcomeMessage(OceanDataLoadedState oceanState) {
+    // Build comprehensive context with control panel and map layer settings
+    final contextData = {
+      // Control Panel Settings
+      'selectedArea': oceanState.selectedArea,
+      'selectedModel': oceanState.selectedModel,
+      'selectedDepth': oceanState.selectedDepth,
+      'availableDepths': oceanState.availableDepths,
+      'dataSource': oceanState.dataSource,
+      'playbackSpeed': oceanState.playbackSpeed,
+      'timeZone': oceanState.timeZone,
+      
+      // Date Range
+      'startDate': oceanState.startDate?.toIso8601String(),
+      'endDate': oceanState.endDate?.toIso8601String(),
+      
+      // Map Layer Visibility
+      'mapLayerVisibility': oceanState.mapLayerVisibility,
+      
+      // Current Data State
+      'currentFrame': oceanState.currentFrame,
+      'hasTimeSeriesData': oceanState.timeSeriesData.isNotEmpty,
+      'dataPointCount': oceanState.timeSeriesData.length,
+      'currentData': oceanState.timeSeriesData.isNotEmpty 
+          ? oceanState.timeSeriesData.last 
+          : null,
+      
+      // Environment Data
+      'envData': oceanState.envData?.toJson(),
+      
+      // HoloOcean POV
+      'holoOceanPOV': oceanState.holoOceanPOV,
+    };
+    
+    context.read<ChatBloc>().add(SendChatMessageEvent(
+      message: "Generate a welcome message for CubeAI oceanographic analysis platform",
+      context: contextData,
+    ));
   }
 
   @override
@@ -783,6 +844,27 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                           !isOutputCollapsed;
                                                     });
                                                   },
+                                                  onSendMessage: (message) {
+                                                    // Build context data for the chat
+                                                    final contextData = {
+                                                      'currentData': oceanState.timeSeriesData.isNotEmpty 
+                                                          ? oceanState.timeSeriesData.last 
+                                                          : null,
+                                                      'timeSeriesData': oceanState.timeSeriesData,
+                                                      'dataSource': oceanState.dataSource,
+                                                      'selectedDepth': oceanState.selectedDepth,
+                                                      'selectedModel': oceanState.selectedModel,
+                                                      'selectedArea': oceanState.selectedArea,
+                                                      'currentFrame': currentFrame,
+                                                      'startDate': oceanState.startDate?.toIso8601String(),
+                                                      'endDate': oceanState.endDate?.toIso8601String(),
+                                                      'mapLayerVisibility': oceanState.mapLayerVisibility,
+                                                    };
+                                                    context.read<ChatBloc>().add(SendChatMessageEvent(
+                                                      message: message,
+                                                      context: contextData,
+                                                    ));
+                                                  },
                                                 ),
                                               ),
                                             ),
@@ -842,46 +924,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                       ],
                     ),
 
-                    // Chatbot (Floating/Overlay)
-                    Positioned(
-                      bottom: 20,
-                      right: 20,
-                      child: SizedBox(
-                        width: 400,
-                        height: 600,
-                        child: ChatbotWidget(
-                          key: const Key('chatbot'),
-                          timeSeriesData: oceanState.timeSeriesData,
-                          data: oceanState.data,
-                          dataSource: oceanState.dataSource,
-                          selectedDepth: oceanState.selectedDepth,
-                          availableDepths: oceanState.availableDepths,
-                          selectedArea: oceanState.selectedArea,
-                          selectedModel: oceanState.selectedModel,
-                          playbackSpeed: oceanState.playbackSpeed,
-                          currentFrame: oceanState.currentFrame,
-                          holoOceanPOV: oceanState.holoOceanPOV,
-                          envData: oceanState.envData?.toJson() ?? {},
-                          timeZone: oceanState.timeZone,
-                          startDate: oceanState.startDate,
-                          endDate: oceanState.endDate,
-                          mapLayerVisibility: oceanState.mapLayerVisibility, // NEW
-                          onAddMessage: (message) {
-                            final chatMessage = DataModels.ChatMessage(
-                              id: message.id,
-                              content: message.content,
-                              isUser: message.isUser,
-                              timestamp: message.timestamp,
-                              source: message.source,
-                              retryAttempt: message.retryAttempt,
-                            );
-                            context.read<OceanDataBloc>().add(
-                                  AddChatMessageEvent(chatMessage),
-                                );
-                          },
-                        ),
-                      ),
-                    ),
+
 
                     // Tutorial
                     if (tutorialState is TutorialInProgress)

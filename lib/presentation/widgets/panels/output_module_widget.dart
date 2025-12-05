@@ -26,6 +26,9 @@ class OutputModuleWidget extends StatefulWidget {
   final bool isTyping;
   final String typingMessage;
   final Map<String, dynamic> currentsGeoJSON;
+  // New chat input callbacks
+  final Function(String)? onSendMessage;
+  final Function(String, String)? onQuickAction;
 
   const OutputModuleWidget({
     Key? key,
@@ -46,6 +49,8 @@ class OutputModuleWidget extends StatefulWidget {
     this.isTyping = false,
     this.typingMessage = 'Processing...',
     this.currentsGeoJSON = const {},
+    this.onSendMessage,
+    this.onQuickAction,
   }) : super(key: key);
 
   @override
@@ -54,6 +59,8 @@ class OutputModuleWidget extends StatefulWidget {
 
 class _OutputModuleWidgetState extends State<OutputModuleWidget> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _inputController = TextEditingController();
+  final FocusNode _inputFocus = FocusNode();
   bool _showScrollToBottom = false;
   String? _expandedResponseId;
   String _responseFilter = 'api';
@@ -87,6 +94,8 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _inputController.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
@@ -473,13 +482,13 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
             decoration: BoxDecoration(
               gradient: widget.isCollapsed ? null : LinearGradient(
                 colors: [
-                  Colors.yellow.shade900.withOpacity(0.2),
-                  Colors.orange.shade900.withOpacity(0.2),
+                  Colors.blue.shade900.withOpacity(0.2),
+                  Colors.cyan.shade900.withOpacity(0.2),
                 ],
               ),
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.yellow.shade500.withOpacity(0.2),
+                  color: Colors.blue.shade500.withOpacity(0.2),
                 ),
               ),
             ),
@@ -492,17 +501,17 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
                     Row(
                       children: [
                         Icon(
-                          Icons.analytics,
+                          Icons.smart_toy,
                           size: widget.isCollapsed ? 12 : 20,
-                          color: Colors.yellow.shade300,
+                          color: Colors.blue.shade300,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.isCollapsed ? 'Analysis' : 'Analysis Output Module',
+                          widget.isCollapsed ? 'CubeAI' : 'CubeAI Assistance',
                           style: TextStyle(
                             fontSize: widget.isCollapsed ? 12 : 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.yellow.shade300,
+                            color: Colors.blue.shade300,
                           ),
                         ),
                       ],
@@ -604,7 +613,7 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
                       right: 16,
                       child: FloatingActionButton(
                         mini: true,
-                        backgroundColor: Colors.yellow.shade500,
+                        backgroundColor: Colors.blue.shade500,
                         onPressed: _scrollToBottom,
                         child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                       ),
@@ -613,7 +622,140 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
               ),
             ),
           ),
+
+          // Chat Input Section (always visible)
+          Container(
+            padding: widget.isCollapsed 
+                ? const EdgeInsets.all(8)
+                : const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Colors.blue.shade500.withOpacity(0.2),
+                ),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _inputController,
+                        focusNode: _inputFocus,
+                        maxLines: widget.isCollapsed ? 1 : 2,
+                        enabled: !widget.isTyping,
+                        style: TextStyle(
+                          fontSize: widget.isCollapsed ? 11 : 12,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: widget.isCollapsed 
+                              ? 'Ask CubeAI...' 
+                              : 'Ask about currents, waves, temperature...',
+                          hintStyle: TextStyle(
+                            fontSize: widget.isCollapsed ? 11 : 12,
+                            color: Colors.grey.shade400,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade700,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          contentPadding: EdgeInsets.all(widget.isCollapsed ? 6 : 8),
+                          isDense: widget.isCollapsed,
+                        ),
+                        onSubmitted: (_) => _handleSendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.send, size: widget.isCollapsed ? 14 : 16),
+                      color: Colors.white,
+                      onPressed: widget.isTyping || _inputController.text.trim().isEmpty
+                          ? null
+                          : _handleSendMessage,
+                      style: IconButton.styleFrom(
+                        backgroundColor: widget.isTyping || _inputController.text.trim().isEmpty
+                            ? Colors.grey.shade600
+                            : Colors.blue.shade600,
+                        disabledBackgroundColor: Colors.grey.shade600,
+                        padding: EdgeInsets.all(widget.isCollapsed ? 6 : 8),
+                        minimumSize: Size(widget.isCollapsed ? 28 : 40, widget.isCollapsed ? 28 : 40),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: widget.isCollapsed ? 6 : 8),
+                // Quick Actions (always visible)
+                Row(
+                  children: [
+                    _buildQuickAction(
+                      'Conditions',
+                      'What are the current conditions?',
+                      widget.isTyping,
+                      widget.isCollapsed,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildQuickAction(
+                      'Waves',
+                      'Analyze wave patterns',
+                      widget.isTyping,
+                      widget.isCollapsed,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildQuickAction(
+                      'Safety',
+                      'Safety assessment',
+                      widget.isTyping,
+                      widget.isCollapsed,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _handleSendMessage() {
+    if (_inputController.text.trim().isEmpty) return;
+    final message = _inputController.text;
+    _inputController.clear();
+    widget.onSendMessage?.call(message);
+    _scrollToBottom();
+  }
+
+  Widget _buildQuickAction(String label, String message, bool disabled, bool isCollapsed) {
+    return Expanded(
+      child: TextButton(
+        onPressed: disabled
+            ? null
+            : () {
+                widget.onQuickAction?.call(label, message);
+                widget.onSendMessage?.call(message);
+              },
+        style: TextButton.styleFrom(
+          backgroundColor: Colors.grey.shade700,
+          padding: EdgeInsets.symmetric(
+            horizontal: isCollapsed ? 4 : 8, 
+            vertical: isCollapsed ? 2 : 4,
+          ),
+          minimumSize: Size(0, isCollapsed ? 22 : 28),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: isCollapsed ? 9 : 10,
+            color: Colors.grey.shade300,
+          ),
+        ),
       ),
     );
   }
