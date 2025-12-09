@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 /// Service for browser push notifications (Web only)
 /// Uses JS interop to access the Web Notification API
@@ -102,27 +103,24 @@ Future<String> _requestNotificationPermission() async {
   return result.toDart;
 }
 
-@JS()
-@staticInterop
-class _NotificationOptions {
-  external factory _NotificationOptions({
-    String body,
-    String icon,
-    String tag,
-  });
-}
-
-@JS('Notification')
-@staticInterop
-class _JsNotification {
-  external factory _JsNotification(String title, _NotificationOptions options);
-}
-
 void _showNotification(String title, String body, String icon, String tag) {
-  _JsNotification(
-    title,
-    _NotificationOptions(body: body, icon: icon, tag: tag),
-  );
+  // Create options object using js_interop_unsafe
+  final options = JSObject();
+  options['body'] = body.toJS;
+  options['icon'] = icon.toJS;
+  options['tag'] = tag.toJS;
+  
+  // Call Notification constructor
+  _createNotification(title.toJS, options);
+}
+
+@JS('eval')
+external JSAny _jsEval(String code);
+
+void _createNotification(JSString title, JSObject options) {
+  // Use globalContext to access Notification constructor
+  final notification = globalContext.getProperty('Notification'.toJS) as JSFunction;
+  notification.callAsConstructor(title, options);
 }
 
 @JS('navigator.serviceWorker.register')

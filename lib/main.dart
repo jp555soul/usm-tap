@@ -18,6 +18,7 @@ import 'presentation/blocs/data_management/data_management_bloc.dart';
 import 'presentation/blocs/environmental_data/environmental_data_bloc.dart';
 import 'presentation/blocs/time_management/time_management_bloc.dart';
 import 'presentation/blocs/ui_controls/ui_controls_bloc.dart';
+import 'presentation/blocs/notification/notification_bloc.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -101,6 +102,11 @@ class OceanographicPlatformApp extends StatelessWidget {
         // UI Controls BLoC (equivalent to useUIControls hook)
         BlocProvider<UIControlsBloc>(
           create: (context) => sl<UIControlsBloc>(),
+        ),
+        
+        // Notification BLoC (in-app toasts + browser notifications)
+        BlocProvider<NotificationBloc>(
+          create: (context) => sl<NotificationBloc>(),
         ),
       ],
       child: const App(), // Equivalent to <App /> component
