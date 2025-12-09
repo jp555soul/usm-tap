@@ -33,6 +33,18 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Register push notification service worker -->
+  <script>
+    if ('serviceWorker' in navigator && 'Notification' in window) {
+      navigator.serviceWorker.register('/push-notification-sw.js')
+        .then(function(registration) {
+          console.log('Push notification SW registered:', registration.scope);
+        })
+        .catch(function(error) {
+          console.log('Push notification SW registration failed:', error);
+        });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

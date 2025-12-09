@@ -28,6 +28,9 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'data/models/chat_message.dart' as DataModels;
 import 'domain/entities/env_data_entity.dart';
 import 'domain/entities/station_data_entity.dart';
+import 'domain/entities/notification_entity.dart';
+import 'presentation/blocs/notification/notification_bloc.dart';
+import 'presentation/widgets/common/notification_overlay.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -381,6 +384,54 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
             }
           },
         ),
+        // Notification listener for OceanDataBloc
+        BlocListener<OceanDataBloc, OceanDataState>(
+          listenWhen: (previous, current) {
+            // Only trigger on state type changes or error/loading changes
+            if (previous is OceanDataLoadedState && current is OceanDataLoadedState) {
+              return previous.isLoading != current.isLoading ||
+                     previous.hasError != current.hasError;
+            }
+            return previous.runtimeType != current.runtimeType;
+          },
+          listener: (context, oceanState) {
+            if (oceanState is OceanDataLoadedState) {
+              // Show error notification
+              if (oceanState.hasError && oceanState.errorMessage != null) {
+                context.read<NotificationBloc>().add(
+                  ShowNotificationEvent(
+                    NotificationEntity.error(
+                      title: 'Data Error',
+                      message: oceanState.errorMessage!,
+                      sendBrowserNotification: true,
+                    ),
+                  ),
+                );
+              }
+              // Show success notification when data loads
+              else if (!oceanState.isLoading && oceanState.dataLoaded && oceanState.rawData.isNotEmpty && !oceanState.hasError) {
+                context.read<NotificationBloc>().add(
+                  ShowNotificationEvent(
+                    NotificationEntity.success(
+                      title: 'Data Loaded',
+                      message: '${oceanState.rawData.length} data points loaded for ${oceanState.selectedArea}',
+                    ),
+                  ),
+                );
+              }
+            } else if (oceanState is OceanDataErrorState) {
+              context.read<NotificationBloc>().add(
+                ShowNotificationEvent(
+                  NotificationEntity.error(
+                    title: 'Ocean Data Error',
+                    message: oceanState.message,
+                    sendBrowserNotification: true,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
         // Listen to TimeManagementBloc data changes to sync with AnimationBloc
         BlocListener<time.TimeManagementBloc, time.TimeManagementState>(
           listenWhen: (previous, current) {
@@ -429,7 +480,8 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
           },
         ),
       ],
-      child: BlocBuilder<OceanDataBloc, OceanDataState>(
+      child: NotificationOverlay(
+        child: BlocBuilder<OceanDataBloc, OceanDataState>(
         builder: (context, oceanState) {
           // Show loading indicator while ocean data is being fetched
           if (oceanState is! OceanDataLoadedState) {
@@ -964,6 +1016,7 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
             },
           );
         },
+      ),
       ),
     );
   }

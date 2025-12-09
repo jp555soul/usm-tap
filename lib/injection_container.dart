@@ -65,6 +65,8 @@ import 'presentation/blocs/data_management/data_management_bloc.dart';
 import 'presentation/blocs/environmental_data/environmental_data_bloc.dart';
 import 'presentation/blocs/time_management/time_management_bloc.dart';
 import 'presentation/blocs/ui_controls/ui_controls_bloc.dart';
+import 'presentation/blocs/notification/notification_bloc.dart';
+import 'data/services/browser_notification_service.dart';
 
 // Core Services
 import 'core/constants/app_constants.dart';
@@ -298,4 +300,14 @@ Future<void> init() async {
 
   // UI Controls BLoC (equivalent to useUIControls hook)
   sl.registerFactory(() => UIControlsBloc());
+
+  // Browser Notification Service (Web only)
+  sl.registerLazySingleton(() => BrowserNotificationService());
+
+  // Notification BLoC (in-app + browser notifications)
+  sl.registerFactory(
+    () => NotificationBloc(
+      browserNotificationService: sl<BrowserNotificationService>(),
+    ),
+  );
 }
