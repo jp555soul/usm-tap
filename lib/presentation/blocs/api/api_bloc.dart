@@ -191,8 +191,8 @@ class ApiBloc extends Bloc<ApiEvent, ApiState> {
 
   void _initConnectivityListener() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-      (ConnectivityResult result) {
-        final isConnected = result != ConnectivityResult.none;
+      (List<ConnectivityResult> result) {
+        final isConnected = !result.contains(ConnectivityResult.none);
         add(NetworkConnectivityChangedEvent(isConnected));
       },
     );
@@ -204,7 +204,7 @@ class ApiBloc extends Bloc<ApiEvent, ApiState> {
   ) async {
     try {
       final connectivityResult = await _connectivity.checkConnectivity();
-      final isConnected = connectivityResult != ConnectivityResult.none;
+      final isConnected = !connectivityResult.contains(ConnectivityResult.none);
 
       emit(ApiHealthy(
         isHealthy: true,
@@ -279,7 +279,7 @@ class ApiBloc extends Bloc<ApiEvent, ApiState> {
   ) async {
     try {
       final connectivityResult = await _connectivity.checkConnectivity();
-      final isConnected = connectivityResult != ConnectivityResult.none;
+      final isConnected = !connectivityResult.contains(ConnectivityResult.none);
 
       _isConnected = isConnected;
 

@@ -7,7 +7,6 @@ PODS:
     - AppAuth/Core
   - connectivity_plus (0.0.1):
     - FlutterMacOS
-    - ReachabilitySwift
   - flutter_appauth (0.0.1):
     - AppAuth (= 1.7.4)
     - FlutterMacOS
@@ -29,7 +28,6 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - ReachabilitySwift (5.2.4)
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -62,7 +60,6 @@ SPEC REPOS:
     - AppAuth
     - onnxruntime-c
     - onnxruntime-objc
-    - ReachabilitySwift
 
 EXTERNAL SOURCES:
   connectivity_plus:
@@ -92,7 +89,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AppAuth: 182c5b88630569df5acb672720534756c29b3358
-  connectivity_plus: e74b9f74717d2d99d45751750e266e55912baeb5
+  connectivity_plus: 4adf20a405e25b42b9c9f87feff8f4b6fde18a4e
   flutter_appauth: ea55174633fab28c8cc496a7fea5be0026c8c33a
   flutter_onnxruntime: 546c7c7630c9259f59021319639b30bdaff148c2
   flutter_secure_storage_macos: 7f45e30f838cf2659862a4e4e3ee1c347c2b3b54
@@ -102,7 +99,6 @@ SPEC CHECKSUMS:
   onnxruntime-objc: 5fa03134356d47b642ec85b1023d9907a123d201
   package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
-  ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   video_player_avfoundation: 2cef49524dd1f16c5300b9cd6efd9611ce03639b
