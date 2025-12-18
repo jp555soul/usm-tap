@@ -30,6 +30,13 @@ jobs:
       - name: Enable macOS desktop support
         run: flutter config --enable-macos-desktop
 
+      - name: Clean and update CocoaPods
+        run: |
+          cd macos
+          rm -f Podfile.lock
+          pod repo update
+          pod install --repo-update
+
       - name: Disable code signing in Xcode project
         run: |
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' macos/Runner.xcodeproj/project.pbxproj
