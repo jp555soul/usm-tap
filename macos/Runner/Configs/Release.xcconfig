@@ -3,3 +3,6 @@
 
 #include "../../Flutter/Flutter-Release.xcconfig"
 #include "Warnings.xcconfig"
+
+// Link C++ standard library for onnxruntime
+OTHER_LDFLAGS = $(inherited) -lc++
