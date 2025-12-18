@@ -4,10 +4,12 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
+  flutter_onnxruntime
   flutter_secure_storage_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  onnxruntime
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

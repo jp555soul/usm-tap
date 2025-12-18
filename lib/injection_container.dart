@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // Services
 import 'data/services/ai_service.dart';
 import 'data/services/holoocean_service.dart';
+import 'core/services/onnx_inference_service.dart';
 import 'data/datasources/local/session_key_service.dart';
 
 // Data Sources
@@ -99,6 +100,10 @@ Future<void> init() async {
 
   sl.registerLazySingleton(
     () => SessionKeyService(secureStorage: sl(), prefs: sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => OnnxInferenceService(),
   );
 
   //! Services (Wrappers for Dio-based services)
