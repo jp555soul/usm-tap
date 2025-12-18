@@ -12,7 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-apple-silicon:
+    name: Build for Apple Silicon (arm64)
     runs-on: macos-latest
 
     steps:
@@ -43,7 +44,7 @@ jobs:
           sed -i '' 's/CODE_SIGN_IDENTITY = .*/CODE_SIGN_IDENTITY = "-";/g' macos/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
 
-      - name: Build macOS release
+      - name: Build macOS release (arm64)
         env:
           CODE_SIGN_IDENTITY: ""
           CODE_SIGNING_REQUIRED: "NO"
@@ -53,5 +54,52 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
+          name: macos-build-apple-silicon
+          path: build/macos/Build/Products/Release/
+
+  build-intel:
+    name: Build for Intel (x86_64)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable macOS desktop support
+        run: flutter config --enable-macos-desktop
+
+      - name: Configure Podfile for x86_64
+        run: |
+          cd macos
+          rm -f Podfile.lock
+          # Modify post_install to set ARCHS to x86_64
+          sed -i '' "s/config.build_settings\['ARCHS'\] = 'arm64'/config.build_settings['ARCHS'] = 'x86_64'/g" Podfile
+          pod repo update
+          pod install --repo-update
+
+      - name: Disable code signing in Xcode project
+        run: |
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = .*/CODE_SIGN_IDENTITY = "-";/g' macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
+
+      - name: Build macOS release (x86_64)
+        env:
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGNING_ALLOWED: "NO"
+        run: flutter build macos --release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build-intel
           path: build/macos/Build/Products/Release/

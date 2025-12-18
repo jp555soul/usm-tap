@@ -6,3 +6,7 @@
 
 // Link C++ standard library for onnxruntime
 OTHER_LDFLAGS = $(inherited) -lc++
+
+// Build for Apple Silicon only
+ARCHS = arm64
+ONLY_ACTIVE_ARCH = NO
