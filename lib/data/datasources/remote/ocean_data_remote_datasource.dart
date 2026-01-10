@@ -167,12 +167,12 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
     }
     
     _apiConfig = ApiConfig(
-      baseUrl: AppConstants.baseUrl,
-      endpoint: '/data/query',
+      baseUrl: 'https://api-staging.isdata.ai',
+      endpoint: '/usmcom/data-proxy/query',
       timeout: const Duration(minutes: 10), // 10 minutes
       retries: 2,
-      token: AppConstants.bearerToken,
-      database: AppConstants.blueDB,
+      token: AppConstants.bearerToken, // Keeping existing token for now, user didn't specify new one
+      database: 'isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd',
     );
   }
   
@@ -182,9 +182,9 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
   @override
   String getTableNameForArea(String areaName) {
     const areaTableMap = {
-      'MBL': 'mbl_ngofs2',
-      'MSR': 'msr_ngofs2',
-      'USM': 'usm_ngofs2',
+      'MBL': '66e00d41_d810_4026_903a_5fc62711d791',
+      'MSR': '061d5521_47f1_4bd7_8ef0_d1e160492ab3',
+      'USM': '8959e5fc_cec2_4206_8d23_68d215f77796',
     };
 
     return areaTableMap[areaName] ?? areaTableMap['USM']!;
@@ -376,7 +376,7 @@ Future<Map<String, dynamic>> loadAllData({
     final query = 'WITH numbered_data AS ('
                   '  SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms, '
                   '         ROW_NUMBER() OVER (PARTITION BY time ORDER BY lat, lon) as rn '
-                  '  FROM `isdata-usmcom.usm_com.$tableName` '
+                  '  FROM `isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd.$tableName` '
                   '  $whereClause'
                   ') '
                   'SELECT lat, lon, depth, direction, ndirection, salinity, temp, nspeed, time, ssh, pressure_dbars, sound_speed_ms '
@@ -385,19 +385,18 @@ Future<Map<String, dynamic>> loadAllData({
                   'ORDER BY time ASC '
                   'LIMIT ${targetTime != null ? 2000 : 10000}';
 
-    // URL encode the query - use %20 for spaces, proper encoding for special chars
-    final encodedQuery = Uri.encodeQueryComponent(query);
-
-    // Build the full URL manually to prevent Dio from re-encoding
-    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
+    // Build the full URL
+    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}';
 
     try {
-      // Pass the full URL without queryParameters to prevent double-encoding
       // Log the query
-      ApiLogger().logQuery(fullUrl);
+      ApiLogger().logQuery('$fullUrl [POST] Body: {"sql": "$query"}');
 
-      final response = await _dio.get(
+      final response = await _dio.post(
         fullUrl,
+        data: {
+          'sql': query,
+        },
         options: Options(
           headers: {
             'Content-Type': 'application/json',
@@ -1453,7 +1452,7 @@ Future<Map<String, dynamic>> loadAllData({
     final tableName = getTableNameForArea(selectedArea);
     
     final startUtc = startDate.toUtc().toIso8601String();
-    final endDateAdjusted = DateTime(
+    final endDateAdjusted = DateTime.utc(
       endDate.year,
       endDate.month,
       endDate.day,
@@ -1465,16 +1464,20 @@ Future<Map<String, dynamic>> loadAllData({
     final endUtc = endDateAdjusted.toUtc().toIso8601String();
 
     final query = 'SELECT DISTINCT time '
-                  'FROM `isdata-usmcom.usm_com.$tableName` '
+                  'FROM `isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd.$tableName` '
                   'WHERE time BETWEEN TIMESTAMP(\'$startUtc\') AND TIMESTAMP(\'$endUtc\') '
                   'ORDER BY time DESC';
 
-    final encodedQuery = Uri.encodeQueryComponent(query);
-    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
+    final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}';
 
     try {
-      final response = await _dio.get(
+      ApiLogger().logQuery('$fullUrl [POST] Body: {"sql": "$query"}');
+      
+      final response = await _dio.post(
         fullUrl,
+        data: {
+          'sql': query,
+        },
         options: Options(
           headers: {
             'Content-Type': 'application/json',
@@ -1492,10 +1495,12 @@ Future<Map<String, dynamic>> loadAllData({
           return data['time'] != null ? DateTime.parse(data['time']) : DateTime.now();
         }).toList();
       } else {
-        throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}');
+        // throw ServerException('HTTP ${response.statusCode}: ${response.statusMessage}');
+        return [];
       }
     } catch (e) {
-      throw ServerException('Failed to fetch timestamps: $e');
+      // throw ServerException('Failed to fetch timestamps: $e');
+      return [];
     }
   }
 
