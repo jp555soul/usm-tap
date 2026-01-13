@@ -897,10 +897,13 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
   Future<ConnectionStatusEntity> _checkApiConnection() async {
     try {
 
-      // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
+      // Use dynamic date range (last 7 days)
+      final endDate = DateTime.now().toUtc();
+      final startDate = endDate.subtract(const Duration(days: 7));
+      
       final result = await _getOceanDataUseCase(GetOceanDataParams(
-        startDate: DateTime.parse('2025-08-01T00:00:00Z'),
-        endDate: DateTime.parse('2025-08-08T23:59:59Z'),
+        startDate: startDate,
+        endDate: endDate,
       ));
       final isConnected = result.isRight();
       final hasApiKey = AppConstants.bearerToken.isNotEmpty;
@@ -945,9 +948,8 @@ class OceanDataBloc extends Bloc<OceanDataEvent, OceanDataState> {
     try {
 
       final connectionStatus = await _checkApiConnection();
-      // Default date range set to 08/01/2025 - 08/08/2025 as these are currently the only dates with available data.
-      final startDate = DateTime.parse('2025-08-01T00:00:00Z');
-      final endDate = DateTime.parse('2025-08-08T23:59:59Z');
+      final endDate = DateTime.now().toUtc();
+      final startDate = endDate.subtract(const Duration(days: 7));
       
       // Step 1: Metadata Step - Fetch available timestamps
       List<DateTime> availableTimestamps = [];
