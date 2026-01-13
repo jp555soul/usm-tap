@@ -408,7 +408,12 @@ Future<Map<String, dynamic>> loadAllData({
       );
 
       if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-        final apiData = response.data as List;
+        var apiData = [];
+        if (response.data is Map && response.data['rows'] != null) {
+          apiData = response.data['rows'] as List;
+        } else if (response.data is List) {
+          apiData = response.data as List;
+        }
 
         final allData = apiData.map((row) {
           final dataMap = row as Map<String, dynamic>;
@@ -1489,7 +1494,13 @@ Future<Map<String, dynamic>> loadAllData({
       );
 
       if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-        final apiData = response.data as List;
+        var apiData = [];
+        if (response.data is Map && response.data['rows'] != null) {
+          apiData = response.data['rows'] as List;
+        } else if (response.data is List) {
+          apiData = response.data as List;
+        }
+        
         return apiData.map((row) {
           final data = row as Map<String, dynamic>;
           return data['time'] != null ? DateTime.parse(data['time']) : DateTime.now();
@@ -1710,21 +1721,18 @@ Future<Map<String, dynamic>> loadAllData({
       final tableName = getTableNameForArea(_currentArea ?? 'USM');
 
       // Simple query without time filter
-      final query = 'SELECT DISTINCT depth FROM `isdata-usmcom.usm_com.$tableName` ORDER BY depth ASC';
-
-      // URL encode the query - spaces as +, special chars properly encoded
-      final encodedQuery = query
-          .replaceAll(' ', '+')
-          .replaceAll('`', '%60')
-          .replaceAll('.', '%2E');
+      final query = 'SELECT DISTINCT depth FROM `isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd.$tableName` ORDER BY depth ASC';
 
       // Build the full URL
-      final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}?query=$encodedQuery';
+      final fullUrl = '${_apiConfig.baseUrl}${_apiConfig.endpoint}';
 
+      ApiLogger().logQuery('$fullUrl [POST] Body: {"sql": "$query"}');
 
-
-      final response = await _dio.get(
+      final response = await _dio.post(
         fullUrl,
+        data: {
+          'sql': query,
+        },
         options: Options(
           headers: {
             'Content-Type': 'application/json',
@@ -1735,8 +1743,14 @@ Future<Map<String, dynamic>> loadAllData({
       );
 
       if (response.statusCode == 200) {
-        final data = response.data as List;
-        final depths = data
+        var apiData = [];
+        if (response.data is Map && response.data['rows'] != null) {
+          apiData = response.data['rows'] as List;
+        } else if (response.data is List) {
+          apiData = response.data as List;
+        }
+
+        final depths = apiData
             .map((row) => (row['depth'] as num?)?.toDouble())
             .where((d) => d != null)
             .cast<double>()
@@ -1744,13 +1758,11 @@ Future<Map<String, dynamic>> loadAllData({
             .toList()
           ..sort();
 
-
         return depths;
       }
 
       throw ServerException('Failed to fetch depths: ${response.statusCode}');
     } catch (e) {
-
       throw ServerException('Failed to fetch available depths: $e');
     }
   }

@@ -228,7 +228,7 @@ class _ControlPanelWidgetState extends State<ControlPanelWidget> {
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
       initialDateRange: widget.startDate != null && widget.endDate != null
           ? DateTimeRange(start: widget.startDate!, end: widget.endDate!)
           : null,

@@ -45,9 +45,9 @@ void main() {
         'data': data,
       });
 
-      // Return empty list as successful response
+      // Return empty list as successful response (wrapped in rows)
       return ResponseBody.fromString(
-        '[]',
+        '{"rows": []}',
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -139,5 +139,36 @@ void main() {
     // MBL table ID: 66e00d41_d810_4026_903a_5fc62711d791
     expect(sql, contains('FROM `isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd.66e00d41_d810_4026_903a_5fc62711d791`'));
     expect(sql, contains("WHERE time BETWEEN TIMESTAMP('2025-08-01T00:00:00.000Z') AND TIMESTAMP('2025-08-08T23:59:59.999Z')"));
+  });
+
+
+  test('getAvailableDepths makes valid POST request to staging API', () async {
+    // Act
+    await dataSource.getAvailableDepths('USM');
+
+    // Assert
+    expect(capturedRequests.length, 1);
+    final request = capturedRequests[0];
+
+    // Check URL and Method
+    expect(request['path'], 'https://api-staging.isdata.ai/usmcom/data-proxy/query');
+    expect(request['method'], 'POST');
+
+    // Check Body
+    var sqlData = request['data'];
+    if (sqlData is String) {
+        try {
+            sqlData = jsonDecode(sqlData);
+        } catch (_) {}
+    }
+
+    expect(sqlData, isA<Map>());
+    final sql = sqlData['sql'] as String;
+
+    // Verify SQL Content
+    expect(sql, contains('SELECT DISTINCT depth'));
+    // USM table ID: 8959e5fc_cec2_4206_8d23_68d215f77796
+    expect(sql, contains('FROM `isdata-staging.3a9c4e48_f978_444f_8340_08e51a9d5dbd.8959e5fc_cec2_4206_8d23_68d215f77796`'));
+    expect(sql, contains('ORDER BY depth ASC'));
   });
 }
