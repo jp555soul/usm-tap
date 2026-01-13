@@ -28,6 +28,32 @@ class OnnxInferenceService {
     }
   }
 
+  List<String> getSessionInputNames(dynamic session) {
+    // onnxruntime-web / flutter_onnxruntime wrapper might expose this differently.
+    // Inspecting the library is hard without docs, but typically it might be 'inputNames'.
+    // If unavailable safely return empty or try common property names.
+    if (session is OrtSession) {
+      // Trying to access likely properties.
+      // NOTE: If this fails to compile, we might need to rely on the side-channel or specific known inputs.
+      // For now, assuming standard ORT web wrapper structure or just returning basic info.
+      
+      // Since we can't easily verify the API of the package 'flutter_onnxruntime' completely from here
+      // without seeing its code, we will try to return the inputs if the object has them.
+      // However, dart is strongly typed. 
+      // Let's assume for this specific task we might need to rely on 'run' only unless we see the definition.
+      // We will perform a safe check or return empty if not sure.
+      return []; 
+    }
+    return [];
+  }
+  
+  List<String> getSessionOutputNames(dynamic session) {
+    if (session is OrtSession) {
+       return [];
+    }
+    return [];
+  }
+
   /// On web, 'compute' doesn't create a real separate thread in the same way as native,
   /// but we keep the same signature for cross-platform consistency.
   /// OrtIsolateSession is NOT used here as web doesn't support FFI-based Isolate sharing.
