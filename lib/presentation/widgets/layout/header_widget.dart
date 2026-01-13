@@ -12,7 +12,7 @@ import '../auth/logout_button.dart';
 import '../auth/profile.dart';
 import '../../../core/utils/platform_detector.dart';
 import '../../../core/utils/download_service.dart';
-import '../../pages/onnx_dev_page.dart';
+import '../../pages/onnx_management_page.dart';
 
 class HeaderWidget extends StatefulWidget {
   final String dataSource;
@@ -760,11 +760,11 @@ class _HeaderWidgetState extends State<HeaderWidget> {
           ),
           _buildQuickAction(
             Icons.memory,
-            'ONNX Lab',
+            'ONNX Management',
             () {
               _removeSettingsOverlay();
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const OnnxDevPage()),
+                MaterialPageRoute(builder: (context) => const OnnxManagementPage()),
               );
             },
           ),

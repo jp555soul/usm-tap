@@ -3,11 +3,11 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "b5ecb161d6081bf23a1ced7c6ba07793",
-"version.json": "d89d02c02368919d4cbc13639c4f1432",
+const RESOURCES = {"flutter_bootstrap.js": "913ded55f8b5e73316889cc43b81b082",
+"version.json": "7e11d54dd036a0b3780dd5ce3d3e6f3f",
 "index.html": "fd24ccdc01be383bc04a7041be8cd03b",
 "/": "fd24ccdc01be383bc04a7041be8cd03b",
-"main.dart.js": "8c0ea3f941917a2eeea484bcec1ec6bd",
+"main.dart.js": "675a1a7b1a8c0e5746166aceb8fd9a56",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "push-notification-sw.js": "dec6ad0975e7a4e4e92b3cc899ec840c",
 "favicon.png": "03c3bd161eb7c1afea9bd9eb4758f44d",
@@ -23,7 +23,7 @@ const RESOURCES = {"flutter_bootstrap.js": "b5ecb161d6081bf23a1ced7c6ba07793",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/shaders/stretch_effect.frag": "40d68efbbf360632f614c731219e95f0",
 "assets/AssetManifest.bin": "1b38e2e64914815ce6653be1902eb4ab",
-"assets/fonts/MaterialIcons-Regular.otf": "15583676d7f02b2237e77a83c54813cc",
+"assets/fonts/MaterialIcons-Regular.otf": "aa843958397bd049ff427dd799629a57",
 "assets/assets/models/oceanographic_analysis.onnx": "22aee0401b75f4020551c83d394ffef1",
 "assets/assets/icons/roger_wicker_center_ocean_enterprise.png": "4421d157da9c278dd117ed5d9177ecca",
 "assets/assets/icons/powered_by_bluemvmt.png": "b9f404298f33f77f20d71dafe443ea98",

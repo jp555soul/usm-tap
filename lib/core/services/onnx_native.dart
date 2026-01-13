@@ -39,6 +39,20 @@ class OnnxInferenceService {
     }
   }
 
+  List<String> getSessionInputNames(dynamic session) {
+    if (session is OrtSession) {
+      return session.inputNames;
+    }
+    return [];
+  }
+
+  List<String> getSessionOutputNames(dynamic session) {
+    if (session is OrtSession) {
+      return session.outputNames;
+    }
+    return [];
+  }
+
   Future<Map<String, OrtValue?>> runInferenceInIsolate({
     required dynamic session,
     required Map<String, Float32List> inputs,
@@ -82,8 +96,8 @@ class OnnxInferenceService {
       }
       return resultMap;
     } finally {
-      for (var value in inputValues.values) {
-        value.release();
+      for (var reason in inputValues.values) {
+        reason.release();
       }
       runOptions.release();
     }

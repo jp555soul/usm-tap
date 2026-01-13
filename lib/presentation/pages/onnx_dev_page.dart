@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:usm_tap/core/services/onnx_inference_service.dart';
 import 'package:usm_tap/injection_container.dart';
 
-/// ONNX Lab - Dev page for testing and demonstrating ONNX capabilities
+/// ONNX Scenario Lab - Widget for testing and demonstrating ONNX capabilities
 /// with mock oceanographic analysis scenarios.
-class OnnxDevPage extends StatefulWidget {
-  const OnnxDevPage({super.key});
+class OnnxScenarioLab extends StatefulWidget {
+  const OnnxScenarioLab({super.key});
 
   @override
-  State<OnnxDevPage> createState() => _OnnxDevPageState();
+  State<OnnxScenarioLab> createState() => _OnnxScenarioLabState();
 }
 
-class _OnnxDevPageState extends State<OnnxDevPage> with SingleTickerProviderStateMixin {
+class _OnnxScenarioLabState extends State<OnnxScenarioLab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   
   // Service and session state
@@ -37,6 +37,8 @@ class _OnnxDevPageState extends State<OnnxDevPage> with SingleTickerProviderStat
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _onnxService = sl<OnnxInferenceService>();
+    // Auto-init for smoother UX in the new separate tab
+    _initializeOnnx();
   }
 
   @override
@@ -52,30 +54,36 @@ class _OnnxDevPageState extends State<OnnxDevPage> with SingleTickerProviderStat
   }
 
   Future<void> _initializeOnnx() async {
+    if (_isInitialized) return;
+    
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Initializing ONNX Runtime...';
+      _statusMessage = 'Initializing Runtime...';
     });
 
     try {
       await _onnxService.initialize();
-      setState(() {
-        _isInitialized = true;
-        _statusMessage = 'ONNX Runtime initialized successfully!';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _statusMessage = 'Runtime Ready';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Error initializing: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Error: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _runMockInference(String scenario) async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Running $scenario inference...';
+      _statusMessage = 'Running $scenario...';
       _inferenceResults = null;
     });
 
@@ -85,11 +93,13 @@ class _OnnxDevPageState extends State<OnnxDevPage> with SingleTickerProviderStat
     // Generate mock results based on scenario
     final results = _generateMockResults(scenario);
 
-    setState(() {
-      _inferenceResults = results;
-      _statusMessage = '$scenario inference complete!';
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _inferenceResults = results;
+        _statusMessage = '$scenario complete';
+        _isLoading = false;
+      });
+    }
   }
 
   Map<String, dynamic> _generateMockResults(String scenario) {
@@ -166,144 +176,81 @@ class _OnnxDevPageState extends State<OnnxDevPage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.memory, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'ONNX Lab',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.orange.withOpacity(0.5)),
-              ),
-              child: const Text(
-                'DEV',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+    return Column(
+      children: [
+        // Custom Header for Lab
+        Container(
+          color: const Color(0xFF1E293B),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.science, color: Colors.purpleAccent, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Scenario Simulation',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    _buildStatusBadge(),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF3B82F6),
-          labelColor: Colors.white,
-          unselectedLabelColor: const Color(0xFF94A3B8),
-          tabs: const [
-            Tab(icon: Icon(Icons.thermostat), text: 'SST'),
-            Tab(icon: Icon(Icons.warning_amber), text: 'Anomaly'),
-            Tab(icon: Icon(Icons.water_drop), text: 'Salinity'),
-            Tab(icon: Icon(Icons.waves), text: 'Waves'),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Status Bar
-          _buildStatusBar(),
-          
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSSTTab(),
-                _buildAnomalyTab(),
-                _buildSalinityTab(),
-                _buildWaveTab(),
-              ],
-            ),
+              TabBar(
+                controller: _tabController,
+                indicatorColor: const Color(0xFF3B82F6),
+                labelColor: Colors.white,
+                unselectedLabelColor: const Color(0xFF94A3B8),
+                isScrollable: true,
+                tabs: const [
+                  Tab(icon: Icon(Icons.thermostat), text: 'SST'),
+                  Tab(icon: Icon(Icons.warning_amber), text: 'Anomaly'),
+                  Tab(icon: Icon(Icons.water_drop), text: 'Salinity'),
+                  Tab(icon: Icon(Icons.waves), text: 'Waves'),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        
+        // Tab Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildSSTTab(),
+              _buildAnomalyTab(),
+              _buildSalinityTab(),
+              _buildWaveTab(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildStatusBar() {
+  Widget _buildStatusBadge() {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF334155)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: _isInitialized ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isInitialized ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5),
         ),
       ),
-      child: Row(
-        children: [
-          // Status Indicator
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: _isLoading
-                  ? Colors.yellow
-                  : _isInitialized
-                      ? Colors.green
-                      : Colors.red,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _statusMessage,
-              style: const TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-              ),
-            ),
-          ),
-          if (_isLoading)
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(Color(0xFF3B82F6)),
-              ),
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: _initializeOnnx,
-              icon: const Icon(Icons.power_settings_new, size: 14),
-              label: Text(_isInitialized ? 'Reinitialize' : 'Initialize'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-        ],
+      child: Text(
+        _statusMessage,
+        style: TextStyle(
+          color: _isInitialized ? Colors.green : Colors.orange,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
