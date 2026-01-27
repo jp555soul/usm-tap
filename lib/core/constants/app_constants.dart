@@ -174,6 +174,17 @@ class AppConstants {
   static const int maxChatMessages = 100;
   static const Duration chatTypingDelay = Duration(milliseconds: 500);
   
+  // Chat API Authentication (required per docs/doc.md)
+  static const String bluemvmtTenantUuid = String.fromEnvironment(
+    'BLUEMVMT_TENANT_UUID',
+    defaultValue: '3a9c4e48-f978-444f-8340-08e51a9d5dbd',
+  );
+  
+  static const String bluemvmtUserUuid = String.fromEnvironment(
+    'BLUEMVMT_USER_UUID',
+    defaultValue: '565008cc-1bc7-43bb-9579-5cabfbfcfd8f',
+  );
+  
   // HoloOcean Defaults
   static const Map<String, double> defaultHoloOceanPOV = {
     'x': 0.0,

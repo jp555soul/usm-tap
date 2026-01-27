@@ -2,6 +2,8 @@
 import '../../services/ai_service.dart';
 
 /// Abstract class for remote AI service data source
+/// 
+/// Implements the Chat API as documented in docs/doc.md.
 abstract class AiServiceRemoteDataSource {
   Future<Map<String, dynamic>> getAIResponse({
     required String message,
@@ -11,16 +13,40 @@ abstract class AiServiceRemoteDataSource {
 
   Future<bool> testAPIConnection();
 
+  /// Sends a message to the Chat API.
+  /// 
+  /// Parameters:
+  /// - [message]: Required. The question or prompt to send to the AI.
+  /// - [llmModel]: Optional. LLM model to use: "blueai" (default) or "gemini-2.5-pro".
+  /// - [datasourceUuids]: Optional. List of datasource UUIDs to query against.
+  /// - [threadId]: Optional. Thread ID for conversation continuity.
+  /// - [additionalInstructions]: Optional. Extra instructions for the LLM.
   Future<dynamic> sendMessage({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   });
   
+  /// Sends a message and returns a streaming response.
   Stream<dynamic> sendMessageStream({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
+  });
+
+  /// Retrieves all messages from a conversation thread.
+  /// 
+  /// GET /chat/messages/{thread_id}
+  Future<Map<String, dynamic>> getThreadMessages({
+    required String threadId,
   });
 }
 
@@ -53,11 +79,19 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   @override
   Future<dynamic> sendMessage({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   }) async {
     final response = await _aiService.sendMessage(
       message: message,
+      llmModel: llmModel,
+      datasourceUuids: datasourceUuids,
+      threadId: threadId,
+      additionalInstructions: additionalInstructions,
       history: history,
       context: context,
     );
@@ -67,13 +101,28 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
   @override
   Stream<dynamic> sendMessageStream({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   }) {
     return _aiService.sendMessageStream(
       message: message,
+      llmModel: llmModel,
+      datasourceUuids: datasourceUuids,
+      threadId: threadId,
+      additionalInstructions: additionalInstructions,
       history: history,
       context: context,
     );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getThreadMessages({
+    required String threadId,
+  }) async {
+    return await _aiService.getThreadMessages(threadId: threadId);
   }
 }

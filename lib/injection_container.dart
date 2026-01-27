@@ -111,6 +111,8 @@ Future<void> init() async {
     () => AiService(
       dio: sl(),
       token: AppConstants.bearerToken,
+      tenantUuid: AppConstants.bluemvmtTenantUuid,
+      userUuid: AppConstants.bluemvmtUserUuid,
     ),
   );
 

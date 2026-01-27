@@ -2,15 +2,26 @@
 import 'package:dio/dio.dart';
 import '../../core/constants/app_constants.dart';
 
+/// Chat API service for interacting with the AI assistant.
+/// 
+/// Implements the Chat API as documented in docs/doc.md:
+/// - POST /chat - Send message to AI (streaming response)
+/// - GET /chat/messages/{thread_id} - Retrieve thread messages
 class AiService {
   final Dio _dio;
   final String baseUrl;
   final String? token;
+  
+  // Required authentication headers
+  final String tenantUuid;
+  final String userUuid;
 
   AiService({
     required Dio dio,
     String? baseUrl,
     this.token,
+    required this.tenantUuid,
+    required this.userUuid,
   })  : _dio = dio,
         baseUrl = baseUrl ?? AppConstants.baseUrl {
     _configureDio();
@@ -23,28 +34,46 @@ class AiService {
       receiveTimeout: const Duration(seconds: 600), // Match JS: 10 minutes
       headers: {
         'Content-Type': 'application/json',
+        // Required authentication headers per docs/doc.md
+        'x-bluemvmt-tenant-uuid': tenantUuid,
+        'x-bluemvmt-user-uuid': userUuid,
         if (token != null) 'Authorization': 'Bearer $token',
       },
     );
-
-
   }
 
+  /// Sends a message to the Chat API.
+  /// 
+  /// Parameters:
+  /// - [message]: Required. The question or prompt to send to the AI.
+  /// - [llmModel]: Optional. LLM model to use: "blueai" (default) or "gemini-2.5-pro".
+  /// - [datasourceUuids]: Optional. List of datasource UUIDs to query against.
+  /// - [threadId]: Optional. Thread ID for conversation continuity.
+  /// - [additionalInstructions]: Optional. Extra instructions for the LLM.
+  /// - [history]: Optional. Previous message history.
+  /// - [context]: Optional. Additional context for filters.
   Future<Map<String, dynamic>> sendMessage({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   }) async {
     try {
-      final filters = _buildFilters(context);
+      final requestBody = _buildRequestBody(
+        message: message,
+        llmModel: llmModel,
+        datasourceUuids: datasourceUuids,
+        threadId: threadId ?? context?['thread_id'],
+        additionalInstructions: additionalInstructions,
+        context: context,
+      );
 
       final response = await _dio.post(
-        '/chat/',
-        data: {
-          'input': message,
-          'filters': filters,
-          'thread_id': context?['thread_id'] ?? 'ocean_session_${DateTime.now().millisecondsSinceEpoch}',
-        },
+        '/chat',
+        data: requestBody,
       );
 
       return response.data as Map<String, dynamic>;
@@ -53,21 +82,32 @@ class AiService {
     }
   }
 
+  /// Sends a message to the Chat API and returns a streaming response.
+  /// 
+  /// The API returns a streaming response (text/event-stream) that delivers
+  /// the AI's response in real-time.
   Stream<String> sendMessageStream({
     required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
   }) async* {
     try {
-      final filters = _buildFilters(context);
+      final requestBody = _buildRequestBody(
+        message: message,
+        llmModel: llmModel,
+        datasourceUuids: datasourceUuids,
+        threadId: threadId ?? context?['thread_id'],
+        additionalInstructions: additionalInstructions,
+        context: context,
+      );
 
       final response = await _dio.post(
-        '/chat/stream',
-        data: {
-          'input': message,
-          'filters': filters,
-          'thread_id': context?['thread_id'] ?? 'ocean_session_${DateTime.now().millisecondsSinceEpoch}',
-        },
+        '/chat',
+        data: requestBody,
         options: Options(
           responseType: ResponseType.stream,
         ),
@@ -83,7 +123,54 @@ class AiService {
     }
   }
 
-  /// Builds filters matching the JavaScript implementation
+  /// Retrieves all messages from a conversation thread.
+  /// 
+  /// GET /chat/messages/{thread_id}
+  Future<Map<String, dynamic>> getThreadMessages({
+    required String threadId,
+  }) async {
+    try {
+      final response = await _dio.get('/chat/messages/$threadId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Builds the request body according to the Chat API specification.
+  Map<String, dynamic> _buildRequestBody({
+    required String message,
+    String? llmModel,
+    List<String>? datasourceUuids,
+    String? threadId,
+    String? additionalInstructions,
+    Map<String, dynamic>? context,
+  }) {
+    final body = <String, dynamic>{
+      'input': message,
+    };
+
+    // Add optional parameters only if provided
+    if (llmModel != null) {
+      body['llm_model'] = llmModel;
+    }
+
+    if (datasourceUuids != null && datasourceUuids.isNotEmpty) {
+      body['datasource_uuids'] = datasourceUuids;
+    }
+
+    if (threadId != null) {
+      body['thread_id'] = threadId;
+    }
+
+    if (additionalInstructions != null) {
+      body['additional_instructions'] = additionalInstructions;
+    }
+
+    return body;
+  }
+
+  /// Builds filters matching the JavaScript implementation (legacy support)
   Map<String, dynamic> _buildFilters(Map<String, dynamic>? context) {
     if (context == null) {
       return _getDefaultFilters();
