@@ -113,7 +113,7 @@ class AppConstants {
   // API Configuration
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'https://demo-chat.isdata.ai',
+    defaultValue: 'https://api-staging.isdata.ai/usmcom/data-proxy',
   );
   
   static const String bearerToken = String.fromEnvironment(
