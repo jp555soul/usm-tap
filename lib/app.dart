@@ -13,6 +13,7 @@ import 'presentation/blocs/chat/chat_bloc.dart';
 import 'presentation/blocs/animation/animation_bloc.dart' as anim;
 import 'presentation/blocs/time_management/time_management_bloc.dart' as time;
 import 'data/datasources/local/session_key_service.dart';
+import 'data/datasources/remote/ocean_data_remote_datasource.dart';
 import 'injection_container.dart' as di;
 
 // Widget imports
@@ -897,6 +898,18 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                     });
                                                   },
                                                   onSendMessage: (message) {
+                                                    // IMMEDIATELY add user message to display
+                                                    final userMessage = DataModels.ChatMessage(
+                                                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                                      content: message,
+                                                      isUser: true,
+                                                      timestamp: DateTime.now(),
+                                                      source: 'user',
+                                                    );
+                                                    context.read<OceanDataBloc>().add(
+                                                      AddChatMessageEvent(userMessage),
+                                                    );
+                                                    
                                                     // Build context data for the chat
                                                     final contextData = {
                                                       'currentData': oceanState.timeSeriesData.isNotEmpty 
@@ -911,6 +924,10 @@ class _OceanPlatformWidgetState extends State<OceanPlatformWidget> {
                                                       'startDate': oceanState.startDate?.toIso8601String(),
                                                       'endDate': oceanState.endDate?.toIso8601String(),
                                                       'mapLayerVisibility': oceanState.mapLayerVisibility,
+                                                      // FIX: Pass datasource_uuids to Chat API
+                                                      'datasource_uuids': [
+                                                        di.sl<OceanDataRemoteDataSource>().getDatasourceIdForArea(oceanState.selectedArea)
+                                                      ],
                                                     };
                                                     context.read<ChatBloc>().add(SendChatMessageEvent(
                                                       message: message,

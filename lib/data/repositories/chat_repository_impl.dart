@@ -34,9 +34,30 @@ class ChatRepositoryImpl implements ChatRepository {
 
       // Extract content from the nested response structure
       String content = '';
+      String? threadId;
       
-      // Try to extract from run_items structure first (new API format)
-      if (response.containsKey('run_items') && response['run_items'] is List) {
+      // New API format: {"type": "message", "content": [{"text": "..."}]}
+      if (response.containsKey('type') && response['type'] == 'message') {
+        if (response.containsKey('content') && response['content'] is List) {
+          final contentList = response['content'] as List;
+          // Concatenate all text content items
+          final textParts = <String>[];
+          for (final item in contentList) {
+            if (item is Map<String, dynamic> && item.containsKey('text')) {
+              textParts.add(item['text'] as String);
+            }
+          }
+          content = textParts.join('');
+        }
+      }
+      
+      // Extract thread_id if present (from thread_init or message)
+      if (response.containsKey('thread_id')) {
+        threadId = response['thread_id'] as String?;
+      }
+      
+      // Fallback: Try run_items structure (legacy format)
+      if (content.isEmpty && response.containsKey('run_items') && response['run_items'] is List) {
         final runItems = response['run_items'] as List;
         if (runItems.isNotEmpty) {
           final firstItem = runItems[0] as Map<String, dynamic>;

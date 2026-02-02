@@ -1,4 +1,5 @@
 // lib/data/services/ai_service.dart
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../core/constants/app_constants.dart';
 
@@ -52,6 +53,9 @@ class AiService {
   /// - [additionalInstructions]: Optional. Extra instructions for the LLM.
   /// - [history]: Optional. Previous message history.
   /// - [context]: Optional. Additional context for filters.
+  /// 
+  /// Note: The API returns SSE (text/event-stream) format, which we parse to extract
+  /// the message content.
   Future<Map<String, dynamic>> sendMessage({
     required String message,
     String? llmModel,
@@ -65,7 +69,7 @@ class AiService {
       final requestBody = _buildRequestBody(
         message: message,
         llmModel: llmModel,
-        datasourceUuids: datasourceUuids,
+        datasourceUuids: datasourceUuids ?? (context?['datasource_uuids'] as List?)?.cast<String>(),
         threadId: threadId ?? context?['thread_id'],
         additionalInstructions: additionalInstructions,
         context: context,
@@ -74,18 +78,73 @@ class AiService {
       final response = await _dio.post(
         '/chat',
         data: requestBody,
+        options: Options(
+          responseType: ResponseType.plain, // Get raw text for SSE parsing
+        ),
       );
 
-      return response.data as Map<String, dynamic>;
+      // Parse SSE response to extract message content
+      final responseText = response.data as String;
+      return _parseSSEResponse(responseText);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
+  /// Parses SSE response text and extracts the message data
+  Map<String, dynamic> _parseSSEResponse(String responseText) {
+    final lines = responseText.split('\n');
+    Map<String, dynamic>? threadInitData;
+    Map<String, dynamic>? messageData;
+    
+    for (final line in lines) {
+      final trimmedLine = line.trim();
+      if (trimmedLine.isEmpty) continue;
+      
+      // Handle optional 'data: ' prefix
+      String jsonStr = trimmedLine;
+      if (trimmedLine.startsWith('data: ')) {
+        jsonStr = trimmedLine.substring(6);
+      }
+      
+      try {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        
+        if (data['type'] == 'thread_init') {
+          threadInitData = data;
+        } else if (data['type'] == 'message') {
+          messageData = data;
+        }
+      } catch (_) {
+        // Skip lines that aren't valid JSON
+        continue;
+      }
+    }
+    
+    // Combine thread_id from thread_init with message data
+    if (messageData != null) {
+      if (threadInitData != null && threadInitData.containsKey('thread_id')) {
+        messageData['thread_id'] = threadInitData['thread_id'];
+      }
+      return messageData;
+    }
+    
+    // Fallback to thread_init data if no message found
+    if (threadInitData != null) {
+      return threadInitData;
+    }
+    
+    // Return empty if nothing found
+    return {'error': 'No valid response data found', 'raw': responseText};
+  }
+
+
   /// Sends a message to the Chat API and returns a streaming response.
   /// 
   /// The API returns a streaming response (text/event-stream) that delivers
-  /// the AI's response in real-time.
+  /// the AI's response in real-time. The response format is JSON lines like:
+  /// - `{"thread_id": "...", "type": "thread_init"}`
+  /// - `{"role": "assistant", "type": "message", "content": [{"text": "..."}]}`
   Stream<String> sendMessageStream({
     required String message,
     String? llmModel,
@@ -99,7 +158,7 @@ class AiService {
       final requestBody = _buildRequestBody(
         message: message,
         llmModel: llmModel,
-        datasourceUuids: datasourceUuids,
+        datasourceUuids: datasourceUuids ?? (context?['datasource_uuids'] as List?)?.cast<String>(),
         threadId: threadId ?? context?['thread_id'],
         additionalInstructions: additionalInstructions,
         context: context,
@@ -114,9 +173,46 @@ class AiService {
       );
 
       final stream = response.data.stream;
+      String buffer = '';
+      
       await for (final chunk in stream) {
         final decoded = String.fromCharCodes(chunk);
-        yield decoded;
+        buffer += decoded;
+        
+        // Process complete JSON lines (separated by newlines)
+        while (buffer.contains('\n')) {
+          final newlineIndex = buffer.indexOf('\n');
+          final line = buffer.substring(0, newlineIndex).trim();
+          buffer = buffer.substring(newlineIndex + 1);
+          
+          // Skip empty lines
+          if (line.isEmpty) continue;
+          
+          // Parse JSON line (handle optional 'data: ' prefix for SSE compatibility)
+          String jsonStr = line;
+          if (line.startsWith('data: ')) {
+            jsonStr = line.substring(6);
+          }
+          
+          try {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+            
+            // Handle message events - extract text content
+            if (data['type'] == 'message' && data['content'] is List) {
+              final contentList = data['content'] as List;
+              for (final item in contentList) {
+                if (item is Map<String, dynamic> && item.containsKey('text')) {
+                  yield item['text'] as String;
+                }
+              }
+            }
+            // For thread_init events, we skip them for text streaming
+            // but could emit metadata if needed in the future
+          } catch (_) {
+            // If JSON parsing fails, yield raw content as fallback
+            yield jsonStr;
+          }
+        }
       }
     } on DioException catch (e) {
       throw _handleError(e);
@@ -163,8 +259,15 @@ class AiService {
       body['thread_id'] = threadId;
     }
 
+    // Build filters from context (Control Panel settings)
+    final filters = _buildFilters(context);
+    body['filters'] = filters;
+
+    // Use provided additional instructions or extract system prompt from filters
     if (additionalInstructions != null) {
       body['additional_instructions'] = additionalInstructions;
+    } else if (filters.containsKey('system_prompt')) {
+      body['additional_instructions'] = filters['system_prompt'];
     }
 
     return body;
