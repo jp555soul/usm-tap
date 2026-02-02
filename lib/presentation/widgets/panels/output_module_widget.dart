@@ -139,39 +139,120 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
     });
   }
 
+  /// Returns filtered messages as query-response pairs.
+  /// Each AI response is paired with its preceding user query.
   List<ChatMessage> _getFilteredResponses() {
-    final aiResponses = widget.chatMessages.where((msg) => !msg.isUser).toList();
+    // Get all messages (both user queries and AI responses)
+    final allMessages = widget.chatMessages;
     
     switch (_responseFilter) {
       case 'api':
-        return aiResponses.where((msg) => msg.source == 'api').toList();
+        // For API filter, include user queries that precede API responses
+        return _getMessagesWithQueries(
+          allMessages.where((msg) => !msg.isUser && msg.source == 'api').toList(),
+          allMessages,
+        );
       case 'local':
-        return aiResponses.where((msg) => msg.source == 'local').toList();
+        return _getMessagesWithQueries(
+          allMessages.where((msg) => !msg.isUser && msg.source == 'local').toList(),
+          allMessages,
+        );
       case 'charts':
-        return aiResponses.where((msg) =>
-          msg.content.toLowerCase().contains('chart') ||
-          msg.content.toLowerCase().contains('trend') ||
-          msg.content.toLowerCase().contains('analysis')
-        ).toList();
+        return _getMessagesWithQueries(
+          allMessages.where((msg) =>
+            !msg.isUser && (
+              msg.content.toLowerCase().contains('chart') ||
+              msg.content.toLowerCase().contains('trend') ||
+              msg.content.toLowerCase().contains('analysis')
+            )
+          ).toList(),
+          allMessages,
+        );
       case 'tables':
-        return aiResponses.where((msg) =>
-          msg.content.toLowerCase().contains('data') ||
-          msg.content.toLowerCase().contains('measurement') ||
-          msg.content.toLowerCase().contains('temperature')
-        ).toList();
+        return _getMessagesWithQueries(
+          allMessages.where((msg) =>
+            !msg.isUser && (
+              msg.content.toLowerCase().contains('data') ||
+              msg.content.toLowerCase().contains('measurement') ||
+              msg.content.toLowerCase().contains('temperature')
+            )
+          ).toList(),
+          allMessages,
+        );
       case 'text':
-        return aiResponses.where((msg) =>
-          !msg.content.toLowerCase().contains('chart') &&
-          !msg.content.toLowerCase().contains('data') &&
-          !msg.content.toLowerCase().contains('trend')
-        ).toList();
+        return _getMessagesWithQueries(
+          allMessages.where((msg) =>
+            !msg.isUser && (
+              !msg.content.toLowerCase().contains('chart') &&
+              !msg.content.toLowerCase().contains('data') &&
+              !msg.content.toLowerCase().contains('trend')
+            )
+          ).toList(),
+          allMessages,
+        );
       default:
-        return aiResponses;
+        // 'all' filter - include all messages with their queries
+        return _getMessagesWithQueries(
+          allMessages.where((msg) => !msg.isUser).toList(),
+          allMessages,
+        );
     }
+  }
+
+  /// Pairs AI responses with their preceding user queries.
+  /// Returns a flat list with queries appearing before their responses.
+  /// Also includes the most recent user query even if no response yet.
+  List<ChatMessage> _getMessagesWithQueries(
+    List<ChatMessage> filteredResponses,
+    List<ChatMessage> allMessages,
+  ) {
+    final result = <ChatMessage>[];
+    final addedQueryIds = <String>{};
+    
+    for (final response in filteredResponses) {
+      // Find the index of this response in all messages
+      final responseIndex = allMessages.indexOf(response);
+      
+      // Look backwards to find the user query that triggered this response
+      if (responseIndex > 0) {
+        for (int i = responseIndex - 1; i >= 0; i--) {
+          final potentialQuery = allMessages[i];
+          if (potentialQuery.isUser && !addedQueryIds.contains(potentialQuery.id)) {
+            result.add(potentialQuery);
+            addedQueryIds.add(potentialQuery.id);
+            break;
+          }
+        }
+      }
+      
+      result.add(response);
+    }
+    
+    // Check if there's a pending user query at the end (no response yet)
+    // This ensures user queries show immediately when sent
+    if (allMessages.isNotEmpty) {
+      final lastMessage = allMessages.last;
+      if (lastMessage.isUser && !addedQueryIds.contains(lastMessage.id)) {
+        result.add(lastMessage);
+      }
+    }
+    
+    return result;
   }
 
   ResponseType _getResponseType(String content, String source) {
     final lowerContent = content.toLowerCase();
+    
+    // User query styling
+    if (source == 'user') {
+      return ResponseType(
+        type: 'query',
+        icon: Icons.person,
+        color: Colors.blue.shade400,
+        bgColor: Colors.blue.shade900.withOpacity(0.2),
+        borderColor: Colors.blue.shade500.withOpacity(0.3),
+      );
+    }
     
     if (source == 'api') {
       return ResponseType(
@@ -592,7 +673,9 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
                       }
 
                       final response = displayResponses[index];
-                      final responseType = _getResponseType(response.content, response.source);
+                      // Use 'user' source for user queries to get distinct styling
+                      final effectiveSource = response.isUser ? 'user' : response.source;
+                      final responseType = _getResponseType(response.content, effectiveSource);
                       final isExpanded = _expandedResponseId == response.id;
 
                       return _buildResponseItem(
@@ -810,7 +893,9 @@ class _OutputModuleWidgetState extends State<OutputModuleWidget> {
                       child: Text(
                         widget.isCollapsed
                             ? '#${index + 1}'
-                            : 'Response #${index + 1} • ${responseType.type[0].toUpperCase()}${responseType.type.substring(1)}',
+                            : response.isUser
+                                ? 'Query #${index + 1} • ${responseType.type[0].toUpperCase()}${responseType.type.substring(1)}'
+                                : 'Response #${index + 1} • ${responseType.type[0].toUpperCase()}${responseType.type.substring(1)}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,

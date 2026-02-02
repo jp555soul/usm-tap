@@ -69,7 +69,7 @@ class AiService {
       final requestBody = _buildRequestBody(
         message: message,
         llmModel: llmModel,
-        datasourceUuids: datasourceUuids,
+        datasourceUuids: datasourceUuids ?? (context?['datasource_uuids'] as List?)?.cast<String>(),
         threadId: threadId ?? context?['thread_id'],
         additionalInstructions: additionalInstructions,
         context: context,
@@ -158,7 +158,7 @@ class AiService {
       final requestBody = _buildRequestBody(
         message: message,
         llmModel: llmModel,
-        datasourceUuids: datasourceUuids,
+        datasourceUuids: datasourceUuids ?? (context?['datasource_uuids'] as List?)?.cast<String>(),
         threadId: threadId ?? context?['thread_id'],
         additionalInstructions: additionalInstructions,
         context: context,
@@ -259,8 +259,15 @@ class AiService {
       body['thread_id'] = threadId;
     }
 
+    // Build filters from context (Control Panel settings)
+    final filters = _buildFilters(context);
+    body['filters'] = filters;
+
+    // Use provided additional instructions or extract system prompt from filters
     if (additionalInstructions != null) {
       body['additional_instructions'] = additionalInstructions;
+    } else if (filters.containsKey('system_prompt')) {
+      body['additional_instructions'] = filters['system_prompt'];
     }
 
     return body;

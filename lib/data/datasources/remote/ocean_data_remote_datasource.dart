@@ -12,6 +12,9 @@ import 'package:usm_tap/core/utils/api_logger.dart';
 
 abstract class OceanDataRemoteDataSource {
   String getTableNameForArea(String areaName);
+  
+  /// Gets the datasource UUID for a specific area
+  String getDatasourceIdForArea(String areaName);
 
   Future<Map<String, dynamic>> loadAllData({
     String? area,
@@ -188,6 +191,15 @@ class OceanDataRemoteDataSourceImpl implements OceanDataRemoteDataSource {
     };
 
     return areaTableMap[areaName] ?? areaTableMap['USM']!;
+  }
+
+  /// Returns the datasource UUID for the given area name
+  @override
+  String getDatasourceIdForArea(String areaName) {
+    // These IDs are derived from the table names by converting underscores to hyphens
+    // Table: 8959e5fc_cec2_4206_8d23_68d215f77796 -> UUID: 8959e5fc-cec2-4206-8d23-68d215f77796
+    final tableName = getTableNameForArea(areaName);
+    return tableName.replaceAll('_', '-');
   }
 
 
