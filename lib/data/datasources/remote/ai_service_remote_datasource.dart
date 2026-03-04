@@ -32,6 +32,7 @@ abstract class AiServiceRemoteDataSource {
   });
   
   /// Sends a message and returns a streaming response.
+  /// [onThreadId] is called when the first SSE event contains thread_id (thread_init).
   Stream<dynamic> sendMessageStream({
     required String message,
     String? llmModel,
@@ -40,6 +41,7 @@ abstract class AiServiceRemoteDataSource {
     String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
+    void Function(String)? onThreadId,
   });
 
   /// Retrieves all messages from a conversation thread.
@@ -107,6 +109,7 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
     String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
+    void Function(String)? onThreadId,
   }) {
     return _aiService.sendMessageStream(
       message: message,
@@ -116,6 +119,7 @@ class AiServiceRemoteDataSourceImpl implements AiServiceRemoteDataSource {
       additionalInstructions: additionalInstructions,
       history: history,
       context: context,
+      onThreadId: onThreadId,
     );
   }
 

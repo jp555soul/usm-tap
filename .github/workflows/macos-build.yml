@@ -76,12 +76,19 @@ jobs:
       - name: Enable macOS desktop support
         run: flutter config --enable-macos-desktop
 
-      - name: Configure Podfile for x86_64
+      - name: Configure for x86_64 (Runner + Podfile)
         run: |
+          # Runner xcconfig: force x86_64 so main app target matches
+          sed -i '' 's/ARCHS = arm64/ARCHS = x86_64/g' macos/Runner/Configs/Debug.xcconfig
+          sed -i '' 's/ARCHS = arm64/ARCHS = x86_64/g' macos/Runner/Configs/Release.xcconfig
+          # Podfile post_install: set ARCHS to x86_64 for pods
           cd macos
           rm -f Podfile.lock
-          # Modify post_install to set ARCHS to x86_64
           sed -i '' "s/config.build_settings\['ARCHS'\] = 'arm64'/config.build_settings['ARCHS'] = 'x86_64'/g" Podfile
+
+      - name: Install CocoaPods for x86_64
+        run: |
+          cd macos
           pod repo update
           pod install --repo-update
 

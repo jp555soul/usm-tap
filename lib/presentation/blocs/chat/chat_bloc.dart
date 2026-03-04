@@ -131,6 +131,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final domain.ChatRepository _chatRepository;
 
   List<domain.ChatMessage> _currentMessages = [];
+  String? _currentThreadId;
   StreamSubscription? _streamSubscription;
 
   ChatBloc({
@@ -163,11 +164,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _currentMessages = [..._currentMessages, userMessage];
     emit(ChatMessageSending(_currentMessages));
 
+    final contextWithThread = Map<String, dynamic>.from(event.context ?? {});
+    if (_currentThreadId != null) {
+      contextWithThread['thread_id'] = _currentThreadId;
+    }
+
     final result = await _sendMessageUseCase(
       usecase.SendMessageParams(
         message: event.message,
         history: _currentMessages,
-        context: event.context,
+        context: contextWithThread,
       ),
     );
 
@@ -179,6 +185,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ));
       },
       (aiMessage) {
+        _currentThreadId = aiMessage.metadata?['thread_id'] as String? ?? _currentThreadId;
         _currentMessages = [..._currentMessages, aiMessage];
         emit(ChatLoaded(_currentMessages));
       },
@@ -200,12 +207,20 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _currentMessages = [..._currentMessages, userMessage];
     emit(ChatMessageSending(_currentMessages));
 
+    final contextWithThread = Map<String, dynamic>.from(event.context ?? {});
+    if (_currentThreadId != null) {
+      contextWithThread['thread_id'] = _currentThreadId;
+    }
+
     final result = await _sendMessageUseCase.callStream(
       usecase.SendMessageParams(
         message: event.message,
         history: _currentMessages,
-        context: event.context,
+        context: contextWithThread,
       ),
+      onThreadId: (threadId) {
+        _currentThreadId = threadId;
+      },
     );
 
     result.fold(
@@ -284,6 +299,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       },
       (_) {
         _currentMessages = [];
+        _currentThreadId = null;
         emit(const ChatLoaded([]));
       },
     );

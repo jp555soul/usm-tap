@@ -143,7 +143,7 @@ class AiService {
   /// 
   /// The API returns a streaming response (text/event-stream) that delivers
   /// the AI's response in real-time. The response format is JSON lines like:
-  /// - `{"thread_id": "...", "type": "thread_init"}`
+  /// - `{"thread_id": "...", "type": "thread_init"}` (first event; call [onThreadId] if provided)
   /// - `{"role": "assistant", "type": "message", "content": [{"text": "..."}]}`
   Stream<String> sendMessageStream({
     required String message,
@@ -153,6 +153,7 @@ class AiService {
     String? additionalInstructions,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? context,
+    void Function(String)? onThreadId,
   }) async* {
     try {
       final requestBody = _buildRequestBody(
@@ -197,6 +198,10 @@ class AiService {
           try {
             final data = jsonDecode(jsonStr) as Map<String, dynamic>;
             
+            // Capture thread_id from first thread_init for session continuity
+            if (data['type'] == 'thread_init' && data['thread_id'] != null) {
+              onThreadId?.call(data['thread_id'] as String);
+            }
             // Handle message events - extract text content
             if (data['type'] == 'message' && data['content'] is List) {
               final contentList = data['content'] as List;
@@ -206,8 +211,6 @@ class AiService {
                 }
               }
             }
-            // For thread_init events, we skip them for text streaming
-            // but could emit metadata if needed in the future
           } catch (_) {
             // If JSON parsing fails, yield raw content as fallback
             yield jsonStr;
@@ -234,6 +237,10 @@ class AiService {
   }
 
   /// Builds the request body according to the Chat API specification.
+  ///
+  /// Filters are embedded directly into the [input] prompt so the LLM receives
+  /// current filter state (date range, area, data source, etc.) on every request.
+  /// Do not send filters as a separate payload field.
   Map<String, dynamic> _buildRequestBody({
     required String message,
     String? llmModel,
@@ -242,8 +249,14 @@ class AiService {
     String? additionalInstructions,
     Map<String, dynamic>? context,
   }) {
+    // Build filters from context (Control Panel settings)
+    final filters = _buildFilters(context);
+
+    // Embed filters in the input prompt so the LLM always has current filter context
+    final inputWithFilters = 'Filters:\n${jsonEncode(filters)}\n\n$message';
+
     final body = <String, dynamic>{
-      'input': message,
+      'input': inputWithFilters,
     };
 
     // Add optional parameters only if provided
@@ -258,10 +271,6 @@ class AiService {
     if (threadId != null) {
       body['thread_id'] = threadId;
     }
-
-    // Build filters from context (Control Panel settings)
-    final filters = _buildFilters(context);
-    body['filters'] = filters;
 
     // Use provided additional instructions or extract system prompt from filters
     if (additionalInstructions != null) {
