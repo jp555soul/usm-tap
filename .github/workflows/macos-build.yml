@@ -86,11 +86,11 @@ jobs:
           rm -f Podfile.lock
           sed -i '' "s/config.build_settings\['ARCHS'\] = 'arm64'/config.build_settings['ARCHS'] = 'x86_64'/g" Podfile
 
-      - name: Install CocoaPods (x86_64 via Rosetta)
+      - name: Install CocoaPods for x86_64
         run: |
           cd macos
           pod repo update
-          arch -x86_64 pod install --repo-update
+          pod install --repo-update
 
       - name: Disable code signing in Xcode project
         run: |
@@ -103,7 +103,7 @@ jobs:
           CODE_SIGN_IDENTITY: ""
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
-        run: arch -x86_64 flutter build macos --release
+        run: flutter build macos --release
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
