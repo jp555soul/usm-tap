@@ -28,12 +28,14 @@ class SendMessageUseCase {
   }
 
   Future<Either<Failure, Stream<String>>> callStream(
-    SendMessageParams params,
-  ) async {
+    SendMessageParams params, {
+    void Function(String)? onThreadId,
+  }) async {
     return await repository.sendMessageStream(
       message: params.message,
       history: params.history,
       context: params.context,
+      onThreadId: onThreadId,
     );
   }
 }

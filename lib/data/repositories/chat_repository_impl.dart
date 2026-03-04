@@ -108,6 +108,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String message,
     List<ChatMessage>? history,
     Map<String, dynamic>? context,
+    void Function(String)? onThreadId,
   }) async {
     try {
       final stream = remoteDataSource.sendMessageStream(
@@ -118,6 +119,7 @@ class ChatRepositoryImpl implements ChatRepository {
           'timestamp': m.timestamp.toIso8601String(),
         }).toList(),
         context: context,
+        onThreadId: onThreadId,
       );
 
       return Right(stream.cast<String>());

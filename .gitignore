@@ -38,20 +38,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Exclude native desktop builds (too large, not needed for render.com)
-build/macos/
-build/windows/
-build/linux/
-build/ios/
-build/android/
-
-# Exclude Flutter build cache files
-build/*.dill
-build/**/*.dill
-build/**/*.stamp
-
-# Keep web build for render.com
-!build/web/
+# Exclude all build output
+build/
 
 # Apps
 *.dmg

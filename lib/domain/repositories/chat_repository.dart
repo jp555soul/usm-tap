@@ -28,6 +28,7 @@ abstract class ChatRepository {
     required String message,
     List<ChatMessage>? history,
     Map<String, dynamic>? context,
+    void Function(String)? onThreadId,
   });
 
   Future<Either<Failure, List<ChatMessage>>> getChatHistory({
